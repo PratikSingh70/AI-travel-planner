@@ -1,3 +1,4 @@
+// backend/services/geminiService.js
 import { GoogleGenAI } from "@google/genai";
 
 let ai = null;
@@ -13,83 +14,112 @@ const getAI = () => {
   return ai;
 };
 
-// Try generating up to N times with delay
+const MODELS = [
+  "gemini-flash-latest",
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+];
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 const generateWithRetry = async (prompt, maxAttempts = 3) => {
   const client = getAI();
-  let lastError;
+  let lastError = null;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const response = await client.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
-      });
-      return response.text;
-    } catch (err) {
-      lastError = err;
-      const msg = err?.message || "";
-      const isRetryable =
-        msg.includes("503") ||
-        msg.includes("UNAVAILABLE") ||
-        msg.includes("high demand") ||
-        msg.includes("overloaded");
+  for (const model of MODELS) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`Trying ${model} (attempt ${attempt}/${maxAttempts})...`);
+        const response = await client.models.generateContent({
+          model,
+          contents: prompt,
+          config: { responseMimeType: "application/json" },
+        });
+        console.log(`✓ SUCCESS: ${model}`);
+        return response.text;
+      } catch (err) {
+        lastError = err;
+        const status = err?.status;
+        const message = String(err?.message || "").toLowerCase();
 
-      if (!isRetryable || attempt === maxAttempts) {
-        throw err;
+        console.log(`✗ Error from ${model}:`, status, err?.message?.slice(0, 120));
+
+        const isNotFound =
+          status === 404 || message.includes("not found") || message.includes("not_found");
+        const isRateLimit =
+          status === 429 || message.includes("429") || message.includes("quota");
+        const isBusy =
+          status === 503 ||
+          message.includes("503") ||
+          message.includes("unavailable") ||
+          message.includes("high demand") ||
+          message.includes("overloaded");
+
+        if (isNotFound || isRateLimit) {
+          console.log(`${model} not available. Trying next model...`);
+          break;
+        }
+
+        if (isBusy) {
+          if (attempt < maxAttempts) {
+            const delay = Math.pow(2, attempt) * 1500 + Math.random() * 1000;
+            console.log(`${model} busy. Retrying in ${Math.round(delay)}ms...`);
+            await sleep(delay);
+            continue;
+          }
+          console.log(`${model} still busy. Trying next model...`);
+          break;
+        }
+
+        console.log(`Unexpected error from ${model}. Trying next model...`);
+        break;
       }
-
-      // wait 2s, then 4s, then 6s…
-      const delay = attempt * 2000;
-      console.log(
-        `Gemini busy (attempt ${attempt}/${maxAttempts}). Retrying in ${delay}ms...`
-      );
-      await new Promise((r) => setTimeout(r, delay));
     }
   }
-  throw lastError;
+
+  throw new Error(
+    `All Gemini models failed. Last error: ${lastError?.message || "Unknown"}`
+  );
 };
 
 export const generateItinerary = async (trip) => {
   const prompt = `You are an expert AI travel planner.
-Generate a detailed day-wise travel itinerary based on these details:
+Generate a complete travel plan based on these details:
 
 Destination: ${trip.destination}
 Start Date: ${trip.startDate.toISOString().split("T")[0]}
 End Date: ${trip.endDate.toISOString().split("T")[0]}
 Budget (INR): ${trip.budget}
 Number of Travellers: ${trip.travellers}
-Interests: ${trip.interests.length ? trip.interests.join(", ") : "general sightseeing"}
+Interests: ${trip.interests?.length ? trip.interests.join(", ") : "general sightseeing"}
 
-Requirements:
-- Plan one entry per day of the trip (inclusive of start and end date).
-- Suggest 3 to 5 activities per day.
-- Each activity must have a time (like "09:00 AM"), a title, a short description, a location, and an estimated cost in INR.
-- Keep total estimated cost within the budget.
-- Make it practical: account for travel time between places.
-- Base recommendations on the stated interests.
+REQUIREMENTS:
+1. Plan one entry per day of the trip, including start and end dates.
+2. Suggest 3 to 5 activities per day, each with time, title, description, location, and cost in INR.
+3. Suggest 3 to 5 realistic hotels near the destination with name, rating (1-5), price per night in INR, and short address.
+4. Provide a budget breakdown: flights, hotels, food, activities, total — all in INR.
+5. Keep total within the user's stated budget.
+6. Return ONLY valid JSON. No markdown. No explanations outside the JSON.
 
-Return ONLY valid JSON in this exact shape (no markdown, no comments):
+RETURN THIS EXACT STRUCTURE:
 {
   "destination": "string",
-  "summary": "short paragraph summarizing the trip",
+  "summary": "short paragraph",
   "days": [
     {
       "day": 1,
       "date": "YYYY-MM-DD",
       "activities": [
-        {
-          "time": "09:00 AM",
-          "title": "string",
-          "description": "string",
-          "location": "string",
-          "cost": 0
-        }
+        { "time": "09:00 AM", "title": "string", "description": "string", "location": "string", "cost": 0 }
       ]
     }
-  ]
+  ],
+  "hotels": [
+    { "name": "string", "rating": 4.5, "price": "₹3500/night", "address": "string" }
+  ],
+  "budgetBreakdown": { "flights": 0, "hotels": 0, "food": 0, "activities": 0, "total": 0 }
 }`;
 
   const text = await generateWithRetry(prompt);
@@ -98,11 +128,16 @@ Return ONLY valid JSON in this exact shape (no markdown, no comments):
   try {
     itinerary = JSON.parse(text);
   } catch (err) {
-    throw new Error("Gemini did not return valid JSON");
+    console.error("Invalid JSON from Gemini:", text?.slice(0, 300));
+    throw new Error("Gemini returned invalid JSON. Please try again.");
   }
 
-  if (!itinerary.days || !Array.isArray(itinerary.days)) {
-    throw new Error("Itinerary missing 'days' array");
+  if (!itinerary.destination) itinerary.destination = trip.destination;
+  if (!itinerary.summary) itinerary.summary = `Travel plan for ${trip.destination}`;
+  if (!Array.isArray(itinerary.days)) throw new Error("Itinerary missing 'days' array.");
+  if (!Array.isArray(itinerary.hotels)) itinerary.hotels = [];
+  if (!itinerary.budgetBreakdown) {
+    itinerary.budgetBreakdown = { flights: 0, hotels: 0, food: 0, activities: 0, total: 0 };
   }
 
   return itinerary;
