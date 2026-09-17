@@ -8,7 +8,8 @@ const Landing = () => {
     <div className="min-h-screen bg-white">
       {/* HERO */}
       <section className="bg-lime-light rounded-b-[3rem] pt-16 pb-32 px-6 overflow-hidden">
-        <div className="max-w-3xl mx-auto text-center">
+        <div className="max-w-4xl mx-auto text-center">
+          {/* Brand row */}
           <div className="inline-flex items-center gap-3 mb-10 animate-fade-in-up">
             <div className="w-14 h-14 rounded-full bg-lime flex items-center justify-center">
               <svg width="30" height="30" viewBox="0 0 24 24">
@@ -28,51 +29,56 @@ const Landing = () => {
             </span>
           </div>
 
-          <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight text-ink leading-[0.95] animate-fade-in-up delay-100">
-            Premium
+          {/* Headline */}
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-ink leading-[1.05] animate-fade-in-up delay-100">
+            Turn Your Dream Trips
             <br />
-            AI Trip Planner
-            <br />
-            App UI Kit
+            <span className="text-lime-dark">Into Reality</span>
           </h1>
 
-          <ul className="mt-12 flex flex-col items-center gap-4 text-lg md:text-xl text-ink font-medium">
+          {/* Sub-headline */}
+          <p className="mt-8 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-200">
+            Stop endlessly searching. Let AI craft your perfect itinerary so you
+            can explore more and stress less.
+          </p>
+
+          {/* CTA buttons */}
+          <div className="mt-10 flex justify-center gap-4 flex-wrap animate-fade-in-up delay-300">
+            <Link
+              to={user ? "/trips/new" : "/register"}
+              className="px-8 py-4 rounded-full bg-lime text-forest font-bold text-lg hover:bg-lime-dark btn-press transition shadow-lg"
+            >
+              {user ? "Plan a New Trip" : "Get Started Free"}
+            </Link>
+            {!user && (
+              <Link
+                to="/login"
+                className="px-8 py-4 rounded-full border-2 border-ink text-ink font-bold text-lg hover:bg-ink hover:text-white transition"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
+
+          {/* Feature Highlights */}
+          <ul className="mt-12 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 text-base md:text-lg text-ink font-medium">
             {[
-              "Easy to Customize",
-              "Design Guidelines",
-              "Organized layers & screens",
+              "Tailored to Your Vibe",
+              "Zero Planning Burnout",
+              "Endless New Discoveries",
             ].map((text, i) => (
               <li
                 key={i}
                 className="flex items-center gap-3 animate-fade-in-up"
-                style={{ animationDelay: `${(i + 2) * 0.1}s` }}
+                style={{ animationDelay: `${(i + 4) * 0.1}s` }}
               >
-                <span className="w-7 h-7 rounded-full bg-lime flex items-center justify-center text-forest text-sm font-bold">
+                <span className="w-7 h-7 rounded-full bg-lime flex items-center justify-center text-forest text-sm font-bold flex-shrink-0">
                   ✓
                 </span>
                 {text}
               </li>
             ))}
           </ul>
-
-          <div className="mt-12 flex justify-center items-center gap-4 flex-wrap animate-fade-in-up delay-500">
-            <div className="flex -space-x-3">
-              <div className="w-14 h-14 rounded-full bg-pink-500 border-4 border-lime-light flex items-center justify-center text-white font-bold">
-                F
-              </div>
-              <div className="w-14 h-14 rounded-full bg-red-500 border-4 border-lime-light flex items-center justify-center text-white font-bold">
-                P
-              </div>
-            </div>
-            <div className="px-8 py-4 rounded-full bg-forest text-white text-2xl font-bold">
-              50+{" "}
-              <span className="text-base font-medium ml-1">
-                High-quality
-                <br />
-                Screens
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Phone mockups */}
@@ -129,6 +135,7 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* CTA */}
       <section className="max-w-4xl mx-auto px-6 py-24 text-center">
         <h2 className="text-4xl md:text-5xl font-extrabold text-ink mb-6">
           Ready to plan your trip?
