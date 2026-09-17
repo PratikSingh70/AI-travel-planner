@@ -89,12 +89,13 @@ const CreateTrip = () => {
 
   return (
     <div className="min-h-screen bg-white py-12 px-6">
+      {/* Loading toast */}
       {loading && (
-        <div className="fixed bottom-6 right-6 bg-white border border-gray-200 rounded-2xl shadow-lg px-5 py-4 flex items-center gap-3 z-50 animate-fade-in-up">
+        <div className="fixed bottom-6 right-6 bg-white border border-gray-200 rounded-2xl shadow-lg px-5 py-4 flex items-center gap-3 z-[60] animate-fade-in-up">
           <span className="flex gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500 dot-bounce" />
-            <span className="w-2 h-2 rounded-full bg-blue-500 dot-bounce" />
-            <span className="w-2 h-2 rounded-full bg-blue-500 dot-bounce" />
+            <span className="w-2 h-2 rounded-full bg-lime dot-bounce" />
+            <span className="w-2 h-2 rounded-full bg-lime dot-bounce" />
+            <span className="w-2 h-2 rounded-full bg-lime dot-bounce" />
           </span>
           <span className="text-sm font-semibold text-ink">
             Please wait... We are working on it...
@@ -102,11 +103,11 @@ const CreateTrip = () => {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-ink animate-fade-in-up">
+      <div className="max-w-3xl mx-auto relative">
+        <h1 className="text-3xl md:text-4xl font-extrabold text-ink">
           Tell us your travel preferences 🏕️🌴
         </h1>
-        <p className="text-gray-500 mt-3 mb-12 max-w-xl animate-fade-in-up delay-100">
+        <p className="text-gray-500 mt-3 mb-12 max-w-xl">
           Just provide some basic information, and our trip planner will
           generate a customized itinerary based on your preferences.
         </p>
@@ -117,9 +118,15 @@ const CreateTrip = () => {
           </p>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-12">
-          {/* DESTINATION — highest z-index */}
-          <div ref={suggestionsRef} className="relative z-50 animate-fade-in-up">
+        <form onSubmit={handleSubmit} className="space-y-10">
+          {/* ─────────────────────────────────────────── */}
+          {/* DESTINATION — highest z-index so dropdown shows on top */}
+          {/* ─────────────────────────────────────────── */}
+          <div
+            ref={suggestionsRef}
+            className="relative"
+            style={{ zIndex: 30 }}
+          >
             <label className="block text-xl font-bold text-ink mb-4">
               What is destination of choice?
             </label>
@@ -134,7 +141,10 @@ const CreateTrip = () => {
               className="w-full border border-gray-200 rounded-lg px-4 py-3.5 text-ink placeholder-gray-400 focus:outline-none focus:border-ink transition bg-white"
             />
             {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl z-50 max-h-72 overflow-y-auto">
+              <div
+                className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-72 overflow-y-auto"
+                style={{ zIndex: 50 }}
+              >
                 {suggestions.map((s, i) => (
                   <button
                     key={i}
@@ -152,8 +162,10 @@ const CreateTrip = () => {
             )}
           </div>
 
-          {/* DAYS — low z-index */}
-          <div className="relative z-0 animate-fade-in-up">
+          {/* ─────────────────────────────────────────── */}
+          {/* DAYS */}
+          {/* ─────────────────────────────────────────── */}
+          <div className="relative" style={{ zIndex: 10 }}>
             <label className="block text-xl font-bold text-ink mb-4">
               How many days are you planning your trip?
             </label>
@@ -167,8 +179,10 @@ const CreateTrip = () => {
             />
           </div>
 
+          {/* ─────────────────────────────────────────── */}
           {/* BUDGET */}
-          <div className="relative z-0 animate-fade-in-up">
+          {/* ─────────────────────────────────────────── */}
+          <div className="relative" style={{ zIndex: 10 }}>
             <label className="block text-xl font-bold text-ink mb-4">
               What is Your Budget?
             </label>
@@ -192,8 +206,10 @@ const CreateTrip = () => {
             </div>
           </div>
 
+          {/* ─────────────────────────────────────────── */}
           {/* TRAVELERS */}
-          <div className="relative z-0 animate-fade-in-up">
+          {/* ─────────────────────────────────────────── */}
+          <div className="relative" style={{ zIndex: 10 }}>
             <label className="block text-xl font-bold text-ink mb-4">
               Who do you plan on traveling with on your next adventure?
             </label>
@@ -217,7 +233,10 @@ const CreateTrip = () => {
             </div>
           </div>
 
-          <div className="flex justify-end pt-4">
+          {/* ─────────────────────────────────────────── */}
+          {/* SUBMIT */}
+          {/* ─────────────────────────────────────────── */}
+          <div className="relative flex justify-end pt-4" style={{ zIndex: 5 }}>
             <button
               type="submit"
               disabled={loading}

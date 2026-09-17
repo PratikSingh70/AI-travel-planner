@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
 import TripMap from "../components/TripMap";
+import DeleteButton from "../components/DeleteButton";
 
 const Pill = ({ icon, children }) => (
   <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-ink">
@@ -349,17 +350,15 @@ const TripDetail = () => {
           </section>
         )}
 
+        {/* DELETE — animated button */}
         <div className="mt-16 pt-6 border-t border-gray-100 flex justify-end">
-          <button
+          <DeleteButton
+            label="Delete Trip"
             onClick={async () => {
-              if (!confirm("Delete this trip?")) return;
               await api.delete(`/trips/${id}`);
               navigate("/trips");
             }}
-            className="text-red-500 text-sm font-medium hover:text-red-700"
-          >
-            Delete Trip
-          </button>
+          />
         </div>
       </div>
     </div>
