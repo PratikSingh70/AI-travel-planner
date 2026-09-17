@@ -1,8 +1,8 @@
-import { getTouristPlaces } from "../services/placesService.js";
-import { getDestinationImage } from "../services/imageService.js";
-import { geocode, getWeather } from "../services/weatherService.js";
 import Trip from "../models/Trip.js";
 import { generateItinerary } from "../services/geminiService.js";
+import { geocode, getWeather } from "../services/weatherService.js";
+import { getDestinationImage, getPlaceImages } from "../services/imageService.js";
+import { getTouristPlaces } from "../services/placesService.js";
 
 // CREATE - POST /api/trips
 export const createTrip = async (req, res) => {
@@ -11,7 +11,9 @@ export const createTrip = async (req, res) => {
       req.body;
 
     if (!destination || !startDate || !endDate || !budget) {
-      return res.status(400).json({ message: "Please fill all required fields" });
+      return res
+        .status(400)
+        .json({ message: "Please fill all required fields" });
     }
 
     const trip = await Trip.create({
@@ -36,7 +38,16 @@ export const getTrips = async (req, res) => {
     const trips = await Trip.find({ user: req.user._id }).sort({
       createdAt: -1,
     });
-    res.json(trips);
+
+    // Attach a Pexels image to each trip (for the card)
+    const tripsWithImages = await Promise.all(
+      trips.map(async (t) => {
+        const image = await getDestinationImage(t.destination);
+        return { ...t.toObject(), image };
+      })
+    );
+
+    res.json(tripsWithImages);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -114,23 +125,60 @@ export const generateTripItinerary = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    // call Gemini
     const itinerary = await generateItinerary(trip);
 
-    // save to trip
     trip.itinerary = itinerary.days;
+    trip.hotels = itinerary.hotels || [];
+    trip.budgetBreakdown = itinerary.budgetBreakdown || {
+      flights: 0,
+      hotels: 0,
+      food: 0,
+      activities: 0,
+      total: 0,
+    };
+    await trip.save();
+
+    // Attach Pexels photos to hotels + activities
+    const hotelsWithImages = await Promise.all(
+      (trip.hotels || []).map(async (h) => {
+        const imgs = await getPlaceImages(h.name + " hotel", 1);
+        return { ...h, image: imgs[0] || null };
+      })
+    );
+
+    const itineraryWithImages = await Promise.all(
+      (trip.itinerary || []).map(async (day) => {
+        const acts = await Promise.all(
+          (day.activities || []).map(async (act) => {
+            const imgs = await getPlaceImages(act.title, 1);
+            return { ...act, image: imgs[0] || null };
+          })
+        );
+        return { ...day, activities: acts };
+      })
+    );
+
+    // Save enriched images back to trip (optional — for persistence)
+    trip.hotels = hotelsWithImages;
+    trip.itinerary = itineraryWithImages;
     await trip.save();
 
     res.json({
       message: "Itinerary generated",
       itinerary: trip.itinerary,
+      hotels: trip.hotels,
+      budgetBreakdown: trip.budgetBreakdown,
     });
-    } catch (error) {
+  } catch (error) {
     console.error("Gemini error:", error);
     const raw = error.message || "";
     let friendly = "AI generation failed. Please try again.";
 
-    if (raw.includes("503") || raw.includes("UNAVAILABLE") || raw.includes("high demand")) {
+    if (
+      raw.includes("503") ||
+      raw.includes("UNAVAILABLE") ||
+      raw.includes("high demand")
+    ) {
       friendly = "Gemini is busy right now. Please wait a moment and try again.";
     } else if (raw.includes("API key not valid")) {
       friendly = "Gemini API key is invalid. Check backend .env.";
@@ -143,7 +191,8 @@ export const generateTripItinerary = async (req, res) => {
     res.status(500).json({ message: friendly });
   }
 };
-// GET WEATHER FOR DESTINATION - GET /api/trips/:id/weather
+
+// GET WEATHER - GET /api/trips/:id/weather
 export const getTripWeather = async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
@@ -153,7 +202,6 @@ export const getTripWeather = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    // geocode destination (with a tiny cache in the trip doc, optional)
     const location = await geocode(trip.destination);
     const weather = await getWeather(location.lat, location.lng);
 
@@ -167,6 +215,7 @@ export const getTripWeather = async (req, res) => {
     res.status(500).json({ message: error.message || "Weather fetch failed" });
   }
 };
+
 // GET IMAGE - GET /api/trips/:id/image
 export const getTripImage = async (req, res) => {
   try {
@@ -182,6 +231,7 @@ export const getTripImage = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 // GET TOURIST PLACES - GET /api/trips/:id/places
 export const getTripPlaces = async (req, res) => {
   try {
@@ -191,13 +241,26 @@ export const getTripPlaces = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    // geocode destination using existing weatherService helper
     const location = await geocode(trip.destination);
     const places = await getTouristPlaces(location.lat, location.lng);
 
     res.json({ location, places });
   } catch (error) {
     console.error("Places error:", error);
-    res.status(500).json({ message: error.message || "Places fetch failed" });
+    res.json({ location: null, places: [] });
+  }
+};
+
+// PHOTO SEARCH - GET /api/trips/photo?q=... (utility endpoint)
+export const searchPhotos = async (req, res) => {
+  try {
+    const q = req.query.q;
+    if (!q) return res.json({ images: [] });
+
+    const count = parseInt(req.query.count) || 4;
+    const images = await getPlaceImages(q, count);
+    res.json({ images });
+  } catch (error) {
+    res.status(500).json({ images: [] });
   }
 };

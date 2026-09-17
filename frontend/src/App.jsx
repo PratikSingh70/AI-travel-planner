@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import Trips from "./pages/Trips";
 import CreateTrip from "./pages/CreateTrip";
 import TripDetail from "./pages/TripDetail";
+import Landing from "./pages/Landing";
 import { useAuth } from "./context/AuthContext";
 
 const PrivateRoute = ({ children }) => {
@@ -18,7 +19,7 @@ const App = () => {
     <>
       <Navbar />
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         <Route

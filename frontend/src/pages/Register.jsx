@@ -10,9 +10,8 @@ const Register = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,63 +27,69 @@ const Register = () => {
     }
   };
 
+  const inputClass =
+    "w-full border border-gray-200 rounded-lg px-4 py-3 text-ink placeholder-gray-400 focus:outline-none focus:border-ink transition";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-lg shadow-md w-full max-w-md"
-      >
-        <h2 className="text-2xl font-bold mb-6 text-center">Register</h2>
+    <div className="min-h-screen bg-white py-12 px-6 flex items-center justify-center">
+      <div className="max-w-md w-full animate-fade-in-up">
+        <h1 className="text-3xl font-extrabold text-ink text-center">
+          Create account
+        </h1>
+        <p className="text-gray-500 text-center mt-2 mb-8">
+          Start planning your trips with AI
+        </p>
 
         {error && (
-          <p className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
+          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mb-5 text-sm">
             {error}
           </p>
         )}
 
-        <input
-          name="name"
-          type="text"
-          placeholder="Name"
-          value={form.name}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-3"
-          required
-        />
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          value={form.email}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-3"
-          required
-        />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password (min 6 chars)"
-          value={form.password}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-          required
-        />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            name="name"
+            type="text"
+            placeholder="Full name"
+            value={form.name}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <input
+            name="email"
+            type="email"
+            placeholder="Email address"
+            value={form.email}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <input
+            name="password"
+            type="password"
+            placeholder="Password (min 6 characters)"
+            value={form.password}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 rounded-lg bg-lime text-forest font-bold hover:bg-lime-dark disabled:opacity-60 btn-press transition"
+          >
+            {loading ? "Please wait..." : "Create Account"}
+          </button>
+        </form>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-60"
-        >
-          {loading ? "Please wait..." : "Register"}
-        </button>
-
-        <p className="text-sm text-center mt-4">
+        <p className="text-sm text-center mt-6 text-gray-500">
           Already have an account?{" "}
-          <Link to="/login" className="text-blue-600 hover:underline">
-            Login
+          <Link to="/login" className="text-lime-dark font-bold hover:underline">
+            Sign in
           </Link>
         </p>
-      </form>
+      </div>
     </div>
   );
 };

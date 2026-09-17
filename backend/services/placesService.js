@@ -1,8 +1,25 @@
-// Find tourist attractions near a location using Overpass API (OpenStreetMap).
-// Free, no API key. Please don't spam it — 1-2 requests per user action.
+// backend/services/placesService.js
+// Finds tourist attractions near a location using Overpass API (OpenStreetMap).
+// Tries multiple mirrors, caches by location, and adds Pexels photos.
+
+import { getPlaceImages } from "./imageService.js";
+
+const cache = new Map(); // in-memory cache, keyed by rounded lat/lng
+
+const OVERPASS_MIRRORS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
 
 export const getTouristPlaces = async (lat, lng, radiusMeters = 15000) => {
-  // Overpass QL query: find tourism-related POIs within radius
+  const cacheKey = `${lat.toFixed(1)},${lng.toFixed(1)},${radiusMeters}`;
+
+  if (cache.has(cacheKey)) {
+    console.log("Places cache hit:", cacheKey);
+    return cache.get(cacheKey);
+  }
+
   const query = `
     [out:json][timeout:25];
     (
@@ -12,53 +29,67 @@ export const getTouristPlaces = async (lat, lng, radiusMeters = 15000) => {
     out center 30;
   `;
 
-  const url = "https://overpass-api.de/api/interpreter";
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "AI-Travel-Planner-MCA/1.0",
-    },
-    body: "data=" + encodeURIComponent(query),
-  });
+  let rawPlaces = [];
 
-  if (!res.ok) throw new Error("Tourist places fetch failed");
+  for (const mirror of OVERPASS_MIRRORS) {
+    try {
+      const res = await fetch(mirror, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "AI-Travel-Planner-MCA/1.0",
+        },
+        body: "data=" + encodeURIComponent(query),
+      });
 
-  const data = await res.json();
+      if (!res.ok) continue;
 
-  // Clean and format results
-  const places = (data.elements || [])
-    .map((el) => {
-      const lat = el.lat ?? el.center?.lat;
-      const lng = el.lon ?? el.center?.lon;
-      const name = el.tags?.name;
-      if (!name || !lat || !lng) return null;
+      const data = await res.json();
 
-      return {
-        id: el.id,
-        name,
-        lat,
-        lng,
-        type: el.tags?.tourism || "attraction",
-        description:
-          el.tags?.description ||
-          el.tags?.["description:en"] ||
-          el.tags?.wikipedia ||
-          "",
-        wikipedia: el.tags?.wikipedia || null,
-      };
-    })
-    .filter(Boolean);
+      rawPlaces = (data.elements || [])
+        .map((el) => {
+          const la = el.lat ?? el.center?.lat;
+          const lo = el.lon ?? el.center?.lon;
+          const name = el.tags?.name;
+          if (!name || !la || !lo) return null;
 
-  // Deduplicate by name
-  const seen = new Set();
-  const unique = [];
-  for (const p of places) {
-    if (!seen.has(p.name)) {
-      seen.add(p.name);
-      unique.push(p);
+          return {
+            id: el.id,
+            name,
+            lat: la,
+            lng: lo,
+            type: el.tags?.tourism || "attraction",
+            description: el.tags?.description || el.tags?.["description:en"] || "",
+            image: null, // will be filled below
+          };
+        })
+        .filter(Boolean);
+
+      break; // stop trying mirrors if this one worked
+    } catch (err) {
+      console.error(`Places mirror failed (${mirror}):`, err.message);
     }
   }
 
-  return unique.slice(0, 20); // max 20
+  // Dedupe by name, take first 12
+  const seen = new Set();
+  const unique = [];
+  for (const p of rawPlaces) {
+    if (!seen.has(p.name)) {
+      seen.add(p.name);
+      unique.push(p);
+      if (unique.length >= 12) break;
+    }
+  }
+
+  // Fetch a Pexels photo for each place (in parallel, but with limit)
+  const withImages = await Promise.all(
+    unique.map(async (p) => {
+      const imgs = await getPlaceImages(p.name, 1);
+      return { ...p, image: imgs[0] || null };
+    })
+  );
+
+  cache.set(cacheKey, withImages);
+  return withImages;
 };

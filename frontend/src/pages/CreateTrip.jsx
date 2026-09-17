@@ -1,194 +1,231 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
+const BUDGET_OPTIONS = [
+  { id: "cheap", icon: "💵", label: "Cheap", desc: "Stay conscious of costs", budget: 15000 },
+  { id: "moderate", icon: "💰", label: "Moderate", desc: "Keep cost on the average side", budget: 30000 },
+  { id: "luxury", icon: "💎", label: "Luxury", desc: "Don't worry about cost", budget: 80000 },
+];
+
+const TRAVELER_OPTIONS = [
+  { id: "solo", icon: "✈️", label: "Just Me", desc: "A sole traveler in exploration", count: 1 },
+  { id: "couple", icon: "🥂", label: "A Couple", desc: "Two travelers in tandem", count: 2 },
+  { id: "family", icon: "🏠", label: "Family", desc: "A group of fun-loving adventurers", count: 4 },
+  { id: "friends", icon: "⛵", label: "Friends", desc: "A bunch of thrill-seekers", count: 5 },
+];
+
 const CreateTrip = () => {
   const navigate = useNavigate();
-
-  const [form, setForm] = useState({
-    destination: "",
-    startDate: "",
-    endDate: "",
-    budget: "",
-    travellers: 1,
-    interests: [],
-  });
-  const [interestInput, setInterestInput] = useState("");
+  const [destination, setDestination] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [days, setDays] = useState("");
+  const [budget, setBudget] = useState("");
+  const [travelerType, setTravelerType] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const suggestionsRef = useRef(null);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const addInterest = () => {
-    const value = interestInput.trim();
-    if (value && !form.interests.includes(value)) {
-      setForm({ ...form, interests: [...form.interests, value] });
-      setInterestInput("");
+  useEffect(() => {
+    if (destination.length < 3) {
+      setSuggestions([]);
+      return;
     }
-  };
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(destination)}`,
+          { headers: { "User-Agent": "AI-Travel-Planner/1.0" } }
+        );
+        const data = await res.json();
+        setSuggestions(data.map((d) => ({ name: d.display_name })));
+      } catch {
+        setSuggestions([]);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [destination]);
 
-  const removeInterest = (tag) => {
-    setForm({
-      ...form,
-      interests: form.interests.filter((i) => i !== tag),
-    });
-  };
+  useEffect(() => {
+    const handler = (e) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (new Date(form.endDate) <= new Date(form.startDate)) {
-      return setError("End date must be after start date");
+    if (!destination || !days || !budget || !travelerType) {
+      return setError("Please fill all fields");
     }
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + Number(days));
+    const selectedBudget = BUDGET_OPTIONS.find((b) => b.id === budget);
+    const selectedTraveler = TRAVELER_OPTIONS.find((t) => t.id === travelerType);
 
-    setLoading(true);
     try {
-      const res = await api.post("/trips", form);
+      setLoading(true);
+      const res = await api.post("/trips", {
+        destination,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        budget: selectedBudget.budget,
+        travellers: selectedTraveler.count,
+        interests: [],
+      });
       navigate(`/trips/${res.data._id}`);
     } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong");
+      setError(err.response?.data?.message || "Could not create trip");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-6">Plan a New Trip</h1>
+    <div className="min-h-screen bg-white py-12 px-6">
+      {loading && (
+        <div className="fixed bottom-6 right-6 bg-white border border-gray-200 rounded-2xl shadow-lg px-5 py-4 flex items-center gap-3 z-50 animate-fade-in-up">
+          <span className="flex gap-1">
+            <span className="w-2 h-2 rounded-full bg-blue-500 dot-bounce" />
+            <span className="w-2 h-2 rounded-full bg-blue-500 dot-bounce" />
+            <span className="w-2 h-2 rounded-full bg-blue-500 dot-bounce" />
+          </span>
+          <span className="text-sm font-semibold text-ink">
+            Please wait... We are working on it...
+          </span>
+        </div>
+      )}
+
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-3xl md:text-4xl font-extrabold text-ink animate-fade-in-up">
+          Tell us your travel preferences 🏕️🌴
+        </h1>
+        <p className="text-gray-500 mt-3 mb-12 max-w-xl animate-fade-in-up delay-100">
+          Just provide some basic information, and our trip planner will
+          generate a customized itinerary based on your preferences.
+        </p>
 
         {error && (
-          <p className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
+          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mb-6 text-sm">
             {error}
           </p>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Destination *
+        <form onSubmit={handleSubmit} className="space-y-12">
+          {/* DESTINATION — highest z-index */}
+          <div ref={suggestionsRef} className="relative z-50 animate-fade-in-up">
+            <label className="block text-xl font-bold text-ink mb-4">
+              What is destination of choice?
             </label>
             <input
-              name="destination"
-              value={form.destination}
-              onChange={handleChange}
-              placeholder="e.g. Goa, Paris, Manali"
-              className="w-full border p-2 rounded"
-              required
+              value={destination}
+              onChange={(e) => {
+                setDestination(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              placeholder="Select..."
+              className="w-full border border-gray-200 rounded-lg px-4 py-3.5 text-ink placeholder-gray-400 focus:outline-none focus:border-ink transition bg-white"
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl z-50 max-h-72 overflow-y-auto">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setDestination(s.name);
+                      setShowSuggestions(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 text-ink"
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* DAYS — low z-index */}
+          <div className="relative z-0 animate-fade-in-up">
+            <label className="block text-xl font-bold text-ink mb-4">
+              How many days are you planning your trip?
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+              placeholder="Ex.3"
+              className="w-full border border-gray-200 rounded-lg px-4 py-3.5 text-ink placeholder-gray-400 focus:outline-none focus:border-ink transition bg-white"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Start Date *
-              </label>
-              <input
-                name="startDate"
-                type="date"
-                value={form.startDate}
-                onChange={handleChange}
-                className="w-full border p-2 rounded"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                End Date *
-              </label>
-              <input
-                name="endDate"
-                type="date"
-                value={form.endDate}
-                onChange={handleChange}
-                className="w-full border p-2 rounded"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Budget (INR) *
-              </label>
-              <input
-                name="budget"
-                type="number"
-                value={form.budget}
-                onChange={handleChange}
-                placeholder="25000"
-                className="w-full border p-2 rounded"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Travellers
-              </label>
-              <input
-                name="travellers"
-                type="number"
-                min="1"
-                value={form.travellers}
-                onChange={handleChange}
-                className="w-full border p-2 rounded"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Interests</label>
-            <div className="flex gap-2 mb-2">
-              <input
-                value={interestInput}
-                onChange={(e) => setInterestInput(e.target.value)}
-                placeholder="e.g. beach, food"
-                className="flex-1 border p-2 rounded"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addInterest();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={addInterest}
-                className="bg-gray-800 text-white px-4 rounded hover:bg-gray-700"
-              >
-                Add
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {form.interests.map((tag) => (
-                <span
-                  key={tag}
-                  className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2"
+          {/* BUDGET */}
+          <div className="relative z-0 animate-fade-in-up">
+            <label className="block text-xl font-bold text-ink mb-4">
+              What is Your Budget?
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {BUDGET_OPTIONS.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBudget(b.id)}
+                  className={`text-left p-5 rounded-xl border-2 transition ${
+                    budget === b.id
+                      ? "border-ink bg-gray-50"
+                      : "border-gray-200 hover:border-gray-400"
+                  }`}
                 >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeInterest(tag)}
-                    className="text-blue-800 font-bold"
-                  >
-                    ×
-                  </button>
-                </span>
+                  <div className="text-3xl mb-3">{b.icon}</div>
+                  <div className="font-bold text-ink text-lg">{b.label}</div>
+                  <div className="text-sm text-gray-500 mt-1">{b.desc}</div>
+                </button>
               ))}
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-60"
-          >
-            {loading ? "Creating..." : "Create Trip"}
-          </button>
+          {/* TRAVELERS */}
+          <div className="relative z-0 animate-fade-in-up">
+            <label className="block text-xl font-bold text-ink mb-4">
+              Who do you plan on traveling with on your next adventure?
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {TRAVELER_OPTIONS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTravelerType(t.id)}
+                  className={`text-left p-5 rounded-xl border-2 transition ${
+                    travelerType === t.id
+                      ? "border-ink bg-gray-50"
+                      : "border-gray-200 hover:border-gray-400"
+                  }`}
+                >
+                  <div className="text-3xl mb-3">{t.icon}</div>
+                  <div className="font-bold text-ink text-lg">{t.label}</div>
+                  <div className="text-sm text-gray-500 mt-1">{t.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-8 py-3.5 rounded-lg bg-ink text-white font-bold hover:bg-black disabled:opacity-60 btn-press transition"
+            >
+              {loading ? "Generating..." : "Generate Trip"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

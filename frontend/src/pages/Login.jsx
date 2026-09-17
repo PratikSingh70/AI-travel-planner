@@ -10,9 +10,8 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,54 +27,60 @@ const Login = () => {
     }
   };
 
+  const inputClass =
+    "w-full border border-gray-200 rounded-lg px-4 py-3 text-ink placeholder-gray-400 focus:outline-none focus:border-ink transition";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-lg shadow-md w-full max-w-md"
-      >
-        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
+    <div className="min-h-screen bg-white py-12 px-6 flex items-center justify-center">
+      <div className="max-w-md w-full animate-fade-in-up">
+        <h1 className="text-3xl font-extrabold text-ink text-center">
+          Welcome back
+        </h1>
+        <p className="text-gray-500 text-center mt-2 mb-8">
+          Sign in to continue
+        </p>
 
         {error && (
-          <p className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
+          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mb-5 text-sm">
             {error}
           </p>
         )}
 
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          value={form.email}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-3"
-          required
-        />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-          required
-        />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            name="email"
+            type="email"
+            placeholder="Email address"
+            value={form.email}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <input
+            name="password"
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 rounded-lg bg-ink text-white font-bold hover:bg-black disabled:opacity-60 btn-press transition"
+          >
+            {loading ? "Please wait..." : "Sign In"}
+          </button>
+        </form>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 disabled:opacity-60"
-        >
-          {loading ? "Please wait..." : "Login"}
-        </button>
-
-        <p className="text-sm text-center mt-4">
-          New user?{" "}
-          <Link to="/register" className="text-blue-600 hover:underline">
-            Register
+        <p className="text-sm text-center mt-6 text-gray-500">
+          New here?{" "}
+          <Link to="/register" className="text-lime-dark font-bold hover:underline">
+            Create an account
           </Link>
         </p>
-      </form>
+      </div>
     </div>
   );
 };

@@ -1,54 +1,163 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useState } from "react";
+
+const Logo = () => (
+  <div className="flex items-center gap-2.5">
+    <div className="w-9 h-9 rounded-full bg-lime flex items-center justify-center">
+      <svg width="20" height="20" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill="white" />
+        <path
+          d="M3 12c1.5-2 3-3 5-2s3.5 3 6 3 4-1 5-3"
+          stroke="#A8D84A"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+    <span className="text-xl font-bold text-ink tracking-tight">
+      AI Travel Planner
+    </span>
+  </div>
+);
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  const isActive = (p) => location.pathname === p;
+
+  const pill = (path) =>
+    `px-5 py-2 rounded-full border text-sm font-medium transition ${
+      isActive(path)
+        ? "border-ink bg-ink text-white"
+        : "border-gray-200 text-ink hover:border-ink"
+    }`;
+
   return (
-    <nav className="bg-blue-600 text-white px-6 py-3 flex justify-between items-center">
-      <Link to="/" className="text-xl font-bold">
-        AI Travel Planner
-      </Link>
-      <div className="flex gap-4 items-center">
-        {user ? (
-          <>
-            <Link to="/dashboard" className="hover:underline">
-              Dashboard
-            </Link>
-            <Link to="/trips" className="hover:underline">
-              My Trips
-            </Link>
-            <Link
-              to="/trips/new"
-              className="bg-white text-blue-600 px-3 py-1 rounded hover:bg-gray-100"
-            >
-              + New Trip
-            </Link>
-            <span>Hi, {user.name}</span>
-            <button
-              onClick={handleLogout}
-              className="bg-white text-blue-600 px-3 py-1 rounded hover:bg-gray-100"
-            >
-              Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <Link to="/login" className="hover:underline">
-              Login
-            </Link>
-            <Link to="/register" className="hover:underline">
-              Register
-            </Link>
-          </>
-        )}
+    <nav className="sticky top-0 z-50 bg-white">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <Link to="/">
+          <Logo />
+        </Link>
+
+        <div className="hidden md:flex items-center gap-3">
+          {user ? (
+            <>
+              <Link to="/trips/new" className={pill("/trips/new")}>
+                + Create Trip
+              </Link>
+              <Link to="/trips" className={pill("/trips")}>
+                My Trips
+              </Link>
+              <div className="w-10 h-10 rounded-full bg-lime flex items-center justify-center text-forest font-bold ml-1">
+                {user.name?.charAt(0).toUpperCase()}
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-gray-500 hover:text-ink"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="px-5 py-2 text-sm font-medium text-ink hover:text-lime-dark"
+              >
+                Login
+              </Link>
+              <Link
+                to="/register"
+                className="px-6 py-2.5 rounded-full bg-lime text-forest text-sm font-bold hover:bg-lime-dark btn-press transition"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
+        </div>
+
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="md:hidden text-ink p-2"
+          aria-label="Toggle menu"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {isOpen ? (
+              <>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </>
+            ) : (
+              <>
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </>
+            )}
+          </svg>
+        </button>
       </div>
+
+      {isOpen && (
+        <div className="md:hidden bg-white border-t border-gray-100 animate-fade-in-up">
+          <div className="flex flex-col p-4 gap-2">
+            {user ? (
+              <>
+                <Link
+                  to="/trips/new"
+                  onClick={() => setIsOpen(false)}
+                  className={pill("/trips/new")}
+                >
+                  + Create Trip
+                </Link>
+                <Link
+                  to="/trips"
+                  onClick={() => setIsOpen(false)}
+                  className={pill("/trips")}
+                >
+                  My Trips
+                </Link>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleLogout();
+                  }}
+                  className="px-5 py-2 rounded-full border border-gray-200 text-ink text-sm font-medium"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  onClick={() => setIsOpen(false)}
+                  className={pill("/login")}
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setIsOpen(false)}
+                  className="px-5 py-2.5 rounded-full bg-lime text-forest text-sm font-bold text-center"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

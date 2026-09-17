@@ -1,7 +1,25 @@
+# dependencies
 node_modules
+**/node_modules
+
+# env files
 .env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# builds
 dist
 build
 .vite
+**/dist
+**/build
+
+# logs
 *.log
+npm-debug.log*
+
+# OS
 .DS_Store
+Thumbs.db
