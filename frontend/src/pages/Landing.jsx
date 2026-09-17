@@ -134,19 +134,6 @@ const Landing = () => {
           </div>
         </div>
       </section>
-
-      {/* CTA */}
-      <section className="max-w-4xl mx-auto px-6 py-24 text-center">
-        <h2 className="text-4xl md:text-5xl font-extrabold text-ink mb-6">
-          Ready to plan your trip?
-        </h2>
-        <Link
-          to={user ? "/trips/new" : "/register"}
-          className="inline-block px-10 py-4 rounded-full bg-lime text-forest font-bold text-lg hover:bg-lime-dark btn-press transition"
-        >
-          {user ? "Create a Trip" : "Start Planning Free"}
-        </Link>
-      </section>
     </div>
   );
 };
