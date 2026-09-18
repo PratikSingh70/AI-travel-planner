@@ -28,7 +28,7 @@ const Login = () => {
   };
 
   const inputClass =
-    "w-full border border-gray-200 rounded-lg px-4 py-3 text-ink placeholder-gray-400 focus:outline-none focus:border-ink transition";
+    "w-full border border-gray-200 rounded-lg px-4 py-3 text-ink placeholder-gray-400 bg-white focus:outline-none focus:border-forest transition";
 
   return (
     <div className="min-h-screen bg-white py-12 px-6 flex items-center justify-center">
@@ -68,7 +68,7 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-lg bg-ink text-white font-bold hover:bg-black disabled:opacity-60 btn-press transition"
+            className="w-full py-3.5 rounded-lg bg-forest text-lime font-bold hover:bg-black disabled:opacity-60 btn-press transition"
           >
             {loading ? "Please wait..." : "Sign In"}
           </button>
@@ -76,7 +76,10 @@ const Login = () => {
 
         <p className="text-sm text-center mt-6 text-gray-500">
           New here?{" "}
-          <Link to="/register" className="text-lime-dark font-bold hover:underline">
+          <Link
+            to="/register"
+            className="text-lime-dark font-bold hover:underline"
+          >
             Create an account
           </Link>
         </p>

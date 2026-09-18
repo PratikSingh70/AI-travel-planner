@@ -39,11 +39,18 @@ const Navbar = () => {
     `px-5 py-2 rounded-full border text-sm font-medium transition ${
       isActive(path)
         ? "border-ink bg-ink text-white"
-        : "border-gray-200 text-ink hover:border-ink"
+        : "border-gray-200 text-ink hover:border-forest"
     }`;
 
+  const initials = (user?.name || "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <nav className="sticky top-0 z-50 bg-white">
+    <nav className="sticky top-0 z-50 bg-white border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
         <Link to="/">
           <Logo />
@@ -58,12 +65,20 @@ const Navbar = () => {
               <Link to="/trips" className={pill("/trips")}>
                 My Trips
               </Link>
-              <div className="w-10 h-10 rounded-full bg-lime flex items-center justify-center text-forest font-bold ml-1">
-                {user.name?.charAt(0).toUpperCase()}
-              </div>
+              <Link
+                to="/profile"
+                title="Your profile"
+                className={`w-10 h-10 rounded-full bg-lime flex items-center justify-center text-forest font-bold ml-1 transition ${
+                  isActive("/profile")
+                    ? "ring-2 ring-forest"
+                    : "hover:ring-2 hover:ring-forest"
+                }`}
+              >
+                {initials}
+              </Link>
               <button
                 onClick={handleLogout}
-                className="text-sm text-gray-500 hover:text-ink"
+                className="text-sm text-gray-500 hover:text-ink transition ml-1"
               >
                 Logout
               </button>
@@ -72,7 +87,7 @@ const Navbar = () => {
             <>
               <Link
                 to="/login"
-                className="px-5 py-2 text-sm font-medium text-ink hover:text-lime-dark"
+                className="px-5 py-2 text-sm font-medium text-ink hover:text-lime-dark transition"
               >
                 Login
               </Link>
@@ -113,37 +128,44 @@ const Navbar = () => {
           <div className="flex flex-col p-4 gap-2">
             {user ? (
               <>
+                <Link to="/dashboard" onClick={() => setIsOpen(false)} className={pill("/dashboard")}>
+                  Dashboard
+                </Link>
+                <Link to="/trips" onClick={() => setIsOpen(false)} className={pill("/trips")}>
+                  My Trips
+                </Link>
                 <Link
                   to="/trips/new"
                   onClick={() => setIsOpen(false)}
-                  className={pill("/trips/new")}
+                  className="px-5 py-2.5 rounded-full bg-lime text-forest text-sm font-bold text-center"
                 >
                   + Create Trip
                 </Link>
-                <Link
-                  to="/trips"
-                  onClick={() => setIsOpen(false)}
-                  className={pill("/trips")}
-                >
-                  My Trips
+                <Link to="/profile" onClick={() => setIsOpen(false)} className={pill("/profile")}>
+                  👤 My Profile
                 </Link>
+                <div className="flex items-center gap-3 px-3 pt-3 border-t border-gray-100 mt-2">
+                  <div className="w-10 h-10 rounded-full bg-lime flex items-center justify-center text-forest font-bold flex-shrink-0">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+                </div>
                 <button
                   onClick={() => {
                     setIsOpen(false);
                     handleLogout();
                   }}
-                  className="px-5 py-2 rounded-full border border-gray-200 text-ink text-sm font-medium"
+                  className="px-5 py-2 rounded-full border border-gray-200 text-ink text-sm font-medium mt-2"
                 >
                   Logout
                 </button>
               </>
             ) : (
               <>
-                <Link
-                  to="/login"
-                  onClick={() => setIsOpen(false)}
-                  className={pill("/login")}
-                >
+                <Link to="/login" onClick={() => setIsOpen(false)} className={pill("/login")}>
                   Login
                 </Link>
                 <Link

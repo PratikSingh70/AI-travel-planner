@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
 import api from "../api/axios";
+import Skeleton from "../components/Skeleton";
 import TripMap from "../components/TripMap";
 import DeleteButton from "../components/DeleteButton";
+import ExportPDFButton from "../components/ExportPDFButton";
+import ItineraryPaper from "../components/ItineraryPaper";
+import LiquidTripButton from "../components/LiquidTripButton";
 
 const Pill = ({ icon, children }) => (
   <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-ink">
@@ -13,9 +17,37 @@ const Pill = ({ icon, children }) => (
   </span>
 );
 
+const TripDetailSkeleton = () => (
+  <div className="min-h-screen bg-white pb-20">
+    <div className="max-w-6xl mx-auto px-6 pt-8">
+      <Skeleton variant="text" width={120} height={14} />
+      <div style={{ marginTop: 16 }}>
+        <Skeleton
+          variant="rectangular"
+          width="100%"
+          style={{ aspectRatio: "21 / 9" }}
+          rounded="24px"
+        />
+      </div>
+      <div style={{ marginTop: 32 }}>
+        <Skeleton variant="rectangular" width="55%" height={48} rounded="12px" />
+      </div>
+      <div className="flex flex-wrap gap-3 mt-5">
+        <Skeleton variant="rectangular" width={110} height={40} rounded="9999px" />
+        <Skeleton variant="rectangular" width={140} height={40} rounded="9999px" />
+        <Skeleton variant="rectangular" width={180} height={40} rounded="9999px" />
+      </div>
+      <div style={{ marginTop: 32 }}>
+        <Skeleton variant="rectangular" width={280} height={62} rounded="9999px" />
+      </div>
+    </div>
+  </div>
+);
+
 const TripDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +62,6 @@ const TripDetail = () => {
       try {
         const res = await api.get(`/trips/${id}`);
         setTrip(res.data);
-
         api
           .get(`/trips/${id}/places`)
           .then((r) => setPlaces(r.data.places || []))
@@ -52,6 +83,19 @@ const TripDetail = () => {
     fetchTrip();
   }, [id]);
 
+  // Auto-trigger generation when arriving from Edit Trip (?autoGen=1)
+  useEffect(() => {
+    if (!trip || generating) return;
+    if (searchParams.get("autoGen") !== "1") return;
+
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete("autoGen");
+    setSearchParams(newParams, { replace: true });
+
+    handleGenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip, searchParams]);
+
   const handleGenerate = async () => {
     setGenError("");
     setGenerating(true);
@@ -63,25 +107,28 @@ const TripDetail = () => {
         hotels: res.data.hotels || [],
         budgetBreakdown: res.data.budgetBreakdown,
       });
+
+      if (window.__liquidTripBtn?.setComplete) {
+        window.__liquidTripBtn.setComplete();
+      }
     } catch (err) {
       setGenError(err.response?.data?.message || "AI generation failed");
+      if (window.__liquidTripBtn?.reset) {
+        window.__liquidTripBtn.reset();
+      }
     } finally {
       setGenerating(false);
     }
   };
 
-  if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-ink border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+  if (loading) return <TripDetailSkeleton />;
   if (!trip) return null;
 
   const days = Math.max(
     1,
     Math.round(
-      (new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)
+      (new Date(trip.endDate) - new Date(trip.startDate)) /
+        (1000 * 60 * 60 * 24)
     )
   );
   const budgetLabel =
@@ -93,19 +140,6 @@ const TripDetail = () => {
 
   return (
     <div className="min-h-screen bg-white pb-20">
-      {generating && (
-        <div className="fixed bottom-6 right-6 bg-white border border-gray-200 rounded-2xl shadow-lg px-5 py-4 flex items-center gap-3 z-50 animate-fade-in-up">
-          <span className="flex gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500 dot-bounce" />
-            <span className="w-2 h-2 rounded-full bg-blue-500 dot-bounce" />
-            <span className="w-2 h-2 rounded-full bg-blue-500 dot-bounce" />
-          </span>
-          <span className="text-sm font-semibold text-ink">
-            Please wait... We are working on it...
-          </span>
-        </div>
-      )}
-
       <div className="max-w-6xl mx-auto px-6 pt-8">
         <Link
           to="/trips"
@@ -114,7 +148,7 @@ const TripDetail = () => {
           ← Back to trips
         </Link>
 
-        <div className="mt-4 rounded-3xl overflow-hidden aspect-[21/9] bg-gray-100 animate-fade-in">
+        <div className="mt-4 rounded-3xl overflow-hidden aspect-[21/9] bg-gray-100">
           <img
             src={heroImg}
             alt={trip.destination}
@@ -127,14 +161,16 @@ const TripDetail = () => {
           />
         </div>
 
-        <div className="mt-8 flex justify-between items-start gap-4 animate-fade-in-up">
+        <div className="mt-8">
           <h1 className="text-3xl md:text-5xl font-extrabold text-ink">
             {trip.destination}
           </h1>
         </div>
 
-        <div className="flex flex-wrap gap-3 mt-5 animate-fade-in-up delay-100">
-          <Pill icon="📅">{days} Day{days > 1 ? "s" : ""}</Pill>
+        <div className="flex flex-wrap gap-3 mt-5">
+          <Pill icon="📅">
+            {days} Day{days > 1 ? "s" : ""}
+          </Pill>
           <Pill icon="💰">{budgetLabel} Budget</Pill>
           <Pill icon="👥">No. Of Traveler: {trip.travellers}</Pill>
         </div>
@@ -145,23 +181,20 @@ const TripDetail = () => {
           </p>
         )}
 
-        <div className="mt-8 animate-fade-in-up">
-          <button
-            onClick={handleGenerate}
+        <div className="mt-8">
+          <LiquidTripButton
+            label={trip.itinerary?.length ? "Regenerate Trip" : "Generate Trip"}
+            loadingLabel="Curating Your Itinerary"
+            doneLabel="🎉 Itinerary Ready!"
             disabled={generating}
-            className="px-8 py-3.5 rounded-lg bg-ink text-white font-bold hover:bg-black disabled:opacity-60 btn-press transition"
-          >
-            {generating
-              ? "Generating..."
-              : trip.itinerary?.length
-              ? "Regenerate Trip"
-              : "Generate Trip"}
-          </button>
+            loading={generating}
+            onClick={handleGenerate}
+            autoCompleteAfter={0}
+          />
         </div>
 
-        {/* HOTELS */}
         {trip.hotels?.length > 0 && (
-          <section className="mt-16 animate-fade-in-up">
+          <section className="mt-16">
             <h2 className="text-2xl font-extrabold text-ink mb-6">
               Hotel Recommendation
             </h2>
@@ -173,11 +206,7 @@ const TripDetail = () => {
                     h.name
                   )}/400/300`;
                 return (
-                  <div
-                    key={i}
-                    className="animate-fade-in-up"
-                    style={{ animationDelay: `${i * 0.08}s` }}
-                  >
+                  <div key={i}>
                     <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-gray-100">
                       <img
                         src={imgUrl}
@@ -207,19 +236,16 @@ const TripDetail = () => {
           </section>
         )}
 
-        {/* PLACES TO VISIT */}
         {trip.itinerary?.length > 0 && (
-          <section className="mt-16 animate-fade-in-up">
+          <section className="mt-16">
             <h2 className="text-2xl font-extrabold text-ink mb-8">
               Places to Visit
             </h2>
-
             {trip.itinerary.map((day) => (
               <div key={day.day} className="mb-10">
                 <h3 className="text-xl font-extrabold text-ink mb-5">
                   Day {day.day}
                 </h3>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {day.activities.map((act, idx) => {
                     const imgUrl =
@@ -268,9 +294,8 @@ const TripDetail = () => {
           </section>
         )}
 
-        {/* TOURIST PLACES */}
         {places.length > 0 && (
-          <section className="mt-16 animate-fade-in-up">
+          <section className="mt-16">
             <h2 className="text-2xl font-extrabold text-ink mb-6">
               Famous Tourist Spots Nearby
             </h2>
@@ -282,11 +307,7 @@ const TripDetail = () => {
                     p.name
                   )}/400/300`;
                 return (
-                  <div
-                    key={p.id}
-                    className="animate-fade-in-up"
-                    style={{ animationDelay: `${i * 0.05}s` }}
-                  >
+                  <div key={p.id}>
                     <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-gray-100">
                       <img
                         src={imgUrl}
@@ -327,18 +348,17 @@ const TripDetail = () => {
           </section>
         )}
 
-        {/* WEATHER + MAP */}
-        {weather && (
-          <section className="mt-16 animate-fade-in-up">
+        {weather?.location && (
+          <section className="mt-16">
             <h2 className="text-2xl font-extrabold text-ink mb-6">
               Destination Map
             </h2>
             <div className="flex flex-wrap gap-3 mb-5">
               <Pill icon="🌤️">
-                {Math.round(weather.current.temperature_2m)}°C
+                {Math.round(weather.current?.temperature_2m ?? 0)}°C
               </Pill>
               <Pill icon="💨">
-                {weather.current.wind_speed_10m} km/h wind
+                {weather.current?.wind_speed_10m ?? 0} km/h wind
               </Pill>
             </div>
             <TripMap
@@ -350,8 +370,22 @@ const TripDetail = () => {
           </section>
         )}
 
-        {/* DELETE — animated button */}
-        <div className="mt-16 pt-6 border-t border-gray-100 flex justify-end">
+        <div className="mt-16 pt-6 border-t border-gray-100 flex flex-wrap gap-4 justify-between items-center">
+          <div className="flex flex-wrap gap-3 items-center">
+            <ExportPDFButton
+              targetId="itineraryPaper"
+              holderId="itnHolder"
+              filename={`${trip.destination.replace(/\s+/g, "-")}-itinerary.pdf`}
+            />
+
+            <Link
+              to={`/trips/${id}/edit`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 text-ink text-[13px] font-semibold hover:border-forest hover:text-forest transition"
+            >
+              ✏️ Edit Trip
+            </Link>
+          </div>
+
           <DeleteButton
             label="Delete Trip"
             onClick={async () => {
@@ -360,6 +394,10 @@ const TripDetail = () => {
             }}
           />
         </div>
+      </div>
+
+      <div id="itnHolder" className="itn-paper-holder">
+        <ItineraryPaper trip={trip} places={places} />
       </div>
     </div>
   );

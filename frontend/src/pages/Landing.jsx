@@ -6,10 +6,8 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* HERO */}
       <section className="bg-lime-light rounded-b-[3rem] pt-16 pb-32 px-6 overflow-hidden">
         <div className="max-w-4xl mx-auto text-center">
-          {/* Brand row */}
           <div className="inline-flex items-center gap-3 mb-10 animate-fade-in-up">
             <div className="w-14 h-14 rounded-full bg-lime flex items-center justify-center">
               <svg width="30" height="30" viewBox="0 0 24 24">
@@ -24,25 +22,22 @@ const Landing = () => {
               </svg>
             </div>
             <span className="text-2xl font-extrabold text-ink">Travely</span>
-            <span className="px-5 py-2 rounded-full bg-forest text-white text-sm font-semibold">
+            <span className="px-5 py-2 rounded-full bg-forest text-lime text-sm font-semibold">
               v1.0
             </span>
           </div>
 
-          {/* Headline */}
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-ink leading-[1.05] animate-fade-in-up delay-100">
             Turn Your Dream Trips
             <br />
             <span className="text-lime-dark">Into Reality</span>
           </h1>
 
-          {/* Sub-headline */}
           <p className="mt-8 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-200">
             Stop endlessly searching. Let AI craft your perfect itinerary so you
             can explore more and stress less.
           </p>
 
-          {/* CTA buttons */}
           <div className="mt-10 flex justify-center gap-4 flex-wrap animate-fade-in-up delay-300">
             <Link
               to={user ? "/trips/new" : "/register"}
@@ -53,14 +48,13 @@ const Landing = () => {
             {!user && (
               <Link
                 to="/login"
-                className="px-8 py-4 rounded-full border-2 border-ink text-ink font-bold text-lg hover:bg-ink hover:text-white transition"
+                className="px-8 py-4 rounded-full border-2 border-forest text-forest font-bold text-lg hover:bg-forest hover:text-lime transition"
               >
                 Sign In
               </Link>
             )}
           </div>
 
-          {/* Feature Highlights */}
           <ul className="mt-12 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 text-base md:text-lg text-ink font-medium">
             {[
               "Tailored to Your Vibe",
@@ -81,10 +75,9 @@ const Landing = () => {
           </ul>
         </div>
 
-        {/* Phone mockups */}
         <div className="mt-20 flex justify-center gap-6 animate-fade-in-up delay-500">
           <div className="hidden md:block w-64 rounded-[2.5rem] border-[10px] border-forest bg-white overflow-hidden shadow-2xl">
-            <div className="bg-forest text-white text-xs px-4 py-2 flex justify-between">
+            <div className="bg-forest text-lime text-xs px-4 py-2 flex justify-between">
               <span>19:27</span>
               <span>◉ ◉ ▮▮</span>
             </div>
@@ -98,21 +91,25 @@ const Landing = () => {
                 <span className="px-3 py-1 rounded-full bg-lime text-forest font-semibold">
                   Adventure
                 </span>
-                <span className="px-3 py-1 rounded-full bg-gray-100">Beach</span>
+                <span className="px-3 py-1 rounded-full bg-gray-100 text-ink">
+                  Beach
+                </span>
               </div>
-              <p className="text-xs font-bold mt-4 mb-2">Most Popular</p>
+              <p className="text-xs font-bold mt-4 mb-2 text-ink">Most Popular</p>
               <img
                 src="https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?w=400"
                 className="w-full h-32 object-cover rounded-xl"
                 alt="Venice"
               />
-              <p className="text-xs font-semibold mt-2">Venice Grand Canal</p>
+              <p className="text-xs font-semibold mt-2 text-ink">
+                Venice Grand Canal
+              </p>
               <p className="text-xs text-gray-400">From ₹1339/Person</p>
             </div>
           </div>
 
           <div className="w-64 rounded-[2.5rem] border-[10px] border-forest bg-white overflow-hidden shadow-2xl">
-            <div className="bg-forest text-white text-xs px-4 py-2 flex justify-between">
+            <div className="bg-forest text-lime text-xs px-4 py-2 flex justify-between">
               <span>19:27</span>
               <span>◉ ◉ ▮▮</span>
             </div>

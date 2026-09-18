@@ -6,6 +6,8 @@ import Dashboard from "./pages/Dashboard";
 import Trips from "./pages/Trips";
 import CreateTrip from "./pages/CreateTrip";
 import TripDetail from "./pages/TripDetail";
+import EditTrip from "./pages/EditTrip";
+import Profile from "./pages/Profile";
 import Landing from "./pages/Landing";
 import { useAuth } from "./context/AuthContext";
 
@@ -19,14 +21,25 @@ const App = () => {
     <>
       <Navbar />
       <Routes>
+        {/* Public routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+
+        {/* Protected routes */}
         <Route
           path="/dashboard"
           element={
             <PrivateRoute>
               <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <Profile />
             </PrivateRoute>
           }
         />
@@ -54,6 +67,17 @@ const App = () => {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/trips/:id/edit"
+          element={
+            <PrivateRoute>
+              <EditTrip />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>
   );

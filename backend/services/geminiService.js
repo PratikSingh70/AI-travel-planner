@@ -14,6 +14,7 @@ const getAI = () => {
   return ai;
 };
 
+// Try each model ONCE. Fail fast to Groq.
 const MODELS = [
   "gemini-flash-latest",
   "gemini-3.8-flash",
@@ -22,60 +23,37 @@ const MODELS = [
   "gemini-3.1-flash-lite",
 ];
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-const generateWithRetry = async (prompt, maxAttempts = 3) => {
+const generateWithRetry = async (prompt) => {
   const client = getAI();
   let lastError = null;
 
   for (const model of MODELS) {
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        console.log(`Trying ${model} (attempt ${attempt}/${maxAttempts})...`);
-        const response = await client.models.generateContent({
-          model,
-          contents: prompt,
-          config: { responseMimeType: "application/json" },
-        });
-        console.log(`✓ SUCCESS: ${model}`);
-        return response.text;
-      } catch (err) {
-        lastError = err;
-        const status = err?.status;
-        const message = String(err?.message || "").toLowerCase();
+    try {
+      console.log(`→ ${model}`);
+      const response = await client.models.generateContent({
+        model,
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      });
+      console.log(`✓ ${model} succeeded`);
+      return response.text;
+    } catch (err) {
+      lastError = err;
+      const status = err?.status;
+      const msg = String(err?.message || "").toLowerCase();
 
-        console.log(`✗ Error from ${model}:`, status, err?.message?.slice(0, 120));
+      const isNotFound = status === 404 || msg.includes("not found");
+      const isRateLimit = status === 429 || msg.includes("quota");
+      const isBusy = status === 503 || msg.includes("unavailable") || msg.includes("high demand");
 
-        const isNotFound =
-          status === 404 || message.includes("not found") || message.includes("not_found");
-        const isRateLimit =
-          status === 429 || message.includes("429") || message.includes("quota");
-        const isBusy =
-          status === 503 ||
-          message.includes("503") ||
-          message.includes("unavailable") ||
-          message.includes("high demand") ||
-          message.includes("overloaded");
-
-        if (isNotFound || isRateLimit) {
-          console.log(`${model} not available. Trying next model...`);
-          break;
-        }
-
-        if (isBusy) {
-          if (attempt < maxAttempts) {
-            const delay = Math.pow(2, attempt) * 1500 + Math.random() * 1000;
-            console.log(`${model} busy. Retrying in ${Math.round(delay)}ms...`);
-            await sleep(delay);
-            continue;
-          }
-          console.log(`${model} still busy. Trying next model...`);
-          break;
-        }
-
-        console.log(`Unexpected error from ${model}. Trying next model...`);
-        break;
+      if (isNotFound || isRateLimit) {
+        console.log(`  skipped (${isNotFound ? "404" : "429"})`);
+      } else if (isBusy) {
+        console.log(`  busy (503) — next model`);
+      } else {
+        console.log(`  failed: ${err?.message?.slice(0, 80)}`);
       }
+      // Move on immediately — no retries
     }
   }
 

@@ -28,7 +28,7 @@ const Register = () => {
   };
 
   const inputClass =
-    "w-full border border-gray-200 rounded-lg px-4 py-3 text-ink placeholder-gray-400 focus:outline-none focus:border-ink transition";
+    "w-full border border-gray-200 rounded-lg px-4 py-3 text-ink placeholder-gray-400 bg-white focus:outline-none focus:border-forest transition";
 
   return (
     <div className="min-h-screen bg-white py-12 px-6 flex items-center justify-center">
@@ -77,7 +77,7 @@ const Register = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-lg bg-lime text-forest font-bold hover:bg-lime-dark disabled:opacity-60 btn-press transition"
+            className="w-full py-3.5 rounded-lg bg-forest text-lime font-bold hover:bg-black disabled:opacity-60 btn-press transition"
           >
             {loading ? "Please wait..." : "Create Account"}
           </button>
