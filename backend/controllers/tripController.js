@@ -125,7 +125,6 @@ export const generateTripItinerary = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    // ---- Try Gemini first, fall back to Groq ----
     let itinerary;
     let provider = "gemini";
 
@@ -152,7 +151,6 @@ export const generateTripItinerary = async (req, res) => {
     };
     await trip.save();
 
-    // Attach Pexels photos to hotels and activities (parallel)
     const hotelsWithImages = await Promise.all(
       (trip.hotels || []).map(async (h) => {
         const imgs = await getPlaceImages(h.name + " hotel", 1);
@@ -218,14 +216,18 @@ export const getTripWeather = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const location = await geocode(trip.destination);
-    const weather = await getWeather(location.lat, location.lng);
-
-    res.json({
-      location,
-      current: weather.current,
-      daily: weather.daily,
-    });
+    try {
+      const location = await geocode(trip.destination);
+      const weather = await getWeather(location.lat, location.lng);
+      return res.json({
+        location,
+        current: weather.current,
+        daily: weather.daily,
+      });
+    } catch (innerErr) {
+      console.error("Weather inner error:", innerErr.message);
+      return res.json({ location: null, current: null, daily: null });
+    }
   } catch (error) {
     console.error("Weather error:", error);
     res.status(500).json({ message: error.message || "Weather fetch failed" });
@@ -278,5 +280,69 @@ export const searchPhotos = async (req, res) => {
     res.json({ images });
   } catch (error) {
     res.status(500).json({ images: [] });
+  }
+};
+
+// ─────────────────────────────────────────────
+// SHARE - POST /api/trips/:id/share  (protected)
+// Generates a random 8-char shareId if not already present
+// ─────────────────────────────────────────────
+export const shareTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
+    if (trip.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    // Generate a new shareId if missing
+    if (!trip.shareId) {
+      // 8-char random string using base36
+      const id = Math.random().toString(36).substring(2, 10);
+      trip.shareId = id;
+      await trip.save();
+    }
+
+    res.json({ shareId: trip.shareId });
+  } catch (error) {
+    console.error("Share error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// PUBLIC - GET /api/trips/shared/:shareId  (no auth)
+// Returns a shared trip. Hides the owner's private info.
+// ─────────────────────────────────────────────
+export const getSharedTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findOne({ shareId: req.params.shareId }).populate(
+      "user",
+      "name"
+    );
+
+    if (!trip) {
+      return res.status(404).json({ message: "Shared trip not found" });
+    }
+
+    // Return only safe fields (no email, no userId)
+    res.json({
+      _id: trip._id,
+      destination: trip.destination,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      budget: trip.budget,
+      travellers: trip.travellers,
+      interests: trip.interests,
+      itinerary: trip.itinerary,
+      hotels: trip.hotels,
+      budgetBreakdown: trip.budgetBreakdown,
+      sharedBy: trip.user?.name || "Someone",
+      createdAt: trip.createdAt,
+    });
+  } catch (error) {
+    console.error("Shared trip error:", error);
+    res.status(500).json({ message: error.message });
   }
 };

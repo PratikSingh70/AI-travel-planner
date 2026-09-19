@@ -1,136 +1,265 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import "./Landing.css";
 
 const Landing = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const handlePlanTrip = () => {
+    if (user) navigate("/trips/new");
+    else navigate("/register");
+  };
+
+  const initials = (user?.name || "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <div className="min-h-screen bg-white">
-      <section className="bg-lime-light rounded-b-[3rem] pt-16 pb-32 px-6 overflow-hidden">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-3 mb-10 animate-fade-in-up">
-            <div className="w-14 h-14 rounded-full bg-lime flex items-center justify-center">
-              <svg width="30" height="30" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" fill="white" />
-                <path
-                  d="M3 12c1.5-2 3-3 5-2s3.5 3 6 3 4-1 5-3"
-                  stroke="#A8D84A"
-                  strokeWidth="2.5"
-                  fill="none"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-            <span className="text-2xl font-extrabold text-ink">Travely</span>
-            <span className="px-5 py-2 rounded-full bg-forest text-lime text-sm font-semibold">
-              v1.0
+    <div className="lp-root">
+      {/* ───── Background scene ───── */}
+      <div className="lp-bg-scene" aria-hidden="true">
+        <svg
+          className="lp-landscape"
+          viewBox="0 0 1440 620"
+          preserveAspectRatio="xMidYMax slice"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="lpHillFar" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#dbe8a2" stopOpacity=".75" />
+              <stop offset="100%" stopColor="#dbe8a2" stopOpacity=".28" />
+            </linearGradient>
+            <linearGradient id="lpHillNear" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#cfe08c" stopOpacity=".68" />
+              <stop offset="100%" stopColor="#cfe08c" stopOpacity=".22" />
+            </linearGradient>
+            <linearGradient id="lpPathG" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#eef5cf" stopOpacity=".9" />
+              <stop offset="100%" stopColor="#eef5cf" stopOpacity=".35" />
+            </linearGradient>
+          </defs>
+
+          <path
+            d="M0 430 Q 180 310 360 385 T 720 355 T 1080 395 T 1440 345 L1440 620 L0 620 Z"
+            fill="url(#lpHillFar)"
+          />
+
+          <path
+            d="M700 620 C 660 540, 765 500, 722 440 C 692 390, 762 360, 730 318"
+            fill="none"
+            stroke="url(#lpPathG)"
+            strokeWidth="44"
+            strokeLinecap="round"
+            opacity=".55"
+          />
+
+          <path
+            d="M0 505 Q 220 405 440 472 T 880 452 T 1440 482 L1440 620 L0 620 Z"
+            fill="url(#lpHillNear)"
+          />
+
+          {/* Palm tree #1 — left */}
+          <g opacity=".5" fill="#adc766">
+            <path d="M100 575 C 108 500, 135 435, 168 382 L 180 375 C 150 435, 128 500, 135 575 Z" />
+            <path d="M174 378 C 160 340, 135 315, 100 305 C 130 325, 155 355, 172 385 Z" />
+            <path d="M174 378 C 178 335, 185 305, 198 275 C 190 310, 182 345, 178 380 Z" />
+            <path d="M174 378 C 200 345, 232 325, 268 320 C 235 340, 200 360, 178 382 Z" />
+            <path d="M174 378 C 215 380, 258 395, 295 425 C 255 405, 212 388, 176 383 Z" />
+            <path d="M174 378 C 200 405, 225 440, 240 485 C 220 445, 198 408, 176 383 Z" />
+            <path d="M174 378 C 148 408, 122 445, 105 490 C 125 450, 150 412, 172 383 Z" />
+            <path d="M174 378 C 135 385, 95 400, 60 425 C 98 408, 140 393, 172 383 Z" />
+            <circle cx="172" cy="385" r="5" />
+            <circle cx="180" cy="382" r="4.5" />
+            <circle cx="176" cy="391" r="4" />
+          </g>
+
+          {/* Palm tree #2 — right */}
+          <g opacity=".5" fill="#adc766">
+            <path d="M1275 575 C 1280 510, 1288 450, 1290 405 L 1305 400 C 1305 450, 1302 510, 1308 575 Z" />
+            <path d="M1297 402 C 1270 375, 1240 360, 1205 358 C 1235 370, 1265 385, 1295 405 Z" />
+            <path d="M1297 402 C 1290 365, 1285 335, 1290 305 C 1300 340, 1302 370, 1300 405 Z" />
+            <path d="M1297 402 C 1325 375, 1355 360, 1390 358 C 1360 370, 1330 385, 1300 405 Z" />
+            <path d="M1297 402 C 1335 400, 1375 408, 1410 430 C 1370 418, 1332 408, 1300 405 Z" />
+            <path d="M1297 402 C 1258 400, 1220 408, 1185 430 C 1225 418, 1262 408, 1294 405 Z" />
+            <path d="M1297 402 C 1325 425, 1345 455, 1355 490 C 1338 458, 1318 430, 1300 405 Z" />
+            <path d="M1297 402 C 1270 425, 1250 455, 1240 490 C 1258 458, 1278 430, 1295 405 Z" />
+          </g>
+
+          {/* Bushes */}
+          <g opacity=".38" fill="#c6d98b">
+            <ellipse cx="360" cy="562" rx="72" ry="30" />
+            <ellipse cx="1080" cy="576" rx="92" ry="34" />
+            <ellipse cx="620" cy="592" rx="60" ry="24" />
+          </g>
+        </svg>
+
+        {/* Floating icons */}
+        <span className="lp-floater p1">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+          </svg>
+        </span>
+        <span className="lp-floater p2">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+          </svg>
+        </span>
+        <span className="lp-floater p3">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+          </svg>
+        </span>
+        <span className="lp-floater p4">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+          </svg>
+        </span>
+        <span className="lp-floater p5">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+          </svg>
+        </span>
+        <span className="lp-floater p6">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 3C9 3 4 8 4 16c0 1.5.3 3 .8 4.2l1.6-.7C6.1 18.5 6 17.3 6 16c0-6 4-10 11-10h2V3h-2z" />
+            <path d="M20 3v2c0 8-5 13-13 13H5l1 2h1c9 0 15-6 15-15V3h-2z" opacity=".5" />
+          </svg>
+        </span>
+      </div>
+
+      {/* ───── Topbar ───── */}
+      <header className="lp-topbar">
+        <div className="lp-topbar-inner">
+          <Link to="/" className="lp-brand" aria-label="AI travel planner home">
+            <span className="lp-brand-name">
+              AI Travel <span className="lp-brand-accent">Planner</span>
             </span>
-          </div>
+          </Link>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-ink leading-[1.05] animate-fade-in-up delay-100">
-            Turn Your Dream Trips
-            <br />
-            <span className="text-lime-dark">Into Reality</span>
-          </h1>
+          <nav className="lp-mainnav" aria-label="Primary">
+            <Link to="/" className="lp-active">Home</Link>
+            <Link to="/trips/new">Destinations</Link>
+            <Link to="/weather-itinerary">Weather</Link>
+            <Link to="/trips">My Trips</Link>
+          </nav>
 
-          <p className="mt-8 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-200">
-            Stop endlessly searching. Let AI craft your perfect itinerary so you
-            can explore more and stress less.
-          </p>
-
-          <div className="mt-10 flex justify-center gap-4 flex-wrap animate-fade-in-up delay-300">
-            <Link
-              to={user ? "/trips/new" : "/register"}
-              className="px-8 py-4 rounded-full bg-lime text-forest font-bold text-lg hover:bg-lime-dark btn-press transition shadow-lg"
-            >
-              {user ? "Plan a New Trip" : "Get Started Free"}
-            </Link>
-            {!user && (
-              <Link
-                to="/login"
-                className="px-8 py-4 rounded-full border-2 border-forest text-forest font-bold text-lg hover:bg-forest hover:text-lime transition"
-              >
-                Sign In
-              </Link>
+          <div className="lp-user">
+            {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  className="lp-avatar"
+                  title={user.name}
+                  aria-hidden="true"
+                >
+                  {initials}
+                </Link>
+                <button
+                  className="lp-btn-logout"
+                  type="button"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
+                <button
+                  className="lp-btn-more"
+                  type="button"
+                  aria-label="More options"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.8" />
+                    <circle cx="12" cy="12" r="1.8" />
+                    <circle cx="12" cy="19" r="1.8" />
+                  </svg>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="lp-auth-login">
+                  Login
+                </Link>
+                <Link to="/register" className="lp-auth-cta">
+                  Get Started
+                </Link>
+              </>
             )}
           </div>
+        </div>
+      </header>
 
-          <ul className="mt-12 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 text-base md:text-lg text-ink font-medium">
-            {[
-              "Tailored to Your Vibe",
-              "Zero Planning Burnout",
-              "Endless New Discoveries",
-            ].map((text, i) => (
-              <li
-                key={i}
-                className="flex items-center gap-3 animate-fade-in-up"
-                style={{ animationDelay: `${(i + 4) * 0.1}s` }}
+      {/* ───── Main ───── */}
+      <main className="lp-main">
+        <h1 className="lp-headline">
+          Turn Your Dream Trips
+          <span className="lp-hl">Into Reality</span>
+        </h1>
+
+        <p className="lp-sub">
+          Stop endlessly searching. Let AI craft your perfect itinerary so you
+          can explore more and stress less.
+        </p>
+
+        <button className="lp-cta" type="button" onClick={handlePlanTrip}>
+          Plan a New Trip
+        </button>
+
+        <ul className="lp-features">
+          <li>
+            <span className="lp-check" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#12200a"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                <span className="w-7 h-7 rounded-full bg-lime flex items-center justify-center text-forest text-sm font-bold flex-shrink-0">
-                  ✓
-                </span>
-                {text}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="mt-20 flex justify-center gap-6 animate-fade-in-up delay-500">
-          <div className="hidden md:block w-64 rounded-[2.5rem] border-[10px] border-forest bg-white overflow-hidden shadow-2xl">
-            <div className="bg-forest text-lime text-xs px-4 py-2 flex justify-between">
-              <span>19:27</span>
-              <span>◉ ◉ ▮▮</span>
-            </div>
-            <div className="p-4">
-              <p className="text-xs text-gray-400">Hi, Jonathan</p>
-              <p className="text-sm font-bold text-ink">📍 Chennai, New York</p>
-              <div className="mt-3 bg-gray-100 rounded-full px-3 py-2 text-xs text-gray-500">
-                Search...
-              </div>
-              <div className="flex gap-2 mt-3 text-xs">
-                <span className="px-3 py-1 rounded-full bg-lime text-forest font-semibold">
-                  Adventure
-                </span>
-                <span className="px-3 py-1 rounded-full bg-gray-100 text-ink">
-                  Beach
-                </span>
-              </div>
-              <p className="text-xs font-bold mt-4 mb-2 text-ink">Most Popular</p>
-              <img
-                src="https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?w=400"
-                className="w-full h-32 object-cover rounded-xl"
-                alt="Venice"
-              />
-              <p className="text-xs font-semibold mt-2 text-ink">
-                Venice Grand Canal
-              </p>
-              <p className="text-xs text-gray-400">From ₹1339/Person</p>
-            </div>
-          </div>
-
-          <div className="w-64 rounded-[2.5rem] border-[10px] border-forest bg-white overflow-hidden shadow-2xl">
-            <div className="bg-forest text-lime text-xs px-4 py-2 flex justify-between">
-              <span>19:27</span>
-              <span>◉ ◉ ▮▮</span>
-            </div>
-            <div className="p-4">
-              <p className="text-xs text-gray-400">Sign In</p>
-              <p className="text-sm font-bold text-ink mt-1 mb-3">
-                Welcome back
-              </p>
-              <div className="bg-gray-100 rounded-lg px-3 py-2 text-xs text-gray-500 mb-2">
-                Email address
-              </div>
-              <div className="bg-gray-100 rounded-lg px-3 py-2 text-xs text-gray-500 mb-3">
-                Password
-              </div>
-              <button className="w-full bg-lime text-forest text-xs font-bold py-2 rounded-lg">
-                Sign In
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </span>
+            Tailored to Your Vibe
+          </li>
+          <li>
+            <span className="lp-check" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#12200a"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </span>
+            Zero Planning Burnout
+          </li>
+          <li>
+            <span className="lp-check" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#12200a"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </span>
+            Endless New Discoveries
+          </li>
+        </ul>
+      </main>
     </div>
   );
 };

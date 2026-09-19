@@ -6,7 +6,7 @@ import TripMap from "../components/TripMap";
 import DeleteButton from "../components/DeleteButton";
 import ExportPDFButton from "../components/ExportPDFButton";
 import ItineraryPaper from "../components/ItineraryPaper";
-import LiquidTripButton from "../components/LiquidTripButton";
+import SkyFlightButton from "../components/SkyFlightButton";
 
 const Pill = ({ icon, children }) => (
   <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-ink">
@@ -38,7 +38,7 @@ const TripDetailSkeleton = () => (
         <Skeleton variant="rectangular" width={180} height={40} rounded="9999px" />
       </div>
       <div style={{ marginTop: 32 }}>
-        <Skeleton variant="rectangular" width={280} height={62} rounded="9999px" />
+        <Skeleton variant="rectangular" width={280} height={54} rounded="9999px" />
       </div>
     </div>
   </div>
@@ -56,6 +56,11 @@ const TripDetail = () => {
   const [weather, setWeather] = useState(null);
   const [places, setPlaces] = useState([]);
   const [coverImage, setCoverImage] = useState(null);
+
+  // ─── SHARE state ───
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareLoading, setShareLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchTrip = async () => {
@@ -108,16 +113,40 @@ const TripDetail = () => {
         budgetBreakdown: res.data.budgetBreakdown,
       });
 
-      if (window.__liquidTripBtn?.setComplete) {
-        window.__liquidTripBtn.setComplete();
+      if (window.__skyTripBtn?.setComplete) {
+        window.__skyTripBtn.setComplete();
       }
     } catch (err) {
       setGenError(err.response?.data?.message || "AI generation failed");
-      if (window.__liquidTripBtn?.reset) {
-        window.__liquidTripBtn.reset();
+      if (window.__skyTripBtn?.reset) {
+        window.__skyTripBtn.reset();
       }
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleShare = async () => {
+    setShareLoading(true);
+    try {
+      const res = await api.post(`/trips/${id}/share`);
+      const shareId = res.data.shareId;
+      const url = `${window.location.origin}/share/${shareId}`;
+      setShareUrl(url);
+    } catch (err) {
+      alert(err.response?.data?.message || "Could not generate share link");
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const copyShareUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("Could not copy — please copy manually");
     }
   };
 
@@ -181,8 +210,9 @@ const TripDetail = () => {
           </p>
         )}
 
+        {/* SKY FLIGHT GENERATE / REGENERATE BUTTON */}
         <div className="mt-8">
-          <LiquidTripButton
+          <SkyFlightButton
             label={trip.itinerary?.length ? "Regenerate Trip" : "Generate Trip"}
             loadingLabel="Curating Your Itinerary"
             doneLabel="🎉 Itinerary Ready!"
@@ -370,6 +400,48 @@ const TripDetail = () => {
           </section>
         )}
 
+        {/* ═══════════ SMART WEATHER PLAN ═══════════ */}
+        {weather?.location && (
+          <section className="mt-16">
+            <div className="rounded-3xl border-2 border-lime/30 bg-gradient-to-br from-lime-light/50 to-white p-8 md:p-10">
+              <div className="flex items-start justify-between gap-8 flex-wrap">
+                <div className="flex-1 min-w-[260px]">
+                  <p className="text-xs font-bold uppercase tracking-widest text-lime-dark mb-2">
+                    Smart Weather Plan
+                  </p>
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-ink leading-tight">
+                    Plan your trip around the weather
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-3 max-w-lg leading-relaxed">
+                    We check the weather for each day of your trip. Outdoor
+                    plans go on sunny days, and indoor plans go on rainy days.
+                  </p>
+                  <Link
+                    to={`/trips/${id}/weather-itinerary`}
+                    className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark btn-press transition shadow-[0_6px_20px_-8px_rgba(168,216,74,0.8)]"
+                  >
+                    See Smart Weather Plan →
+                  </Link>
+                </div>
+
+                <div className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 px-6 py-5 shadow-sm">
+                  <span className="text-4xl leading-none">🌤️</span>
+                  <div>
+                    <p className="text-3xl font-extrabold text-ink leading-none">
+                      {Math.round(weather.current?.temperature_2m ?? 0)}°
+                      <span className="text-base text-gray-400 ml-1">C</span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2 font-semibold">
+                      💨 {Math.round(weather.current?.wind_speed_10m ?? 0)} km/h wind
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ACTION BUTTONS */}
         <div className="mt-16 pt-6 border-t border-gray-100 flex flex-wrap gap-4 justify-between items-center">
           <div className="flex flex-wrap gap-3 items-center">
             <ExportPDFButton
@@ -384,6 +456,14 @@ const TripDetail = () => {
             >
               ✏️ Edit Trip
             </Link>
+
+            <button
+              onClick={handleShare}
+              disabled={shareLoading}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 text-ink text-[13px] font-semibold hover:border-forest hover:text-forest transition disabled:opacity-60"
+            >
+              {shareLoading ? "Creating..." : "🔗 Share"}
+            </button>
           </div>
 
           <DeleteButton
@@ -399,6 +479,68 @@ const TripDetail = () => {
       <div id="itnHolder" className="itn-paper-holder">
         <ItineraryPaper trip={trip} places={places} />
       </div>
+
+      {/* SHARE MODAL */}
+      {shareUrl && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => {
+            setShareUrl("");
+            setCopied(false);
+          }}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-ink">
+                  🔗 Share this trip
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Anyone with this link can view your itinerary.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShareUrl("");
+                  setCopied(false);
+                }}
+                className="text-gray-400 hover:text-ink text-xl leading-none"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                readOnly
+                value={shareUrl}
+                onClick={(e) => e.target.select()}
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-ink bg-gray-50 focus:outline-none"
+              />
+              <button
+                onClick={copyShareUrl}
+                className="px-4 py-2.5 rounded-lg bg-lime text-forest font-bold text-sm hover:bg-lime-dark transition whitespace-nowrap"
+              >
+                {copied ? "✓ Copied" : "Copy"}
+              </button>
+            </div>
+
+            <a
+              href={shareUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-lime-dark font-semibold hover:underline"
+            >
+              Open in new tab →
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,46 +1,30 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useState } from "react";
+import "./Navbar.css";
 
-const Logo = () => (
-  <div className="flex items-center gap-2.5">
-    <div className="w-9 h-9 rounded-full bg-lime flex items-center justify-center">
-      <svg width="20" height="20" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="10" fill="white" />
-        <path
-          d="M3 12c1.5-2 3-3 5-2s3.5 3 6 3 4-1 5-3"
-          stroke="#A8D84A"
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-        />
-      </svg>
-    </div>
-    <span className="text-xl font-bold text-ink tracking-tight">
-      AI Travel Planner
-    </span>
-  </div>
-);
+const NAV_LINKS = [
+  { to: "/", label: "Home", end: true },
+  { to: "/trips/new", label: "Destinations", end: false },
+  { to: "/weather-itinerary", label: "Weather", end: false },
+  { to: "/trips", label: "My Trips", end: false },
+];
 
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [toast, setToast] = useState("");
+
+  const menuRef = useRef(null);
 
   const handleLogout = () => {
+    setOpen(false);
+    setMenuOpen(false);
     logout();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
-
-  const isActive = (p) => location.pathname === p;
-
-  const pill = (path) =>
-    `px-5 py-2 rounded-full border text-sm font-medium transition ${
-      isActive(path)
-        ? "border-ink bg-ink text-white"
-        : "border-gray-200 text-ink hover:border-forest"
-    }`;
 
   const initials = (user?.name || "?")
     .split(" ")
@@ -49,138 +33,314 @@ const Navbar = () => {
     .slice(0, 2)
     .toUpperCase();
 
-  return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <Link to="/">
-          <Logo />
-        </Link>
+  const closeMobile = () => setOpen(false);
 
-        <div className="hidden md:flex items-center gap-3">
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  const showToast = (text) => {
+    setToast(text);
+    setTimeout(() => setToast(""), 2000);
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = document.title || "AI Travel Planner";
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+        setMenuOpen(false);
+        return;
+      } catch (err) {
+        if (err.name === "AbortError") return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied to clipboard");
+    } catch {
+      showToast("Could not copy link");
+    }
+    setMenuOpen(false);
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      showToast("Link copied");
+    } catch {
+      showToast("Could not copy");
+    }
+    setMenuOpen(false);
+  };
+
+  const handleProfile = () => {
+    setMenuOpen(false);
+    navigate("/profile");
+  };
+
+  return (
+    <>
+      <nav className="nb-root">
+        <div className="nb-inner">
+          {/* Brand */}
+          <Link to="/" className="nb-brand" onClick={closeMobile}>
+            <span className="nb-brand-text">
+              AI Travel <span className="nb-brand-accent">Planner</span>
+            </span>
+          </Link>
+
+          {/* Desktop links */}
+          <div className="nb-links">
+            {NAV_LINKS.map((l) => (
+              <NavLink
+                key={l.label}
+                to={l.to}
+                end={l.end}
+                className={({ isActive }) =>
+                  `nb-link ${isActive ? "active" : ""}`
+                }
+              >
+                {l.label}
+              </NavLink>
+            ))}
+          </div>
+
+          {/* Right side */}
           {user ? (
-            <>
-              <Link to="/trips/new" className={pill("/trips/new")}>
-                + Create Trip
-              </Link>
-              <Link to="/trips" className={pill("/trips")}>
-                My Trips
-              </Link>
+            <div className="nb-auth">
               <Link
                 to="/profile"
-                title="Your profile"
-                className={`w-10 h-10 rounded-full bg-lime flex items-center justify-center text-forest font-bold ml-1 transition ${
-                  isActive("/profile")
-                    ? "ring-2 ring-forest"
-                    : "hover:ring-2 hover:ring-forest"
-                }`}
+                className="nb-avatar"
+                title={user.name}
+                aria-label="Your profile"
               >
                 {initials}
               </Link>
+
               <button
+                type="button"
+                className="nb-logout"
                 onClick={handleLogout}
-                className="text-sm text-gray-500 hover:text-ink transition ml-1"
               >
                 Logout
               </button>
-            </>
+
+              <div className="nb-menu-wrap" ref={menuRef}>
+                <button
+                  type="button"
+                  className={`nb-menu-btn ${menuOpen ? "open" : ""}`}
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-label="More options"
+                  aria-expanded={menuOpen}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.8" />
+                    <circle cx="12" cy="12" r="1.8" />
+                    <circle cx="12" cy="19" r="1.8" />
+                  </svg>
+                </button>
+
+                {menuOpen && (
+                  <div className="nb-menu">
+                    <button
+                      type="button"
+                      className="nb-menu-item"
+                      onClick={handleShare}
+                    >
+                      <span className="nb-menu-icon">🔗</span>
+                      <span>Share this page</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="nb-menu-item"
+                      onClick={handleCopyLink}
+                    >
+                      <span className="nb-menu-icon">📋</span>
+                      <span>Copy link</span>
+                    </button>
+                    <div className="nb-menu-divider" />
+                    <button
+                      type="button"
+                      className="nb-menu-item"
+                      onClick={handleProfile}
+                    >
+                      <span className="nb-menu-icon">👤</span>
+                      <span>Profile</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
-            <>
-              <Link
-                to="/login"
-                className="px-5 py-2 text-sm font-medium text-ink hover:text-lime-dark transition"
-              >
+            <div className="nb-auth">
+              <Link to="/login" className="nb-cta-login">
                 Login
               </Link>
-              <Link
-                to="/register"
-                className="px-6 py-2.5 rounded-full bg-lime text-forest text-sm font-bold hover:bg-lime-dark btn-press transition"
-              >
+              <Link to="/register" className="nb-cta-get-started">
                 Get Started
               </Link>
-            </>
-          )}
-        </div>
 
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="md:hidden text-ink p-2"
-          aria-label="Toggle menu"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {isOpen ? (
-              <>
+              <div className="nb-menu-wrap" ref={menuRef}>
+                <button
+                  type="button"
+                  className={`nb-menu-btn ${menuOpen ? "open" : ""}`}
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-label="More options"
+                  aria-expanded={menuOpen}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.8" />
+                    <circle cx="12" cy="12" r="1.8" />
+                    <circle cx="12" cy="19" r="1.8" />
+                  </svg>
+                </button>
+
+                {menuOpen && (
+                  <div className="nb-menu">
+                    <button
+                      type="button"
+                      className="nb-menu-item"
+                      onClick={handleShare}
+                    >
+                      <span className="nb-menu-icon">🔗</span>
+                      <span>Share this page</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="nb-menu-item"
+                      onClick={handleCopyLink}
+                    >
+                      <span className="nb-menu-icon">📋</span>
+                      <span>Copy link</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Mobile toggle */}
+          <button
+            type="button"
+            className="nb-toggle"
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Toggle menu"
+            aria-expanded={open}
+          >
+            {open ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
-              </>
+              </svg>
             ) : (
-              <>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                 <line x1="3" y1="6" x2="21" y2="6" />
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="18" x2="21" y2="18" />
-              </>
+              </svg>
             )}
-          </svg>
-        </button>
-      </div>
+          </button>
+        </div>
 
-      {isOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 animate-fade-in-up">
-          <div className="flex flex-col p-4 gap-2">
-            {user ? (
-              <>
-                <Link to="/dashboard" onClick={() => setIsOpen(false)} className={pill("/dashboard")}>
-                  Dashboard
-                </Link>
-                <Link to="/trips" onClick={() => setIsOpen(false)} className={pill("/trips")}>
-                  My Trips
-                </Link>
-                <Link
-                  to="/trips/new"
-                  onClick={() => setIsOpen(false)}
-                  className="px-5 py-2.5 rounded-full bg-lime text-forest text-sm font-bold text-center"
-                >
-                  + Create Trip
-                </Link>
-                <Link to="/profile" onClick={() => setIsOpen(false)} className={pill("/profile")}>
-                  👤 My Profile
-                </Link>
-                <div className="flex items-center gap-3 px-3 pt-3 border-t border-gray-100 mt-2">
-                  <div className="w-10 h-10 rounded-full bg-lime flex items-center justify-center text-forest font-bold flex-shrink-0">
-                    {initials}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                  </div>
-                </div>
+        {/* Mobile panel */}
+        <div className={`nb-mobile ${open ? "open" : ""}`}>
+          <div className="nb-mobile-links">
+            {NAV_LINKS.map((l) => (
+              <NavLink
+                key={l.label}
+                to={l.to}
+                end={l.end}
+                onClick={closeMobile}
+                className={({ isActive }) =>
+                  `nb-mobile-link ${isActive ? "active" : ""}`
+                }
+              >
+                {l.label}
+              </NavLink>
+            ))}
+          </div>
+
+          <div className="nb-mobile-actions">
+            <button
+              type="button"
+              className="nb-mobile-logout"
+              onClick={handleShare}
+            >
+              🔗 Share this page
+            </button>
+            <button
+              type="button"
+              className="nb-mobile-logout"
+              onClick={handleCopyLink}
+            >
+              📋 Copy link
+            </button>
+          </div>
+
+          {user ? (
+            <>
+              <Link
+                to="/profile"
+                className="nb-mobile-user"
+                onClick={closeMobile}
+              >
+                <span className="nb-avatar">{initials}</span>
+                <span className="nb-mobile-user-info">
+                  <span className="nb-mobile-user-name">{user.name}</span>
+                  <span className="nb-mobile-user-email">{user.email}</span>
+                </span>
+              </Link>
+              <div className="nb-mobile-actions">
                 <button
-                  onClick={() => {
-                    setIsOpen(false);
-                    handleLogout();
-                  }}
-                  className="px-5 py-2 rounded-full border border-gray-200 text-ink text-sm font-medium mt-2"
+                  type="button"
+                  className="nb-mobile-logout"
+                  onClick={handleLogout}
                 >
                   Logout
                 </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" onClick={() => setIsOpen(false)} className={pill("/login")}>
-                  Login
-                </Link>
-                <Link
-                  to="/register"
-                  onClick={() => setIsOpen(false)}
-                  className="px-5 py-2.5 rounded-full bg-lime text-forest text-sm font-bold text-center"
-                >
-                  Get Started
-                </Link>
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          ) : (
+            <div className="nb-mobile-actions">
+              <Link
+                to="/register"
+                className="nb-mobile-cta"
+                onClick={closeMobile}
+              >
+                Get Started
+              </Link>
+              <Link
+                to="/login"
+                className="nb-mobile-cta-ghost"
+                onClick={closeMobile}
+              >
+                Login
+              </Link>
+            </div>
+          )}
         </div>
-      )}
-    </nav>
+      </nav>
+
+      {toast && <div className="nb-toast">{toast}</div>}
+    </>
   );
 };
 

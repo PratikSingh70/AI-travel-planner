@@ -1,0 +1,3402 @@
+Directory structure:
+└── frontend/
+    ├── README.md
+    ├── eslint.config.js
+    ├── index.html
+    ├── package.json
+    ├── postcss.config.js
+    ├── tailwind.config.js
+    ├── vite.config.js
+    └── src/
+        ├── App.css
+        ├── App.jsx
+        ├── index.css
+        ├── main.jsx
+        ├── api/
+        │   └── axios.js
+        ├── components/
+        │   ├── DeleteButton.jsx
+        │   ├── ExportPDFButton.jsx
+        │   ├── ItineraryPaper.jsx
+        │   ├── Navbar.jsx
+        │   ├── Skeleton.jsx
+        │   ├── SkyFlightButton.jsx
+        │   ├── TripMap.jsx
+        │   ├── TripOutlook.jsx
+        │   └── WeatherSlider.jsx
+        ├── context/
+        │   ├── AuthContext.jsx
+        │   └── ThemeContext.jsx
+        ├── lib/
+        │   └── utils.js
+        └── pages/
+            ├── CreateTrip.jsx
+            ├── Dashboard.jsx
+            ├── EditTrip.jsx
+            ├── Landing.jsx
+            ├── Login.jsx
+            ├── NotFound.jsx
+            ├── Profile.jsx
+            ├── Register.jsx
+            ├── SharedTrip.jsx
+            ├── TripDetail.jsx
+            ├── Trips.jsx
+            └── WeatherForecast.jsx
+
+================================================
+FILE: README.md
+================================================
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+
+
+================================================
+FILE: eslint.config.js
+================================================
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+  },
+])
+
+
+
+================================================
+FILE: index.html
+================================================
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Travel Planner</title>
+
+    <!-- Force light theme â€” never apply dark class -->
+    <script>
+      document.documentElement.classList.remove("dark");
+      document.documentElement.style.colorScheme = "light";
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+================================================
+FILE: package.json
+================================================
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tabler/icons-react": "^3.46.0",
+    "axios": "^1.20.0",
+    "clsx": "^2.1.1",
+    "html2pdf.js": "^0.14.0",
+    "leaflet": "^1.9.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.18.3",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "autoprefixer": "^10.6.0",
+    "eslint": "^10.10.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.3.0"
+  }
+}
+
+
+
+================================================
+FILE: postcss.config.js
+================================================
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+
+
+================================================
+FILE: tailwind.config.js
+================================================
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["./index.html", "./src/**/*.{js,jsx}"],
+  theme: {
+    extend: {
+      colors: {
+        lime: {
+          DEFAULT: "#A8D84A",
+          light: "#E5F0C8",
+          dark: "#8FBF2E",
+        },
+        forest: "#1A2E1A",
+        ink: "#0A0A0A",
+      },
+      fontFamily: {
+        sans: ["Poppins", "system-ui", "sans-serif"],
+      },
+    },
+  },
+  plugins: [],
+};
+
+
+================================================
+FILE: vite.config.js
+================================================
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+
+
+
+================================================
+FILE: src/App.css
+================================================
+.counter {
+  font-size: 16px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  margin-bottom: 24px;
+
+  &:hover {
+    border-color: var(--accent-border);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.hero {
+  position: relative;
+
+  .base,
+  .framework,
+  .vite {
+    inset-inline: 0;
+    margin: 0 auto;
+  }
+
+  .base {
+    width: 170px;
+    position: relative;
+    z-index: 0;
+  }
+
+  .framework,
+  .vite {
+    position: absolute;
+  }
+
+  .framework {
+    z-index: 1;
+    top: 34px;
+    height: 28px;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
+      scale(1.4);
+  }
+
+  .vite {
+    z-index: 0;
+    top: 107px;
+    height: 26px;
+    width: auto;
+    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
+      scale(0.8);
+  }
+}
+
+#center {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  place-content: center;
+  place-items: center;
+  flex-grow: 1;
+
+  @media (max-width: 1024px) {
+    padding: 32px 20px 24px;
+    gap: 18px;
+  }
+}
+
+#next-steps {
+  display: flex;
+  border-top: 1px solid var(--border);
+  text-align: left;
+
+  & > div {
+    flex: 1 1 0;
+    padding: 32px;
+    @media (max-width: 1024px) {
+      padding: 24px 20px;
+    }
+  }
+
+  .icon {
+    margin-bottom: 16px;
+    width: 22px;
+    height: 22px;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+#docs {
+  border-right: 1px solid var(--border);
+
+  @media (max-width: 1024px) {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+#next-steps ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  margin: 32px 0 0;
+
+  .logo {
+    height: 18px;
+  }
+
+  a {
+    color: var(--text-h);
+    font-size: 16px;
+    border-radius: 6px;
+    background: var(--social-bg);
+    display: flex;
+    padding: 6px 12px;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    transition: box-shadow 0.3s;
+
+    &:hover {
+      box-shadow: var(--shadow);
+    }
+    .button-icon {
+      height: 18px;
+      width: 18px;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    margin-top: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+
+    li {
+      flex: 1 1 calc(50% - 8px);
+    }
+
+    a {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+  }
+}
+
+#spacer {
+  height: 88px;
+  border-top: 1px solid var(--border);
+  @media (max-width: 1024px) {
+    height: 48px;
+  }
+}
+
+.ticks {
+  position: relative;
+  width: 100%;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: -4.5px;
+    border: 5px solid transparent;
+  }
+
+  &::before {
+    left: 0;
+    border-left-color: var(--border);
+  }
+  &::after {
+    right: 0;
+    border-right-color: var(--border);
+  }
+}
+
+
+
+================================================
+FILE: src/App.jsx
+================================================
+import { Routes, Route, Navigate } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import Register from "./pages/Register";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Trips from "./pages/Trips";
+import CreateTrip from "./pages/CreateTrip";
+import TripDetail from "./pages/TripDetail";
+import EditTrip from "./pages/EditTrip";
+import Profile from "./pages/Profile";
+import Landing from "./pages/Landing";
+import SharedTrip from "./pages/SharedTrip";
+import NotFound from "./pages/NotFound";
+import { useAuth } from "./context/AuthContext";
+
+const PrivateRoute = ({ children }) => {
+  const { user } = useAuth();
+  return user ? children : <Navigate to="/login" />;
+};
+
+const App = () => {
+  return (
+    <>
+      <Navbar />
+      <Routes>
+        {/* Public */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/share/:shareId" element={<SharedTrip />} />
+
+        {/* Protected */}
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <Profile />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/trips"
+          element={
+            <PrivateRoute>
+              <Trips />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/trips/new"
+          element={
+            <PrivateRoute>
+              <CreateTrip />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/trips/:id"
+          element={
+            <PrivateRoute>
+              <TripDetail />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/trips/:id/edit"
+          element={
+            <PrivateRoute>
+              <EditTrip />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Fallback */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
+  );
+};
+
+export default App;
+
+
+================================================
+FILE: src/index.css
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x90 in position 41696: character maps to <undefined>
+
+
+================================================
+FILE: src/main.jsx
+================================================
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App.jsx";
+import "./index.css";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import { ThemeProvider } from "./context/ThemeContext.jsx";
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ThemeProvider>
+    </BrowserRouter>
+  </React.StrictMode>
+);
+
+
+================================================
+FILE: src/api/axios.js
+================================================
+import axios from "axios";
+
+const api = axios.create({
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
+});
+
+api.interceptors.request.use((config) => {
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (user?.token) {
+    config.headers.Authorization = `Bearer ${user.token}`;
+  }
+  return config;
+});
+
+export default api;
+
+
+================================================
+FILE: src/components/DeleteButton.jsx
+================================================
+import { useEffect, useRef, useState } from "react";
+
+const DeleteButton = ({ onClick, label = "Delete" }) => {
+  const binRef = useRef(null);
+  const labelRef = useRef(null);
+  const [eating, setEating] = useState(false);
+  const busyRef = useRef(false);
+  const audioRef = useRef({ ac: null, noiseBuf: null });
+
+  // ---- Audio helpers ----
+  const getAudio = () => {
+    const a = audioRef.current;
+    if (!a.ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      a.ac = new AC();
+      const len = a.ac.sampleRate * 0.5;
+      a.noiseBuf = a.ac.createBuffer(1, len, a.ac.sampleRate);
+      const d = a.noiseBuf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (a.ac.state === "suspended") a.ac.resume();
+    return a.ac;
+  };
+
+  useEffect(() => {
+    const unlock = () => {
+      getAudio();
+      window.removeEventListener("pointerdown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    return () => window.removeEventListener("pointerdown", unlock);
+  }, []);
+
+  const noise = ({ type = "bandpass", freq = 1200, q = 1, dur = 0.15, vol = 0.15, delay = 0, sweepTo = null }) => {
+    const ctx = getAudio();
+    const a = audioRef.current;
+    if (!ctx) return;
+    const t0 = ctx.currentTime + delay;
+    const s = ctx.createBufferSource();
+    s.buffer = a.noiseBuf;
+    s.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.setValueAtTime(freq, t0);
+    f.Q.value = q;
+    if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t0 + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(f).connect(g).connect(ctx.destination);
+    s.start(t0);
+    s.stop(t0 + dur + 0.05);
+  };
+
+  const tone = ({ type = "sine", from = 440, to = 440, dur = 0.12, vol = 0.15, delay = 0 }) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const t0 = ctx.currentTime + delay;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(from, t0);
+    o.frequency.exponentialRampToValueAtTime(Math.max(1, to), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(ctx.destination);
+    o.start(t0);
+    o.stop(t0 + dur + 0.05);
+  };
+
+  const sfxClick = () => {
+    tone({ type: "square", from: 900, to: 200, dur: 0.03, vol: 0.06 });
+    noise({ type: "highpass", freq: 3000, q: 0.7, dur: 0.03, vol: 0.05 });
+  };
+  const sfxSuck = () => {
+    for (let i = 0; i < 6; i++) {
+      const d = 0.3 + i * 0.09;
+      noise({ type: "bandpass", freq: 900 + i * 110, sweepTo: 260, q: 1.3, dur: 0.3, vol: 0.05, delay: d });
+    }
+  };
+  const sfxSnap = () => {
+    noise({ type: "highpass", freq: 2500, q: 0.9, dur: 0.06, vol: 0.14, delay: 1.69 });
+    tone({ type: "triangle", from: 260, to: 70, dur: 0.18, vol: 0.14, delay: 1.69 });
+    tone({ type: "sine", from: 140, to: 60, dur: 0.22, vol: 0.1, delay: 1.73 });
+  };
+  const sfxReturn = () => {
+    tone({ type: "triangle", from: 880, to: 1320, dur: 0.24, vol: 0.06, delay: 1.9 });
+    tone({ type: "sine", from: 1320, to: 1760, dur: 0.28, vol: 0.04, delay: 2.0 });
+  };
+
+  const measureEatTargets = () => {
+    const bin = binRef.current;
+    const label = labelRef.current;
+    if (!bin || !label) return;
+    const binRect = bin.getBoundingClientRect();
+    const mouthX = binRect.left + binRect.width * 0.55;
+    const mouthY = binRect.top + binRect.height * 0.28;
+
+    const ltrs = label.querySelectorAll(".eat-btn__ltr");
+    ltrs.forEach((ltr) => {
+      const r = ltr.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      ltr.style.setProperty("--eat-x", mouthX - cx + "px");
+      ltr.style.setProperty("--eat-y", mouthY - cy + "px");
+    });
+  };
+
+  useEffect(() => {
+    measureEatTargets();
+    const onResize = () => {
+      if (eating) return;
+      measureEatTargets();
+    };
+    window.addEventListener("resize", onResize);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(measureEatTargets);
+    }
+    return () => window.removeEventListener("resize", onResize);
+  }, [eating]);
+
+  const handleClick = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+
+    setEating(false);
+    requestAnimationFrame(() => {
+      measureEatTargets();
+      setEating(true);
+    });
+
+    sfxClick();
+    sfxSuck();
+    sfxSnap();
+    sfxReturn();
+  };
+
+  const handleBinAnimationEnd = (e) => {
+    if (e.animationName === "binSquash") {
+      setEating(false);
+      busyRef.current = false;
+      requestAnimationFrame(measureEatTargets);
+      if (onClick) onClick();
+    }
+  };
+
+  const letters = label.split("");
+
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      className={`eat-btn ${eating ? "eating" : ""}`}
+      onClick={handleClick}
+    >
+      <span
+        className="eat-btn__bin"
+        aria-hidden="true"
+        ref={binRef}
+        onAnimationEnd={handleBinAnimationEnd}
+      >
+        <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+          <path
+            className="bin__body"
+            d="M9 12 L23 12 L21.5 27.5 Q21.4 29 20 29 L12 29 Q10.6 29 10.5 27.5 Z"
+          />
+          <line className="bin__body" x1="13" y1="16" x2="13.4" y2="25" />
+          <line className="bin__body" x1="16" y1="16" x2="16" y2="25" />
+          <line className="bin__body" x1="19" y1="16" x2="18.6" y2="25" />
+          <g className="bin__lid">
+            <path d="M6 9 L26 9 Q27.2 9 27.2 10.2 L27.2 11.6 L4.8 11.6 L4.8 10.2 Q4.8 9 6 9 Z" />
+            <path d="M13.5 5.6 L18.5 5.6 Q19.6 5.6 19.6 6.7 L19.6 9 L12.4 9 L12.4 6.7 Q12.4 5.6 13.5 5.6 Z" />
+          </g>
+        </svg>
+
+        <span className="eat-btn__sparks">
+          <span className="eat-btn__spark" style={{ "--dx": "-14px", "--dy": "-12px", "--sd": "0.00s" }} />
+          <span className="eat-btn__spark" style={{ "--dx": "-10px", "--dy": "-16px", "--sd": "0.02s" }} />
+          <span className="eat-btn__spark" style={{ "--dx": "-4px", "--dy": "-18px", "--sd": "0.04s" }} />
+          <span className="eat-btn__spark" style={{ "--dx": "5px", "--dy": "-18px", "--sd": "0.01s" }} />
+          <span className="eat-btn__spark" style={{ "--dx": "12px", "--dy": "-14px", "--sd": "0.03s" }} />
+          <span className="eat-btn__spark" style={{ "--dx": "16px", "--dy": "-6px", "--sd": "0.05s" }} />
+          <span className="eat-btn__spark" style={{ "--dx": "-16px", "--dy": "-4px", "--sd": "0.02s" }} />
+          <span className="eat-btn__spark" style={{ "--dx": "0px", "--dy": "-20px", "--sd": "0.00s" }} />
+        </span>
+      </span>
+
+      <span className="eat-btn__label" aria-hidden="true" ref={labelRef}>
+        {letters.map((ch, i) => (
+          <span
+            key={i}
+            className="eat-btn__ltr"
+            style={{ "--i": String(i) }}
+          >
+            {ch === " " ? "\u00A0" : ch}
+          </span>
+        ))}
+      </span>
+    </button>
+  );
+};
+
+export default DeleteButton;
+
+
+================================================
+FILE: src/components/ExportPDFButton.jsx
+================================================
+import { useRef, useState, useEffect } from "react";
+
+const loadHtml2Pdf = () => {
+  if (window.html2pdf) return Promise.resolve(window.html2pdf);
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    s.onload = () => resolve(window.html2pdf);
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+};
+
+const ExportPDFButton = ({ targetId, filename, holderId }) => {
+  const srRef = useRef(null);
+  const [running, setRunning] = useState(false);
+  const [win, setWin] = useState(false);
+  const busyRef = useRef(false);
+  const audioRef = useRef({ ac: null, noiseBuf: null });
+
+  const getAudio = () => {
+    const a = audioRef.current;
+    if (!a.ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      a.ac = new AC();
+      const len = a.ac.sampleRate * 1.5;
+      a.noiseBuf = a.ac.createBuffer(1, len, a.ac.sampleRate);
+      const d = a.noiseBuf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (a.ac.state === "suspended") a.ac.resume();
+    return a.ac;
+  };
+
+  useEffect(() => {
+    const unlock = () => {
+      getAudio();
+      window.removeEventListener("pointerdown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    return () => window.removeEventListener("pointerdown", unlock);
+  }, []);
+
+  const sPress = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    o.type = "square";
+    o.frequency.setValueAtTime(820, t);
+    o.frequency.exponentialRampToValueAtTime(230, t + 0.05);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.085, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.09);
+  };
+
+  const sDescent = (t, dur) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const a = audioRef.current;
+    const n = ctx.createBufferSource();
+    n.buffer = a.noiseBuf;
+    n.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 1.7;
+    bp.frequency.setValueAtTime(3200, t);
+    bp.frequency.exponentialRampToValueAtTime(640, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.1, t + 0.1);
+    g.gain.linearRampToValueAtTime(0.085, t + dur * 0.68);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    n.connect(bp).connect(g).connect(ctx.destination);
+    n.start(t);
+    n.stop(t + dur + 0.06);
+  };
+
+  const sThud = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(160, t);
+    o.frequency.exponentialRampToValueAtTime(50, t + 0.22);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.38, t + 0.009);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.33);
+  };
+
+  const sPing = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(1200, t);
+    o.frequency.exponentialRampToValueAtTime(1188, t + 0.45);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.135, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.52);
+  };
+
+  const sVictory = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      const st = t + i * 0.075;
+      const o = ctx.createOscillator();
+      o.type = "triangle";
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.095, st + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.72);
+      o.connect(g).connect(ctx.destination);
+      o.start(st);
+      o.stop(st + 0.78);
+    });
+  };
+
+  const playFull = () => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const t = ctx.currentTime + 0.02;
+    sPress(t);
+    sDescent(t + 0.1, 0.6);
+    sThud(t + 0.9);
+    sPing(t + 1.0);
+    sVictory(t + 1.2);
+  };
+
+  const runExport = async () => {
+    const target = document.getElementById(targetId);
+    const holder = holderId ? document.getElementById(holderId) : null;
+
+    if (!target) {
+      console.warn("[Export] Target not found:", targetId);
+      return;
+    }
+
+    if (holder) holder.classList.add("is-exporting");
+
+    await new Promise((r) => setTimeout(r, 300));
+
+    try {
+      const html2pdf = await loadHtml2Pdf();
+
+      await html2pdf()
+        .set({
+          margin: [10, 10, 10, 10],
+          filename: filename || "itinerary.pdf",
+          image: { type: "jpeg", quality: 0.95 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: [".itn-day", ".itn-hotel", ".itn-table tr", ".itn-foot"],
+          },
+        })
+        .from(target)
+        .save();
+    } catch (err) {
+      console.warn("[Export] html2pdf failed, falling back to print:", err);
+      window.print();
+    } finally {
+      if (holder) holder.classList.remove("is-exporting");
+    }
+  };
+
+  const handleClick = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+
+    playFull();
+    setRunning(true);
+    setWin(false);
+
+    setTimeout(() => {
+      setWin(true);
+      if (srRef.current) srRef.current.textContent = "Itinerary downloaded.";
+    }, 1200);
+
+    setTimeout(() => {
+      runExport();
+    }, 1400);
+
+    setTimeout(() => {
+      setRunning(false);
+      setWin(false);
+      busyRef.current = false;
+      if (srRef.current) srRef.current.textContent = "";
+    }, 4000);
+  };
+
+  const cls = ["pdf-btn", running ? "running" : "", win ? "win" : ""]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <button
+      type="button"
+      className={cls}
+      onClick={handleClick}
+      aria-label="Export PDF Itinerary"
+    >
+      <span className="sr-only" ref={srRef} role="status" aria-live="polite"></span>
+
+      <span className="pdf-btn__skin" aria-hidden="true" />
+
+      <span className="pdf-btn__icon-zone" aria-hidden="true">
+        <span className="pdf-btn__trail" />
+        <span className="pdf-btn__shockwave" />
+
+        <svg
+          className="pdf-btn__payload"
+          viewBox="0 0 40 46"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="cpGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#C4E570" />
+              <stop offset="1" stopColor="#8FBF2E" />
+            </linearGradient>
+            <linearGradient id="crateGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#ffe2a0" />
+              <stop offset="1" stopColor="#d99b2b" />
+            </linearGradient>
+            <linearGradient id="packGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#A8D84A" />
+              <stop offset="1" stopColor="#1A2E1A" />
+            </linearGradient>
+          </defs>
+
+          <g className="canopy-g">
+            <path
+              d="M20 1 C8 1 1 8 1 16 L39 16 C39 8 32 1 20 1 Z"
+              fill="url(#cpGrad)"
+            />
+            <circle cx="7" cy="16" r="6" fill="url(#cpGrad)" />
+            <circle cx="20" cy="16" r="6" fill="url(#cpGrad)" />
+            <circle cx="33" cy="16" r="6" fill="url(#cpGrad)" />
+            <path
+              d="M20 1 C8 1 1 8 1 16"
+              fill="none"
+              stroke="#DCF0A0"
+              strokeWidth=".9"
+              opacity=".55"
+            />
+            <path
+              d="M20 1 C32 1 39 8 39 16"
+              fill="none"
+              stroke="#DCF0A0"
+              strokeWidth=".9"
+              opacity=".55"
+            />
+            <path d="M20 1 L20 16" stroke="#DCF0A0" strokeWidth=".7" opacity=".4" />
+          </g>
+
+          <g stroke="#DCF0A0" strokeWidth=".9" opacity=".85" fill="none">
+            <line x1="7" y1="20" x2="17" y2="29" />
+            <line x1="20" y1="21" x2="20" y2="29" />
+            <line x1="33" y1="20" x2="23" y2="29" />
+          </g>
+
+          <g className="crate-g">
+            <rect
+              x="15"
+              y="24"
+              width="10"
+              height="6"
+              rx="1.6"
+              fill="url(#packGrad)"
+            />
+            <rect
+              x="11"
+              y="28"
+              width="18"
+              height="15"
+              rx="2.2"
+              fill="url(#crateGrad)"
+              stroke="#8a5a10"
+              strokeWidth=".9"
+            />
+            <line x1="20" y1="28" x2="20" y2="43" stroke="#8a5a10" strokeWidth="1" />
+            <line
+              x1="11"
+              y1="35.5"
+              x2="29"
+              y2="35.5"
+              stroke="#8a5a10"
+              strokeWidth="1"
+            />
+            <rect
+              x="17.5"
+              y="31.5"
+              width="5"
+              height="4"
+              rx=".8"
+              fill="#1A2E1A"
+              opacity=".85"
+            />
+          </g>
+        </svg>
+      </span>
+
+      <span className="pdf-btn__label-stack">
+        <span className="pdf-btn__lbl pdf-btn__lbl-default">
+          Export PDF Itinerary
+        </span>
+        <span className="pdf-btn__lbl pdf-btn__lbl-done">
+          Itinerary Downloaded!
+        </span>
+      </span>
+
+      <span className="pdf-btn__badge" aria-hidden="true">
+        <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+          <circle
+            cx="11"
+            cy="11"
+            r="9.6"
+            fill="#1A2E1A"
+            stroke="#A8D84A"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M6.6 11.4 L9.6 14.3 L15.4 8.2"
+            fill="none"
+            stroke="#A8D84A"
+            strokeWidth="2.1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    </button>
+  );
+};
+
+export default ExportPDFButton;
+
+
+================================================
+FILE: src/components/ItineraryPaper.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 5918: character maps to <undefined>
+
+
+================================================
+FILE: src/components/Navbar.jsx
+================================================
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useState } from "react";
+
+const Logo = () => (
+  <div className="flex items-center gap-2.5">
+    <div className="w-9 h-9 rounded-full bg-lime flex items-center justify-center">
+      <svg width="20" height="20" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill="white" />
+        <path
+          d="M3 12c1.5-2 3-3 5-2s3.5 3 6 3 4-1 5-3"
+          stroke="#A8D84A"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+    <span className="text-xl font-bold text-ink tracking-tight">
+      AI Travel Planner
+    </span>
+  </div>
+);
+
+const Navbar = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const isActive = (p) => location.pathname === p;
+
+  const pill = (path) =>
+    `px-5 py-2 rounded-full border text-sm font-medium transition ${
+      isActive(path)
+        ? "border-ink bg-ink text-white"
+        : "border-gray-200 text-ink hover:border-forest"
+    }`;
+
+  const initials = (user?.name || "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <nav className="sticky top-0 z-50 bg-white border-b border-gray-100">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <Link to="/">
+          <Logo />
+        </Link>
+
+        <div className="hidden md:flex items-center gap-3">
+          {user ? (
+            <>
+              <Link to="/trips/new" className={pill("/trips/new")}>
+                + Create Trip
+              </Link>
+              <Link to="/trips" className={pill("/trips")}>
+                My Trips
+              </Link>
+              <Link
+                to="/profile"
+                title="Your profile"
+                className={`w-10 h-10 rounded-full bg-lime flex items-center justify-center text-forest font-bold ml-1 transition ${
+                  isActive("/profile")
+                    ? "ring-2 ring-forest"
+                    : "hover:ring-2 hover:ring-forest"
+                }`}
+              >
+                {initials}
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-gray-500 hover:text-ink transition ml-1"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="px-5 py-2 text-sm font-medium text-ink hover:text-lime-dark transition"
+              >
+                Login
+              </Link>
+              <Link
+                to="/register"
+                className="px-6 py-2.5 rounded-full bg-lime text-forest text-sm font-bold hover:bg-lime-dark btn-press transition"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
+        </div>
+
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="md:hidden text-ink p-2"
+          aria-label="Toggle menu"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            {isOpen ? (
+              <>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </>
+            ) : (
+              <>
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </>
+            )}
+          </svg>
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="md:hidden bg-white border-t border-gray-100 animate-fade-in-up">
+          <div className="flex flex-col p-4 gap-2">
+            {user ? (
+              <>
+                <Link to="/dashboard" onClick={() => setIsOpen(false)} className={pill("/dashboard")}>
+                  Dashboard
+                </Link>
+                <Link to="/trips" onClick={() => setIsOpen(false)} className={pill("/trips")}>
+                  My Trips
+                </Link>
+                <Link
+                  to="/trips/new"
+                  onClick={() => setIsOpen(false)}
+                  className="px-5 py-2.5 rounded-full bg-lime text-forest text-sm font-bold text-center"
+                >
+                  + Create Trip
+                </Link>
+                <Link to="/profile" onClick={() => setIsOpen(false)} className={pill("/profile")}>
+                  ðŸ‘¤ My Profile
+                </Link>
+                <div className="flex items-center gap-3 px-3 pt-3 border-t border-gray-100 mt-2">
+                  <div className="w-10 h-10 rounded-full bg-lime flex items-center justify-center text-forest font-bold flex-shrink-0">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleLogout();
+                  }}
+                  className="px-5 py-2 rounded-full border border-gray-200 text-ink text-sm font-medium mt-2"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setIsOpen(false)} className={pill("/login")}>
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setIsOpen(false)}
+                  className="px-5 py-2.5 rounded-full bg-lime text-forest text-sm font-bold text-center"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+};
+
+export default Navbar;
+
+
+================================================
+FILE: src/components/Skeleton.jsx
+================================================
+/**
+ * Reusable skeleton placeholder.
+ *
+ * Usage:
+ *   <Skeleton variant="text" width="60%" />
+ *   <Skeleton variant="circular" width={40} height={40} />
+ *   <Skeleton variant="rectangular" width="100%" height={200} />
+ *   <Skeleton variant="card" />           // image + title + lines
+ */
+const Skeleton = ({
+  variant = "rectangular",
+  width,
+  height,
+  className = "",
+  style = {},
+  count = 1,
+  rounded,
+}) => {
+  const baseClass = "skeleton";
+  const variantClass = {
+    text: "skeleton-text",
+    circular: "skeleton-circle",
+    rectangular: "skeleton-img",
+    card: "",
+  }[variant] || "";
+
+  const autoRounded =
+    rounded !== undefined
+      ? rounded
+      : variant === "text"
+      ? "6px"
+      : variant === "circular"
+      ? "50%"
+      : "12px";
+
+  const inlineStyle = {
+    width,
+    height,
+    borderRadius: autoRounded,
+    ...style,
+  };
+
+  // Count = render N stacked skeletons
+  if (count > 1) {
+    return (
+      <div className={`space-y-2 ${className}`}>
+        {[...Array(count)].map((_, i) => (
+          <div key={i} className={`${baseClass} ${variantClass}`} style={inlineStyle} />
+        ))}
+      </div>
+    );
+  }
+
+  // card = composite (image + title + 2 lines)
+  if (variant === "card") {
+    return (
+      <div className={`animate-fade-in ${className}`}>
+        <div className={`${baseClass} skeleton-img`} style={{ width: "100%", aspectRatio: "4 / 3" }} />
+        <div className={`${baseClass} skeleton-text`} style={{ width: "70%", height: 18, marginTop: 12 }} />
+        <div className={`${baseClass} skeleton-text`} style={{ width: "45%", height: 12, marginTop: 8 }} />
+      </div>
+    );
+  }
+
+  return <div className={`${baseClass} ${variantClass} ${className}`} style={inlineStyle} />;
+};
+
+export default Skeleton;
+
+
+================================================
+FILE: src/components/SkyFlightButton.jsx
+================================================
+import { useEffect, useState } from "react";
+
+const SkyFlightButton = ({
+  label = "Generate My Trip",
+  loadingLabel = "Curating Your Itinerary",
+  doneLabel = "ðŸŽ‰ Itinerary Ready!",
+  disabled = false,
+  loading = false,
+  onClick,
+  onComplete,
+  autoCompleteAfter = 2000,
+}) => {
+  const [state, setState] = useState("idle"); // idle | loading | complete
+
+  // ---- External control via window (used by TripDetail) ----
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.__skyTripBtn = {
+      setComplete: () => setCompleteState(),
+      setLoading: () => setLoadingState(),
+      reset: () => resetState(),
+    };
+    return () => {
+      delete window.__skyTripBtn;
+    };
+  }, [state]);
+
+  // ---- Sync with external `loading` prop ----
+  useEffect(() => {
+    if (loading && state === "idle") setLoadingState();
+  }, [loading, state]);
+
+  const setLoadingState = () => {
+    if (state === "loading") return;
+    setState("loading");
+  };
+
+  const setCompleteState = () => {
+    if (state === "complete") return;
+    setState("complete");
+    if (typeof onComplete === "function") onComplete();
+  };
+
+  const resetState = () => {
+    if (state === "idle") return;
+    setState("idle");
+  };
+
+  const handleClick = () => {
+    if (state !== "idle" || disabled) return;
+    setLoadingState();
+    if (typeof onClick === "function") onClick();
+
+    // Auto-complete (also handles case where backend hasn't responded yet)
+    if (autoCompleteAfter > 0) {
+      setTimeout(() => setCompleteState(), autoCompleteAfter);
+    }
+  };
+
+  // Auto-reset after complete
+  useEffect(() => {
+    if (state === "complete") {
+      const t = setTimeout(() => resetState(), 2800);
+      return () => clearTimeout(t);
+    }
+  }, [state]);
+
+  const cls = [
+    "sky-btn",
+    state === "idle" ? "is-idle" : "",
+    state === "loading" ? "is-loading" : "",
+    state === "complete" ? "is-complete" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <button
+      type="button"
+      className={cls}
+      onClick={handleClick}
+      disabled={disabled || state !== "idle"}
+      data-state={state}
+      aria-live="polite"
+      aria-busy={state === "loading"}
+    >
+      {/* Sky */}
+      <span className="sky-btn__sky" aria-hidden="true">
+        <span className="sky-btn__tint"></span>
+        <span className="sky-btn__stars"></span>
+        <span className="sky-btn__cloud c1"></span>
+        <span className="sky-btn__cloud c2"></span>
+        <span className="sky-btn__cloud c3"></span>
+      </span>
+
+      {/* Flying plane + contrail */}
+      <span className="sky-btn__flyer" aria-hidden="true">
+        <span className="sky-btn__trail"></span>
+        <span className="sky-btn__streak s1"></span>
+        <span className="sky-btn__streak s2"></span>
+        <span className="sky-btn__streak s3"></span>
+        <svg
+          className="sky-btn__flyer-svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+        </svg>
+      </span>
+
+      {/* Completion ripple */}
+      {state === "complete" && (
+        <span className="sky-btn__ripple" aria-hidden="true"></span>
+      )}
+
+      {/* Foreground */}
+      <span className="sky-btn__content">
+        <span className="sky-btn__icon" aria-hidden="true">
+          <svg
+            className="sky-btn__icon-plane"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+          </svg>
+          <svg
+            className="sky-btn__icon-check"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4.5 12.6 9.3 17.4 19.5 7.2" />
+          </svg>
+        </span>
+
+        <span className="sky-btn__swap">
+          <span
+            className={`sky-btn__label ${
+              state === "idle" ? "is-active" : ""
+            }`}
+          >
+            {label}
+          </span>
+          <span
+            className={`sky-btn__label ${
+              state === "loading" ? "is-active" : ""
+            }`}
+          >
+            {loadingLabel}
+            <span className="sky-btn__dots" aria-hidden="true">
+              <i></i>
+              <i></i>
+              <i></i>
+            </span>
+          </span>
+          <span
+            className={`sky-btn__label ${
+              state === "complete" ? "is-active" : ""
+            }`}
+          >
+            {doneLabel}
+          </span>
+        </span>
+      </span>
+    </button>
+  );
+};
+
+export default SkyFlightButton;
+
+
+================================================
+FILE: src/components/TripMap.jsx
+================================================
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// Fix default marker icons (known Leaflet+React quirk)
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+// Red marker icon for tourist attractions
+const redIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl:
+    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const TripMap = ({ lat, lng, label, places = [] }) => {
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+
+  return (
+    <div className="rounded overflow-hidden border border-gray-200">
+      <MapContainer
+        center={[lat, lng]}
+        zoom={11}
+        style={{ height: "320px", width: "100%" }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        {/* Destination marker (blue) */}
+        <Marker position={[lat, lng]}>
+          <Popup>{label}</Popup>
+        </Marker>
+
+        {/* Attraction markers (red) */}
+        {places.map((p) => (
+          <Marker key={p.id} position={[p.lat, p.lng]} icon={redIcon}>
+            <Popup>
+              <strong>{p.name}</strong>
+              <br />
+              <span style={{ fontSize: 12, color: "#666" }}>{p.type}</span>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
+  );
+};
+
+export default TripMap;
+
+
+================================================
+FILE: src/components/TripOutlook.jsx
+================================================
+import { useEffect, useState } from "react";
+
+/* ============================================================
+   WMO WEATHER CODE TABLE
+   ============================================================ */
+const WMO = {
+  0: { icon: "☀️", label: "Clear sky" },
+  1: { icon: "🌤️", label: "Mainly clear" },
+  2: { icon: "⛅", label: "Partly cloudy" },
+  3: { icon: "☁️", label: "Overcast" },
+  45: { icon: "🌫️", label: "Fog" },
+  48: { icon: "🌫️", label: "Rime fog" },
+  51: { icon: "🌦️", label: "Light drizzle" },
+  53: { icon: "🌦️", label: "Drizzle" },
+  55: { icon: "🌧️", label: "Dense drizzle" },
+  61: { icon: "🌦️", label: "Light rain" },
+  63: { icon: "🌧️", label: "Rain" },
+  65: { icon: "🌧️", label: "Heavy rain" },
+  71: { icon: "🌨️", label: "Light snow" },
+  73: { icon: "🌨️", label: "Snow" },
+  75: { icon: "❄️", label: "Heavy snow" },
+  77: { icon: "❄️", label: "Snow grains" },
+  80: { icon: "🌦️", label: "Rain showers" },
+  81: { icon: "🌧️", label: "Rain showers" },
+  82: { icon: "⛈️", label: "Violent showers" },
+  85: { icon: "🌨️", label: "Snow showers" },
+  86: { icon: "❄️", label: "Heavy snow showers" },
+  95: { icon: "⛈️", label: "Thunderstorm" },
+  96: { icon: "⛈️", label: "Storm + hail" },
+  99: { icon: "⛈️", label: "Storm + hail" },
+};
+const describe = (c) => WMO[c] || { icon: "🌡️", label: "Unsettled" };
+
+/* ============================================================
+   CONSTANTS
+   ============================================================ */
+const LIVE_WINDOW_DAYS = 16;
+const CLIMATE_YEARS_BACK = 3;
+const RAIN_DAY_MM_THRESHOLD = 1.0;
+
+/* ============================================================
+   DATE HELPERS
+   ============================================================ */
+const pad = (n) => String(n).padStart(2, "0");
+const toISO = (d) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromISO = (s) => {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const addDays = (d, n) => {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+};
+const startOfDay = (d) => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+};
+const fmtDay = (iso) =>
+  fromISO(iso).toLocaleDateString("en-US", { weekday: "short" });
+const fmtDate = (iso) =>
+  fromISO(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const r0 = (v) =>
+  v === null || v === undefined || Number.isNaN(v) ? null : Math.round(v);
+const mean = (arr) =>
+  arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+const daysBetween = (aISO, bISO) =>
+  Math.round((fromISO(bISO) - fromISO(aISO)) / 86400000);
+
+/* ============================================================
+   STAGE 0 — Window Resolver
+   ============================================================ */
+function resolveWindow(startISO, endISO) {
+  const today = startOfDay(new Date());
+  const todayISO = toISO(today);
+  const windowEnd = toISO(addDays(today, LIVE_WINDOW_DAYS - 1));
+
+  if (endISO < todayISO) {
+    return { mode: "past", reason: "Trip dates are in the past." };
+  }
+
+  if (startISO <= windowEnd) {
+    const partial = endISO > windowEnd;
+    return {
+      mode: "live",
+      partial,
+      reason: partial
+        ? "Trip starts inside the live window but extends beyond it."
+        : "Trip falls fully inside the 16-day live window.",
+    };
+  }
+
+  const gap = daysBetween(todayISO, startISO);
+  return {
+    mode: "seasonal",
+    gap,
+    reason: `Trip starts in ${gap} days — beyond the ${LIVE_WINDOW_DAYS}-day live window.`,
+  };
+}
+
+/* ============================================================
+   STAGE 1a — Live Forecast Fetch
+   ============================================================ */
+async function fetchLive(lat, lng) {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.searchParams.set("latitude", lat);
+  url.searchParams.set("longitude", lng);
+  url.searchParams.set(
+    "daily",
+    "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+  );
+  url.searchParams.set("timezone", "auto");
+  url.searchParams.set("forecast_days", String(LIVE_WINDOW_DAYS));
+
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Forecast failed: ${res.status}`);
+
+  const daily = (await res.json())?.daily;
+  if (!daily?.time?.length) throw new Error("No live forecast rows.");
+
+  return daily.time.map((date, i) => ({
+    date,
+    code: daily.weather_code?.[i] ?? 0,
+    max: daily.temperature_2m_max?.[i] ?? null,
+    min: daily.temperature_2m_min?.[i] ?? null,
+    pop: daily.precipitation_probability_max?.[i] ?? 0,
+  }));
+}
+
+/* ============================================================
+   STAGE 1b — Climate Archive Fetch (for far-future trips)
+   ============================================================ */
+async function fetchClimate(lat, lng, startISO, endISO) {
+  const start = fromISO(startISO);
+  const end = fromISO(endISO);
+  const thisYear = new Date().getFullYear();
+
+  const years = Array.from(
+    { length: CLIMATE_YEARS_BACK },
+    (_, i) => thisYear - (i + 1)
+  );
+
+  const requests = years.map(async (y) => {
+    const s = new Date(y, start.getMonth(), start.getDate());
+    const e = new Date(y, end.getMonth(), end.getDate());
+
+    const url = new URL("https://archive-api.open-meteo.com/v1/archive");
+    url.searchParams.set("latitude", lat);
+    url.searchParams.set("longitude", lng);
+    url.searchParams.set("start_date", toISO(s));
+    url.searchParams.set("end_date", toISO(e));
+    url.searchParams.set(
+      "daily",
+      "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"
+    );
+    url.searchParams.set("timezone", "auto");
+
+    try {
+      const res = await fetch(url.toString());
+      if (!res.ok) return null;
+      const json = await res.json();
+      const d = json?.daily;
+      if (!d?.time?.length) return null;
+
+      return d.time.map((date, i) => ({
+        date,
+        code: d.weather_code?.[i] ?? 0,
+        max: d.temperature_2m_max?.[i] ?? null,
+        min: d.temperature_2m_min?.[i] ?? null,
+        precip: d.precipitation_sum?.[i] ?? null,
+      }));
+    } catch {
+      return null;
+    }
+  });
+
+  const results = await Promise.all(requests);
+  const perYear = results.filter(Boolean);
+  if (!perYear.length) throw new Error("No historical data.");
+  return perYear;
+}
+
+/* ============================================================
+   STAGE 3 — Climate Reducer (multi-year averages)
+   ============================================================ */
+function reduceClimate(perYear, tripStartISO) {
+  if (!perYear.length) return [];
+
+  const spine = perYear[0];
+  const start = fromISO(tripStartISO);
+
+  return spine.map((_, i) => {
+    const maxes = perYear
+      .map((y) => y[i]?.max)
+      .filter((v) => v !== null && v !== undefined);
+    const mins = perYear
+      .map((y) => y[i]?.min)
+      .filter((v) => v !== null && v !== undefined);
+    const codes = perYear
+      .map((y) => y[i]?.code)
+      .filter((v) => v !== null && v !== undefined);
+    const precips = perYear
+      .map((y) => y[i]?.precip)
+      .filter((v) => v !== null && v !== undefined);
+
+    const freq = new Map();
+    codes.forEach((c) => freq.set(c, (freq.get(c) || 0) + 1));
+    let dominant = codes[0] ?? 0;
+    let best = -1;
+    for (const [c, n] of freq) {
+      if (n > best) {
+        best = n;
+        dominant = c;
+      }
+    }
+
+    const rainy = precips.filter((p) => p > RAIN_DAY_MM_THRESHOLD).length;
+    const pop = precips.length
+      ? Math.round((rainy / precips.length) * 100)
+      : 0;
+
+    return {
+      date: toISO(addDays(start, i)),
+      code: dominant,
+      max: mean(maxes),
+      min: mean(mins),
+      pop,
+    };
+  });
+}
+
+/* ============================================================
+   COMPONENT
+   ============================================================ */
+const TripOutlook = ({ lat, lng, startDate, endDate }) => {
+  const [series, setSeries] = useState([]);
+  const [mode, setMode] = useState(null);
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!lat || !lng || !startDate || !endDate) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
+      setError("");
+      setSeries([]);
+
+      try {
+        const sISO = toISO(new Date(startDate));
+        const eISO = toISO(new Date(endDate));
+        const res = resolveWindow(sISO, eISO);
+
+        if (cancelled) return;
+        setMode(res.mode);
+        setReason(res.reason);
+
+        if (res.mode === "seasonal") {
+          const perYear = await fetchClimate(lat, lng, sISO, eISO);
+          const climateRows = reduceClimate(perYear, sISO);
+          const sliced = climateRows.filter(
+            (r) => r.date >= sISO && r.date <= eISO
+          );
+          if (!cancelled)
+            setSeries(sliced.map((r) => ({ ...r, source: "seasonal" })));
+        } else {
+          const rows = await fetchLive(lat, lng);
+          let sliceStart, sliceEnd;
+
+          if (res.mode === "past") {
+            sliceStart = rows[0].date;
+            sliceEnd = rows[4]?.date ?? rows[rows.length - 1].date;
+          } else {
+            sliceStart = sISO;
+            sliceEnd = eISO;
+          }
+
+          const sliced = rows.filter(
+            (r) => r.date >= sliceStart && r.date <= sliceEnd
+          );
+          const final = sliced.length ? sliced : rows.slice(0, 5);
+          if (!cancelled)
+            setSeries(final.map((r) => ({ ...r, source: "live" })));
+        }
+      } catch (err) {
+        console.error("[TripOutlook]", err);
+        if (!cancelled)
+          setError("Couldn't load the weather outlook for this destination.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [lat, lng, startDate, endDate]);
+
+  /* ---------- Loading skeleton ---------- */
+  if (loading) {
+    return (
+      <section className="mt-16">
+        <h2 className="text-2xl font-extrabold text-ink mb-6">
+          Trip Weather Outlook
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="skeleton h-44 rounded-2xl" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  /* ---------- Error ---------- */
+  if (error) {
+    return (
+      <section className="mt-16">
+        <h2 className="text-2xl font-extrabold text-ink mb-6">
+          Trip Weather Outlook
+        </h2>
+        <p className="text-sm text-gray-500">{error}</p>
+      </section>
+    );
+  }
+
+  if (!series.length) return null;
+
+  const isSeasonal = mode === "seasonal";
+  const isPast = mode === "past";
+
+  const badge = isSeasonal
+    ? "Seasonal estimate"
+    : isPast
+    ? "Fallback"
+    : "Live forecast";
+
+  const badgeClass = isSeasonal
+    ? "bg-orange-100 text-orange-800"
+    : "bg-lime-light text-forest";
+
+  return (
+    <section className="mt-16">
+      {/* Header */}
+      <div className="flex items-end justify-between flex-wrap gap-3 mb-6">
+        <div>
+          <h2 className="text-2xl font-extrabold text-ink flex items-center gap-3 flex-wrap">
+            Trip Weather Outlook
+            <span
+              className={`text-xs font-bold px-3 py-1 rounded-full ${badgeClass}`}
+            >
+              {badge}
+            </span>
+          </h2>
+          <p className="text-sm text-gray-500 mt-2 max-w-2xl">{reason}</p>
+        </div>
+      </div>
+
+      {/* Seasonal disclaimer */}
+      {isSeasonal && (
+        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex gap-3 items-start">
+          <span className="text-xl flex-shrink-0">ℹ️</span>
+          <p className="text-sm text-orange-900 leading-relaxed">
+            <strong>Seasonal Estimate</strong> — Live 16-day forecast available
+            closer to departure. Values below are historical climate averages
+            for this calendar window across the last {CLIMATE_YEARS_BACK}{" "}
+            years, not a live forecast.
+          </p>
+        </div>
+      )}
+
+      {/* Cards grid */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {series.map((d) => {
+          const w = describe(d.code);
+          const hi = r0(d.max);
+          const lo = r0(d.min);
+          const pop = r0(d.pop);
+          const isLive = d.source === "live";
+
+          return (
+            <div
+              key={d.date}
+              className={`rounded-2xl p-4 text-center transition-transform hover:-translate-y-1 ${
+                isLive
+                  ? "bg-white border-2 border-lime/40 shadow-sm"
+                  : "bg-orange-50/60 border-2 border-dashed border-orange-300"
+              }`}
+            >
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                {fmtDay(d.date)}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">{fmtDate(d.date)}</p>
+
+              <p className="text-4xl my-3" role="img" aria-label={w.label}>
+                {w.icon}
+              </p>
+
+              <p className="text-xs text-gray-500 mb-3 leading-tight">
+                {w.label}
+              </p>
+
+              <p className="text-lg font-extrabold text-ink">
+                {hi !== null ? `${hi}°` : "–"}
+                <span className="text-sm font-semibold text-gray-400 ml-1">
+                  {lo !== null ? `${lo}°` : "–"}
+                </span>
+              </p>
+
+              <p
+                className={`text-xs mt-2 ${
+                  pop >= 50
+                    ? "text-blue-600 font-bold"
+                    : "text-gray-400"
+                }`}
+              >
+                💧 {pop !== null ? `${pop}%` : "—"}
+              </p>
+
+              <p
+                className={`text-[10px] uppercase tracking-wider mt-2 font-bold ${
+                  isLive ? "text-forest/60" : "text-orange-700/70"
+                }`}
+              >
+                {isLive ? "Live" : "Climate norm"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+export default TripOutlook;
+
+
+================================================
+FILE: src/components/WeatherSlider.jsx
+================================================
+import { useEffect, useMemo, useRef, useState } from "react";
+
+/* ============================================================
+   WMO CODE TABLE
+   ============================================================ */
+const WMO = {
+  0: { icon: "☀️", label: "Clear" },
+  1: { icon: "🌤️", label: "Mainly clear" },
+  2: { icon: "⛅", label: "Partly cloudy" },
+  3: { icon: "☁️", label: "Overcast" },
+  45: { icon: "🌫️", label: "Fog" },
+  48: { icon: "🌫️", label: "Rime fog" },
+  51: { icon: "🌦️", label: "Light drizzle" },
+  53: { icon: "🌦️", label: "Drizzle" },
+  55: { icon: "🌧️", label: "Dense drizzle" },
+  61: { icon: "🌦️", label: "Light rain" },
+  63: { icon: "🌧️", label: "Rain" },
+  65: { icon: "🌧️", label: "Heavy rain" },
+  71: { icon: "🌨️", label: "Light snow" },
+  73: { icon: "🌨️", label: "Snow" },
+  75: { icon: "❄️", label: "Heavy snow" },
+  77: { icon: "❄️", label: "Snow grains" },
+  80: { icon: "🌦️", label: "Showers" },
+  81: { icon: "🌧️", label: "Showers" },
+  82: { icon: "⛈️", label: "Violent showers" },
+  85: { icon: "🌨️", label: "Snow showers" },
+  86: { icon: "❄️", label: "Heavy snow" },
+  95: { icon: "⛈️", label: "Thunderstorm" },
+  96: { icon: "⛈️", label: "Storm + hail" },
+  99: { icon: "⛈️", label: "Storm + hail" },
+};
+const describe = (c) => WMO[c] || { icon: "🌡️", label: "Unsettled" };
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const pad = (n) => String(n).padStart(2, "0");
+const toISO = (d) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromISO = (s) => {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const fmtShort = (iso) =>
+  fromISO(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const mean = (arr) =>
+  arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+
+/* ============================================================
+   AI-STYLE TIP GENERATOR (based on weather)
+   ============================================================ */
+function generateTip(day) {
+  const label = describe(day.code).label.toLowerCase();
+  if (day.pop >= 60) {
+    return "⚠️ High rain chance — best for indoor museums, cafés, and shopping districts.";
+  }
+  if (day.pop >= 40) {
+    return "Carry an umbrella — mix indoor and outdoor stops today.";
+  }
+  if (day.max >= 32) {
+    return "☀️ Hot day — plan outdoor activities early morning, stay hydrated.";
+  }
+  if (day.max <= 5) {
+    return "❄️ Cold day — dress warm, ideal for scenic walks and hot drinks.";
+  }
+  if (label.includes("clear") || label.includes("sunny")) {
+    return "Perfect weather for outdoor sightseeing, photography, and walking tours.";
+  }
+  return "Comfortable weather — a great day to explore the destination.";
+}
+
+/* ============================================================
+   COMPONENT
+   ============================================================ */
+const WeatherSlider = ({ lat, lng, startDate, endDate }) => {
+  const [series, setSeries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [unit, setUnit] = useState("C");
+  const [filter, setFilter] = useState("all");
+  const [activeDay, setActiveDay] = useState(1);
+  const [motionOn, setMotionOn] = useState(false);
+  const [progress, setProgress] = useState(6);
+
+  const trackRef = useRef(null);
+  const motionRef = useRef(null);
+  const dragRef = useRef({ dragging: false, startX: 0, startLeft: 0 });
+
+  /* ---------- Fetch data ---------- */
+  useEffect(() => {
+    if (!lat || !lng || !startDate || !endDate) return;
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const sISO = toISO(new Date(startDate));
+        const eISO = toISO(new Date(endDate));
+        const days =
+          Math.round((fromISO(eISO) - fromISO(sISO)) / 86400000) + 1;
+
+        // Cap at 30 days for the slider
+        const totalDays = Math.min(days, 30);
+
+        // ── Live 16-day fetch ──
+        const url = new URL("https://api.open-meteo.com/v1/forecast");
+        url.searchParams.set("latitude", lat);
+        url.searchParams.set("longitude", lng);
+        url.searchParams.set(
+          "daily",
+          "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+        );
+        url.searchParams.set("timezone", "auto");
+        url.searchParams.set("forecast_days", "16");
+
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error("Forecast failed");
+        const daily = (await res.json())?.daily;
+        if (!daily?.time?.length) throw new Error("No forecast data");
+
+        const liveRows = daily.time.map((date, i) => ({
+          date,
+          code: daily.weather_code?.[i] ?? 0,
+          max: daily.temperature_2m_max?.[i] ?? null,
+          min: daily.temperature_2m_min?.[i] ?? null,
+          pop: daily.precipitation_probability_max?.[i] ?? 0,
+          source: "live",
+        }));
+
+        // ── Climate tail (days 17–30) ──
+        // Fetch same calendar window from 3 prior years
+        const climateRows = [];
+        if (totalDays > 16) {
+          const climateStart = new Date(sISO);
+          climateStart.setDate(climateStart.getDate() + 16);
+          const climateEnd = new Date(sISO);
+          climateEnd.setDate(climateEnd.getDate() + totalDays - 1);
+
+          const thisYear = new Date().getFullYear();
+          const years = [thisYear - 1, thisYear - 2, thisYear - 3];
+
+          const perYear = await Promise.all(
+            years.map(async (y) => {
+              const cs = new Date(
+                y,
+                climateStart.getMonth(),
+                climateStart.getDate()
+              );
+              const ce = new Date(
+                y,
+                climateEnd.getMonth(),
+                climateEnd.getDate()
+              );
+              const cu = new URL(
+                "https://archive-api.open-meteo.com/v1/archive"
+              );
+              cu.searchParams.set("latitude", lat);
+              cu.searchParams.set("longitude", lng);
+              cu.searchParams.set("start_date", toISO(cs));
+              cu.searchParams.set("end_date", toISO(ce));
+              cu.searchParams.set(
+                "daily",
+                "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"
+              );
+              cu.searchParams.set("timezone", "auto");
+              try {
+                const r = await fetch(cu.toString());
+                if (!r.ok) return null;
+                const j = await r.json();
+                const d = j?.daily;
+                if (!d?.time?.length) return null;
+                return d.time.map((date, i) => ({
+                  code: d.weather_code?.[i] ?? 0,
+                  max: d.temperature_2m_max?.[i] ?? null,
+                  min: d.temperature_2m_min?.[i] ?? null,
+                  precip: d.precipitation_sum?.[i] ?? null,
+                }));
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          const validYears = perYear.filter(Boolean);
+          if (validYears.length) {
+            const spine = validYears[0];
+            spine.forEach((_, i) => {
+              const maxes = validYears.map((y) => y[i]?.max).filter((v) => v != null);
+              const mins = validYears.map((y) => y[i]?.min).filter((v) => v != null);
+              const codes = validYears.map((y) => y[i]?.code).filter((v) => v != null);
+              const precips = validYears.map((y) => y[i]?.precip).filter((v) => v != null);
+
+              // mode for weather code
+              const freq = new Map();
+              codes.forEach((c) => freq.set(c, (freq.get(c) || 0) + 1));
+              let dom = codes[0] ?? 0;
+              let best = -1;
+              for (const [c, n] of freq) if (n > best) { best = n; dom = c; }
+
+              const rainy = precips.filter((p) => p > 1).length;
+              const pop = precips.length ? Math.round((rainy / precips.length) * 100) : 0;
+
+              const dateObj = new Date(sISO);
+              dateObj.setDate(dateObj.getDate() + 16 + i);
+
+              climateRows.push({
+                date: toISO(dateObj),
+                code: dom,
+                max: mean(maxes),
+                min: mean(mins),
+                pop,
+                source: "climate",
+              });
+            });
+          }
+        }
+
+        const combined = [...liveRows.slice(0, 16), ...climateRows].slice(0, totalDays);
+        if (!cancelled) setSeries(combined);
+      } catch (err) {
+        console.error("[WeatherSlider]", err);
+        if (!cancelled) setError("Couldn't load the weather forecast.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [lat, lng, startDate, endDate]);
+
+  /* ---------- Temperature conversion ---------- */
+  const temp = (c) => {
+    if (c === null || c === undefined) return "–";
+    if (unit === "F") return `${Math.round((c * 9) / 5 + 32)}°F`;
+    return `${c}°C`;
+  };
+  const tempShort = (c) => {
+    if (c === null || c === undefined) return "–";
+    if (unit === "F") return `${Math.round((c * 9) / 5 + 32)}°`;
+    return `${c}°`;
+  };
+
+  /* ---------- Filtered series ---------- */
+  const visible = useMemo(() => {
+    if (filter === "clear") return series.filter((d) => d.pop < 20);
+    if (filter === "rain") return series.filter((d) => d.pop >= 50);
+    return series;
+  }, [series, filter]);
+
+  /* ---------- Auto-scroll ---------- */
+  useEffect(() => {
+    if (motionOn) {
+      motionRef.current = setInterval(() => {
+        const track = trackRef.current;
+        if (!track) return;
+        if (track.scrollLeft + track.clientWidth >= track.scrollWidth - 10) {
+          track.scrollTo({ left: 0, behavior: "smooth" });
+        } else {
+          track.scrollBy({ left: 165, behavior: "smooth" });
+        }
+      }, 1800);
+    } else if (motionRef.current) {
+      clearInterval(motionRef.current);
+      motionRef.current = null;
+    }
+    return () => {
+      if (motionRef.current) clearInterval(motionRef.current);
+    };
+  }, [motionOn]);
+
+  /* ---------- Progress bar on scroll ---------- */
+  const updateProgress = () => {
+    const track = trackRef.current;
+    if (!track) return;
+    const max = track.scrollWidth - track.clientWidth;
+    if (max <= 0) return setProgress(100);
+    const pct = (track.scrollLeft / max) * 100;
+    setProgress(Math.max(6, Math.min(100, pct)));
+  };
+
+  /* ---------- Drag to scroll ---------- */
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    const onDown = (e) => {
+      dragRef.current.dragging = true;
+      dragRef.current.startX = e.pageX - track.offsetLeft;
+      dragRef.current.startLeft = track.scrollLeft;
+    };
+    const onLeave = () => (dragRef.current.dragging = false);
+    const onUp = () => (dragRef.current.dragging = false);
+    const onMove = (e) => {
+      if (!dragRef.current.dragging) return;
+      e.preventDefault();
+      const x = e.pageX - track.offsetLeft;
+      const walk = (x - dragRef.current.startX) * 1.5;
+      track.scrollLeft = dragRef.current.startLeft - walk;
+    };
+
+    track.addEventListener("mousedown", onDown);
+    track.addEventListener("mouseleave", onLeave);
+    track.addEventListener("mouseup", onUp);
+    track.addEventListener("mousemove", onMove);
+    track.addEventListener("scroll", updateProgress);
+
+    return () => {
+      track.removeEventListener("mousedown", onDown);
+      track.removeEventListener("mouseleave", onLeave);
+      track.removeEventListener("mouseup", onUp);
+      track.removeEventListener("mousemove", onMove);
+      track.removeEventListener("scroll", updateProgress);
+    };
+  }, [visible]);
+
+  /* ---------- Card 3D tilt ---------- */
+  const handleMove = (e, el) => {
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    el.style.transform = `perspective(600px) rotateX(${-y * 0.1}deg) rotateY(${x * 0.1}deg) translateY(-8px) scale(1.04)`;
+  };
+  const handleLeave = (el) => {
+    el.style.transform = "";
+  };
+
+  /* ---------- Arrows ---------- */
+  const slide = (dir) => {
+    const track = trackRef.current;
+    if (track) track.scrollBy({ left: dir * 320, behavior: "smooth" });
+  };
+
+  /* ---------- Active day data ---------- */
+  const activeData = series.find(
+    (d, i) => i + 1 === activeDay
+  ) || series[0] || null;
+
+  /* ---------- Loading ---------- */
+  if (loading) {
+    return (
+      <section className="mt-16">
+        <h2 className="text-2xl font-extrabold text-ink mb-6">
+          Trip Weather Outlook
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="skeleton h-44 rounded-2xl" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="mt-16">
+        <h2 className="text-2xl font-extrabold text-ink mb-6">
+          Trip Weather Outlook
+        </h2>
+        <p className="text-sm text-gray-500">{error}</p>
+      </section>
+    );
+  }
+
+  if (!series.length) return null;
+
+  return (
+    <section className="mt-16 ws-wrapper">
+      {/* ═══════════ HEADER ═══════════ */}
+      <div className="ws-header">
+        <div>
+          <div className="ws-brand-tag">
+            <span className="ws-pulse-dot"></span>
+            AI Live Weather Engine
+          </div>
+          <h2 className="ws-title">
+            {series.length}-Day <span>Forecast Motion</span>
+          </h2>
+          <p className="ws-subtitle">
+            Horizontal scroll with live Open-Meteo + seasonal climate fallback.
+          </p>
+        </div>
+
+        <div className="ws-controls">
+          <button
+            className="ws-btn"
+            onClick={() => setUnit(unit === "C" ? "F" : "C")}
+          >
+            Unit: °{unit}
+          </button>
+          <button
+            className={`ws-btn ${motionOn ? "active" : ""}`}
+            onClick={() => setMotionOn((v) => !v)}
+          >
+            <span>{motionOn ? "⏸" : "▶"}</span>
+            <span>{motionOn ? "Pause" : "Auto-Scroll"}</span>
+          </button>
+          <div className="ws-nav-arrows">
+            <button
+              className="ws-arrow-btn"
+              onClick={() => slide(-1)}
+              aria-label="Previous"
+            >
+              ◀
+            </button>
+            <button
+              className="ws-arrow-btn"
+              onClick={() => slide(1)}
+              aria-label="Next"
+            >
+              ▶
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════ FILTERS ═══════════ */}
+      <div className="ws-filters">
+        <button
+          className={`ws-chip ${filter === "all" ? "active" : ""}`}
+          onClick={() => setFilter("all")}
+        >
+          All {series.length} Days
+        </button>
+        <button
+          className={`ws-chip ${filter === "clear" ? "active" : ""}`}
+          onClick={() => setFilter("clear")}
+        >
+          ☀️ Clear Skies (&lt;20% Rain)
+        </button>
+        <button
+          className={`ws-chip ${filter === "rain" ? "active" : ""}`}
+          onClick={() => setFilter("rain")}
+        >
+          🌧️ Plan B Days (≥50% Rain)
+        </button>
+      </div>
+
+      {/* ═══════════ TRACK ═══════════ */}
+      <div className="ws-track-wrapper">
+        <div className="ws-edge-left" />
+        <div className="ws-edge-right" />
+        <div className="ws-track" ref={trackRef}>
+          {visible.map((d, idx) => {
+            const dayNum = series.indexOf(d) + 1;
+            const w = describe(d.code);
+            const isLive = d.source === "live";
+            const isRainy = d.pop >= 50;
+            const isActive = dayNum === activeDay;
+
+            return (
+              <div
+                key={d.date}
+                className={`ws-card ${isActive ? "active" : ""}`}
+                onClick={() => setActiveDay(dayNum)}
+                onMouseMove={(e) => handleMove(e, e.currentTarget)}
+                onMouseLeave={(e) => handleLeave(e.currentTarget)}
+              >
+                <div className="ws-card-header">
+                  <span className="ws-card-day">Day {dayNum}</span>
+                  <span
+                    className={`ws-card-badge ${
+                      isLive ? "ws-badge-live" : "ws-badge-climate"
+                    }`}
+                  >
+                    {isLive ? "Live" : "Climate"}
+                  </span>
+                </div>
+
+                <div className="ws-card-icon-area">
+                  <span className="ws-card-icon">{w.icon}</span>
+                  <div className="ws-card-date">{fmtShort(d.date)}</div>
+                </div>
+
+                <div className="ws-card-stats">
+                  <div>
+                    <span className="ws-temp-high">{tempShort(d.max)}</span>
+                    <span className="ws-temp-low">{tempShort(d.min)}</span>
+                  </div>
+                  <span
+                    className={`ws-rain-stat ${
+                      isRainy ? "ws-rain-warning" : "ws-rain-safe"
+                    }`}
+                  >
+                    {d.pop}%
+                  </span>
+                </div>
+
+                {isRainy && <div className="ws-plan-b">⚡ Plan B</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ═══════════ PROGRESS ═══════════ */}
+      <div className="ws-progress">
+        <div
+          className="ws-progress-fill"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* ═══════════ INSPECTOR ═══════════ */}
+      {activeData && (
+        <div className="ws-inspector">
+          <div className="ws-inspector-left">
+            <div className="ws-inspector-icon">
+              {describe(activeData.code).icon}
+            </div>
+            <div className="ws-inspector-info">
+              <div className="ws-inspector-title">
+                <span>
+                  Day {activeDay}: {fmtShort(activeData.date)} —{" "}
+                  {describe(activeData.code).label}
+                </span>
+                <span
+                  className={`ws-inspector-risk ${
+                    activeData.pop >= 50 ? "rainy" : ""
+                  }`}
+                >
+                  {activeData.pop >= 50 ? "🌧️" : "☀️"} {activeData.pop}% Rain
+                  Risk
+                </span>
+              </div>
+              <div className="ws-inspector-sub">
+                High: {temp(activeData.max)} • Low: {temp(activeData.min)} •
+                Source:{" "}
+                {activeData.source === "live"
+                  ? "Open-Meteo 16-Day Forecast"
+                  : "Historical Climate Model"}
+              </div>
+            </div>
+          </div>
+
+          <div className="ws-inspector-ai">
+            <span className="ws-ai-badge">AI Plan</span>
+            <span>{generateTip(activeData)}</span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+export default WeatherSlider;
+
+
+================================================
+FILE: src/context/AuthContext.jsx
+================================================
+import { createContext, useContext, useState } from "react";
+import api from "../api/axios";
+
+const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem("user")) || null
+  );
+
+  const register = async (name, email, password) => {
+    const res = await api.post("/auth/register", { name, email, password });
+    localStorage.setItem("user", JSON.stringify(res.data));
+    setUser(res.data);
+  };
+
+  const login = async (email, password) => {
+    const res = await api.post("/auth/login", { email, password });
+    localStorage.setItem("user", JSON.stringify(res.data));
+    setUser(res.data);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("user");
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, register, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);
+
+
+================================================
+FILE: src/context/ThemeContext.jsx
+================================================
+import { createContext, useContext, useMemo } from "react";
+
+const ThemeContext = createContext(null);
+
+export function ThemeProvider({ children }) {
+  // Theme is permanently locked to light mode.
+  // The toggle and dark logic have been removed.
+  const value = useMemo(
+    () => ({
+      theme: "light",
+      isDark: false,
+      dark: false,
+      toggleTheme: () => {},
+      setDark: () => {},
+    }),
+    []
+  );
+
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error("useTheme must be used within <ThemeProvider>");
+  return ctx;
+};
+
+export default ThemeContext;
+
+
+================================================
+FILE: src/lib/utils.js
+================================================
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
+
+
+================================================
+FILE: src/pages/CreateTrip.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8f in position 1204: character maps to <undefined>
+
+
+================================================
+FILE: src/pages/Dashboard.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8f in position 3511: character maps to <undefined>
+
+
+================================================
+FILE: src/pages/EditTrip.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x90 in position 4534: character maps to <undefined>
+
+
+================================================
+FILE: src/pages/Landing.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 3849: character maps to <undefined>
+
+
+================================================
+FILE: src/pages/Login.jsx
+================================================
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+
+const Login = () => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await login(form.email, form.password);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.response?.data?.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputClass =
+    "w-full border border-gray-200 rounded-lg px-4 py-3 text-ink placeholder-gray-400 bg-white focus:outline-none focus:border-forest transition";
+
+  return (
+    <div className="min-h-screen bg-white py-12 px-6 flex items-center justify-center">
+      <div className="max-w-md w-full animate-fade-in-up">
+        <h1 className="text-3xl font-extrabold text-ink text-center">
+          Welcome back
+        </h1>
+        <p className="text-gray-500 text-center mt-2 mb-8">
+          Sign in to continue
+        </p>
+
+        {error && (
+          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mb-5 text-sm">
+            {error}
+          </p>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            name="email"
+            type="email"
+            placeholder="Email address"
+            value={form.email}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <input
+            name="password"
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 rounded-lg bg-forest text-lime font-bold hover:bg-black disabled:opacity-60 btn-press transition"
+          >
+            {loading ? "Please wait..." : "Sign In"}
+          </button>
+        </form>
+
+        <p className="text-sm text-center mt-6 text-gray-500">
+          New here?{" "}
+          <Link
+            to="/register"
+            className="text-lime-dark font-bold hover:underline"
+          >
+            Create an account
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+
+
+================================================
+FILE: src/pages/NotFound.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8f in position 13697: character maps to <undefined>
+
+
+================================================
+FILE: src/pages/Profile.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8f in position 6189: character maps to <undefined>
+
+
+================================================
+FILE: src/pages/Register.jsx
+================================================
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+
+const Register = () => {
+  const { register } = useAuth();
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await register(form.name, form.email, form.password);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.response?.data?.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputClass =
+    "w-full border border-gray-200 rounded-lg px-4 py-3 text-ink placeholder-gray-400 bg-white focus:outline-none focus:border-forest transition";
+
+  return (
+    <div className="min-h-screen bg-white py-12 px-6 flex items-center justify-center">
+      <div className="max-w-md w-full animate-fade-in-up">
+        <h1 className="text-3xl font-extrabold text-ink text-center">
+          Create account
+        </h1>
+        <p className="text-gray-500 text-center mt-2 mb-8">
+          Start planning your trips with AI
+        </p>
+
+        {error && (
+          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mb-5 text-sm">
+            {error}
+          </p>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            name="name"
+            type="text"
+            placeholder="Full name"
+            value={form.name}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <input
+            name="email"
+            type="email"
+            placeholder="Email address"
+            value={form.email}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <input
+            name="password"
+            type="password"
+            placeholder="Password (min 6 characters)"
+            value={form.password}
+            onChange={handleChange}
+            className={inputClass}
+            required
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 rounded-lg bg-forest text-lime font-bold hover:bg-black disabled:opacity-60 btn-press transition"
+          >
+            {loading ? "Please wait..." : "Create Account"}
+          </button>
+        </form>
+
+        <p className="text-sm text-center mt-6 text-gray-500">
+          Already have an account?{" "}
+          <Link to="/login" className="text-lime-dark font-bold hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default Register;
+
+
+================================================
+FILE: src/pages/SharedTrip.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8d in position 3768: character maps to <undefined>
+
+
+================================================
+FILE: src/pages/TripDetail.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x90 in position 5962: character maps to <undefined>
+
+
+================================================
+FILE: src/pages/Trips.jsx
+================================================
+import { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
+import api from "../api/axios";
+import Skeleton from "../components/Skeleton";
+
+const BUDGET_FILTERS = [
+  { id: "all", label: "All", icon: "🌐" },
+  { id: "cheap", label: "Cheap", icon: "💵" },
+  { id: "moderate", label: "Moderate", icon: "💰" },
+  { id: "luxury", label: "Luxury", icon: "💎" },
+];
+
+const SORT_OPTIONS = [
+  { id: "recent", label: "Recently created" },
+  { id: "startDate", label: "Trip date (soonest)" },
+  { id: "budget-high", label: "Budget: high → low" },
+  { id: "budget-low", label: "Budget: low → high" },
+  { id: "destination", label: "Destination (A–Z)" },
+];
+
+const getBudgetTier = (budget) => {
+  if (budget < 20000) return "cheap";
+  if (budget < 50000) return "moderate";
+  return "luxury";
+};
+
+const TripsSkeleton = () => (
+  <div className="min-h-screen bg-white py-12 px-6">
+    <div className="max-w-6xl mx-auto">
+      <div className="flex flex-wrap justify-between items-end gap-4 mb-8">
+        <div>
+          <Skeleton variant="rectangular" width={220} height={44} rounded="12px" />
+          <div style={{ marginTop: 12 }}>
+            <Skeleton variant="text" width={140} height={14} />
+          </div>
+        </div>
+        <Skeleton variant="rectangular" width={130} height={42} rounded="9999px" />
+      </div>
+      <Skeleton variant="rectangular" width="100%" height={56} rounded="16px" />
+      <div className="flex gap-2 mt-4 flex-wrap">
+        {[...Array(4)].map((_, i) => (
+          <Skeleton key={i} variant="rectangular" width={110} height={40} rounded="9999px" />
+        ))}
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-8">
+        {[...Array(6)].map((_, i) => (
+          <div key={i}>
+            <Skeleton
+              variant="rectangular"
+              width="100%"
+              style={{ aspectRatio: "4 / 3" }}
+              rounded="16px"
+            />
+            <div style={{ marginTop: 16 }}>
+              <Skeleton variant="rectangular" width="70%" height={22} rounded="6px" />
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <Skeleton variant="text" width="55%" height={14} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const Trips = () => {
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [budgetFilter, setBudgetFilter] = useState("all");
+  const [sort, setSort] = useState("recent");
+
+  useEffect(() => {
+    api
+      .get("/trips")
+      .then((r) => setTrips(r.data))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const counts = useMemo(() => {
+    const c = { all: trips.length, cheap: 0, moderate: 0, luxury: 0 };
+    trips.forEach((t) => {
+      c[getBudgetTier(t.budget)]++;
+    });
+    return c;
+  }, [trips]);
+
+  const totalBudget = useMemo(
+    () => trips.reduce((sum, t) => sum + (Number(t.budget) || 0), 0),
+    [trips]
+  );
+
+  const upcomingCount = useMemo(
+    () => trips.filter((t) => new Date(t.startDate) > new Date()).length,
+    [trips]
+  );
+
+  const visibleTrips = useMemo(() => {
+    let list = [...trips];
+    if (budgetFilter !== "all") {
+      list = list.filter((t) => getBudgetTier(t.budget) === budgetFilter);
+    }
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter((t) => t.destination?.toLowerCase().includes(q));
+    }
+    list.sort((a, b) => {
+      switch (sort) {
+        case "startDate":
+          return new Date(a.startDate) - new Date(b.startDate);
+        case "budget-high":
+          return b.budget - a.budget;
+        case "budget-low":
+          return a.budget - b.budget;
+        case "destination":
+          return (a.destination || "").localeCompare(b.destination || "");
+        case "recent":
+        default:
+          return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+    });
+    return list;
+  }, [trips, search, budgetFilter, sort]);
+
+  const clearFilters = () => {
+    setSearch("");
+    setBudgetFilter("all");
+    setSort("recent");
+  };
+
+  const hasFilters = search.trim() || budgetFilter !== "all" || sort !== "recent";
+
+  if (loading) return <TripsSkeleton />;
+
+  return (
+    <div className="min-h-screen bg-white py-12 px-6">
+      <div className="max-w-6xl mx-auto">
+        {/* ═══════════ HERO HEADER ═══════════ */}
+        <div className="relative mb-8 animate-fade-in-up">
+          <div className="flex items-start gap-5">
+            <div className="hidden md:block w-1.5 bg-lime rounded-full self-stretch min-h-[80px]" />
+
+            <div className="flex-1 flex flex-wrap justify-between items-end gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 mb-2">
+                  <span className="text-xs font-bold uppercase tracking-widest text-lime-dark">
+                    Your travel collection
+                  </span>
+                </div>
+                <h1 className="text-4xl md:text-5xl font-extrabold text-ink leading-tight">
+                  My Trips
+                </h1>
+                <p className="text-gray-500 mt-2 text-sm">
+                  {visibleTrips.length} of {trips.length} trip
+                  {trips.length === 1 ? "" : "s"}
+                  {hasFilters && " (filtered)"}
+                </p>
+              </div>
+
+              <Link
+                to="/trips/new"
+                className="px-6 py-3 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark btn-press transition shadow-[0_6px_20px_-8px_rgba(168,216,74,0.8)] inline-flex items-center gap-2"
+              >
+                <span className="text-lg leading-none">+</span> New Trip
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════ STATS HIGHLIGHT BAR — COMPACT ═══════════ */}
+        {trips.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8 animate-fade-in-up delay-100">
+            <div className="bg-lime-light border border-lime/30 rounded-xl px-3.5 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-lime flex items-center justify-center text-forest text-sm flex-shrink-0">
+                🗺️
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-forest/70 uppercase tracking-wider font-bold leading-tight">
+                  Total Trips
+                </p>
+                <p className="text-lg font-extrabold text-forest leading-tight">
+                  {trips.length}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border-2 border-forest rounded-xl px-3.5 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-forest flex items-center justify-center text-lime text-sm flex-shrink-0">
+                💰
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold leading-tight">
+                  Planned Budget
+                </p>
+                <p className="text-lg font-extrabold text-ink leading-tight truncate">
+                  ₹{totalBudget.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl px-3.5 py-2.5 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-lime-light flex items-center justify-center text-lime-dark text-sm flex-shrink-0">
+                📅
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold leading-tight">
+                  Upcoming
+                </p>
+                <p className="text-lg font-extrabold text-ink leading-tight">
+                  {upcomingCount}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ SEARCH & FILTERS ═══════════ */}
+        {trips.length > 0 && (
+          <div className="mb-8 space-y-4 animate-fade-in-up delay-200">
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                🔍
+              </span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by destination..."
+                className="w-full border-2 border-gray-200 rounded-2xl pl-10 pr-10 py-3.5 text-ink placeholder-gray-400 bg-white focus:outline-none focus:border-lime focus:ring-2 focus:ring-lime/30 transition"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-100 text-gray-500 text-xs hover:bg-lime hover:text-forest transition"
+                  aria-label="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">
+                Budget
+              </span>
+              {BUDGET_FILTERS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setBudgetFilter(f.id)}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-semibold transition ${
+                    budgetFilter === f.id
+                      ? "border-lime bg-lime text-forest shadow-[0_4px_12px_-4px_rgba(168,216,74,0.8)]"
+                      : "border-gray-200 text-ink hover:border-lime hover:bg-lime-light"
+                  }`}
+                >
+                  <span>{f.icon}</span>
+                  {f.label}
+                  <span
+                    className={`text-xs ml-0.5 ${
+                      budgetFilter === f.id ? "opacity-80" : "text-gray-400"
+                    }`}
+                  >
+                    {counts[f.id] || 0}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-3 items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Sort
+                </span>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                  className="px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-ink bg-white focus:outline-none focus:border-lime focus:ring-2 focus:ring-lime/30 transition"
+                >
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {hasFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-gray-500 hover:text-lime-dark font-semibold transition"
+                >
+                  ✕ Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ EMPTY STATE — no trips ═══════════ */}
+        {trips.length === 0 && (
+          <div className="text-center py-24 bg-lime-light/50 border-2 border-dashed border-lime/40 rounded-3xl animate-fade-in-up">
+            <p className="text-6xl mb-4">🗺️</p>
+            <h3 className="text-2xl font-extrabold text-ink mb-2">
+              No trips yet
+            </h3>
+            <p className="text-gray-500 mb-8 max-w-md mx-auto">
+              Start planning your first adventure and let AI craft the perfect
+              itinerary for you.
+            </p>
+            <Link
+              to="/trips/new"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark btn-press transition shadow-[0_8px_24px_-8px_rgba(168,216,74,0.9)]"
+            >
+              ✨ Create Your First Trip
+            </Link>
+          </div>
+        )}
+
+        {/* ═══════════ EMPTY STATE — no filter matches ═══════════ */}
+        {trips.length > 0 && visibleTrips.length === 0 && (
+          <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-3xl animate-fade-in-up">
+            <p className="text-5xl mb-4">🔍</p>
+            <p className="text-ink font-bold mb-2">No trips match your filters</p>
+            <p className="text-gray-500 text-sm mb-6">
+              Try a different search or clear the filters.
+            </p>
+            <button
+              onClick={clearFilters}
+              className="px-6 py-2.5 rounded-full bg-lime text-forest text-sm font-bold hover:bg-lime-dark btn-press transition"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+
+        {/* ═══════════ TRIP GRID ═══════════ */}
+        {visibleTrips.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {visibleTrips.map((trip, i) => {
+              const days = Math.max(
+                1,
+                Math.round(
+                  (new Date(trip.endDate) - new Date(trip.startDate)) /
+                    (1000 * 60 * 60 * 24)
+                )
+              );
+              const tier = getBudgetTier(trip.budget);
+              const budgetLabel =
+                tier === "cheap"
+                  ? "Cheap"
+                  : tier === "moderate"
+                  ? "Moderate"
+                  : "Luxury";
+
+              const tierStyle =
+                tier === "cheap"
+                  ? "bg-lime-light text-forest border-lime/40"
+                  : tier === "moderate"
+                  ? "bg-forest text-lime border-forest"
+                  : "bg-ink text-white border-ink";
+
+              const imgUrl =
+                trip.image ||
+                `https://picsum.photos/seed/${encodeURIComponent(
+                  trip.destination
+                )}/600/450`;
+
+              return (
+                <Link
+                  key={trip._id}
+                  to={`/trips/${trip._id}`}
+                  className="block group card-hover animate-fade-in-up bg-white border-2 border-gray-100 hover:border-lime rounded-2xl overflow-hidden transition-colors"
+                  style={{ animationDelay: `${i * 0.05}s` }}
+                >
+                  <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
+                    <img
+                      src={imgUrl}
+                      alt={trip.destination}
+                      className="w-full h-full object-cover img-zoom"
+                      onError={(e) => {
+                        e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
+                          trip.destination
+                        )}/600/450`;
+                      }}
+                    />
+                    <span
+                      className={`absolute top-3 right-3 text-xs px-3 py-1 rounded-full font-bold border ${tierStyle}`}
+                    >
+                      {budgetLabel}
+                    </span>
+                  </div>
+
+                  <div className="p-4">
+                    <h3 className="font-extrabold text-ink text-lg leading-tight group-hover:text-lime-dark transition-colors">
+                      {trip.destination}
+                    </h3>
+                    <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
+                      <span>📅 {days}D</span>
+                      <span>·</span>
+                      <span>👥 {trip.travellers}</span>
+                    </div>
+                    <p className="text-sm font-bold text-ink mt-3">
+                      ₹{(trip.budget || 0).toLocaleString()}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Trips;
+
+
+================================================
+FILE: src/pages/WeatherForecast.jsx
+================================================
+Error reading file with 'cp1252': 'charmap' codec can't decode byte 0x8f in position 9097: character maps to <undefined>
+

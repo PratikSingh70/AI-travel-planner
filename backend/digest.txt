@@ -1,0 +1,1403 @@
+Directory structure:
+└── backend/
+    ├── package.json
+    ├── server.js
+    ├── user.js
+    ├── config/
+    │   └── db.js
+    ├── controllers/
+    │   ├── authController.js
+    │   └── tripController.js
+    ├── middleware/
+    │   └── authMiddleware.js
+    ├── models/
+    │   ├── Trip.js
+    │   └── User.js
+    ├── routes/
+    │   ├── authRoutes.js
+    │   └── tripRoutes.js
+    └── services/
+        ├── geminiService.js
+        ├── groqService.js
+        ├── imageService.js
+        ├── placesService.js
+        └── weatherService.js
+
+================================================
+FILE: package.json
+================================================
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^2.22.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "groq-sdk": "^1.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.1",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
+
+
+
+================================================
+FILE: server.js
+================================================
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import connectDB from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import tripRoutes from "./routes/tripRoutes.js";
+
+connectDB();
+
+const app = express();
+
+// middleware
+app.use(cors());
+app.use(express.json());
+
+// test route
+app.get("/", (req, res) => {
+  res.json({ message: "API is running..." });
+});
+
+// routes
+app.use("/api/auth", authRoutes);
+app.use("/api/trips", tripRoutes);
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+
+
+================================================
+FILE: user.js
+================================================
+[Empty file]
+
+
+================================================
+FILE: config/db.js
+================================================
+import mongoose from "mongoose";
+
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`MongoDB Error: ${error.message}`);
+    process.exit(1);
+  }
+};
+
+export default connectDB;
+
+
+================================================
+FILE: controllers/authController.js
+================================================
+import User from "../models/User.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+// Helper to create a JWT
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
+};
+
+// POST /api/auth/register
+export const registerUser = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+    if (password.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters" });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+    });
+
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// POST /api/auth/login
+export const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    if (!user.password) {
+      return res
+        .status(400)
+        .json({ message: "This account uses Google sign-in. Please use Google." });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// POST /api/auth/google
+export const googleAuth = async (req, res) => {
+  try {
+    const { email, name, googleId, avatar } = req.body;
+
+    if (!email || !googleId) {
+      return res.status(400).json({ message: "Email and googleId required" });
+    }
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({ name, email, googleId, avatar });
+    } else if (!user.googleId) {
+      // Link Google to existing email/password user
+      user.googleId = googleId;
+      if (avatar) user.avatar = avatar;
+      await user.save();
+    }
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/auth/profile
+export const getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      createdAt: user.createdAt,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// PUT /api/auth/profile
+export const updateProfile = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || name.trim().length < 2) {
+      return res
+        .status(400)
+        .json({ message: "Name must be at least 2 characters" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.name = name.trim();
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// PUT /api/auth/password
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Both fields are required" });
+    }
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "New password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        message: "This account uses Google sign-in. No password to change.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+================================================
+FILE: controllers/tripController.js
+================================================
+import Trip from "../models/Trip.js";
+import { generateItinerary } from "../services/geminiService.js";
+import { generateItineraryWithGroq } from "../services/groqService.js";
+import { geocode, getWeather } from "../services/weatherService.js";
+import { getDestinationImage, getPlaceImages } from "../services/imageService.js";
+import { getTouristPlaces } from "../services/placesService.js";
+
+// CREATE - POST /api/trips
+export const createTrip = async (req, res) => {
+  try {
+    const { destination, startDate, endDate, budget, travellers, interests } =
+      req.body;
+
+    if (!destination || !startDate || !endDate || !budget) {
+      return res
+        .status(400)
+        .json({ message: "Please fill all required fields" });
+    }
+
+    const trip = await Trip.create({
+      user: req.user._id,
+      destination,
+      startDate,
+      endDate,
+      budget,
+      travellers: travellers || 1,
+      interests: interests || [],
+    });
+
+    res.status(201).json(trip);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// READ ALL - GET /api/trips
+export const getTrips = async (req, res) => {
+  try {
+    const trips = await Trip.find({ user: req.user._id }).sort({
+      createdAt: -1,
+    });
+
+    const tripsWithImages = await Promise.all(
+      trips.map(async (t) => {
+        const image = await getDestinationImage(t.destination);
+        return { ...t.toObject(), image };
+      })
+    );
+
+    res.json(tripsWithImages);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// READ ONE - GET /api/trips/:id
+export const getTripById = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+
+    if (trip.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    res.json(trip);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// UPDATE - PUT /api/trips/:id
+export const updateTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+    if (trip.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const updated = await Trip.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// DELETE - DELETE /api/trips/:id
+export const deleteTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+    if (trip.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    await trip.deleteOne();
+    res.json({ message: "Trip removed" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GENERATE ITINERARY - POST /api/trips/:id/generate
+export const generateTripItinerary = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({ message: "Trip not found" });
+    }
+    if (trip.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    let itinerary;
+    let provider = "gemini";
+
+    try {
+      console.log("â†’ Attempting Gemini...");
+      itinerary = await generateItinerary(trip);
+      console.log("âœ“ Gemini succeeded");
+    } catch (geminiError) {
+      console.warn("âœ— Gemini failed:", geminiError.message);
+      console.log("â†’ Falling back to Groq...");
+      provider = "groq";
+      itinerary = await generateItineraryWithGroq(trip);
+      console.log("âœ“ Groq succeeded");
+    }
+
+    trip.itinerary = itinerary.days;
+    trip.hotels = itinerary.hotels || [];
+    trip.budgetBreakdown = itinerary.budgetBreakdown || {
+      flights: 0,
+      hotels: 0,
+      food: 0,
+      activities: 0,
+      total: 0,
+    };
+    await trip.save();
+
+    const hotelsWithImages = await Promise.all(
+      (trip.hotels || []).map(async (h) => {
+        const imgs = await getPlaceImages(h.name + " hotel", 1);
+        return { ...h, image: imgs[0] || null };
+      })
+    );
+
+    const itineraryWithImages = await Promise.all(
+      (trip.itinerary || []).map(async (day) => {
+        const acts = await Promise.all(
+          (day.activities || []).map(async (act) => {
+            const imgs = await getPlaceImages(act.title, 1);
+            return { ...act, image: imgs[0] || null };
+          })
+        );
+        return { ...day, activities: acts };
+      })
+    );
+
+    trip.hotels = hotelsWithImages;
+    trip.itinerary = itineraryWithImages;
+    await trip.save();
+
+    res.json({
+      message: `Itinerary generated by ${provider}`,
+      provider,
+      itinerary: trip.itinerary,
+      hotels: trip.hotels,
+      budgetBreakdown: trip.budgetBreakdown,
+    });
+  } catch (error) {
+    console.error("AI generation error:", error);
+
+    const raw = error.message || "";
+    let friendly = "AI generation failed. Please try again.";
+
+    if (
+      raw.includes("503") ||
+      raw.includes("UNAVAILABLE") ||
+      raw.includes("high demand")
+    ) {
+      friendly =
+        "Both AI providers are busy right now. Please wait a minute and try again.";
+    } else if (raw.includes("API key not valid")) {
+      friendly = "API key is invalid. Check backend .env.";
+    } else if (raw.includes("quota") || raw.includes("429")) {
+      friendly = "Rate limit reached. Wait about a minute and retry.";
+    } else if (raw.includes("valid JSON")) {
+      friendly = "AI returned invalid JSON. Please retry.";
+    }
+
+    res.status(500).json({ message: friendly });
+  }
+};
+
+// GET WEATHER - GET /api/trips/:id/weather
+export const getTripWeather = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
+    if (trip.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    try {
+      const location = await geocode(trip.destination);
+      const weather = await getWeather(location.lat, location.lng);
+      return res.json({
+        location,
+        current: weather.current,
+        daily: weather.daily,
+      });
+    } catch (innerErr) {
+      console.error("Weather inner error:", innerErr.message);
+      return res.json({ location: null, current: null, daily: null });
+    }
+  } catch (error) {
+    console.error("Weather error:", error);
+    res.status(500).json({ message: error.message || "Weather fetch failed" });
+  }
+};
+
+// GET IMAGE - GET /api/trips/:id/image
+export const getTripImage = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
+    if (trip.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const imageUrl = await getDestinationImage(trip.destination);
+    res.json({ imageUrl });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET TOURIST PLACES - GET /api/trips/:id/places
+export const getTripPlaces = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
+    if (trip.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const location = await geocode(trip.destination);
+    const places = await getTouristPlaces(location.lat, location.lng);
+
+    res.json({ location, places });
+  } catch (error) {
+    console.error("Places error:", error);
+    res.json({ location: null, places: [] });
+  }
+};
+
+// PHOTO SEARCH - GET /api/trips/photo?q=...&count=4
+export const searchPhotos = async (req, res) => {
+  try {
+    const q = req.query.q;
+    if (!q) return res.json({ images: [] });
+
+    const count = parseInt(req.query.count) || 4;
+    const images = await getPlaceImages(q, count);
+    res.json({ images });
+  } catch (error) {
+    res.status(500).json({ images: [] });
+  }
+};
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// SHARE - POST /api/trips/:id/share  (protected)
+// Generates a random 8-char shareId if not already present
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const shareTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) return res.status(404).json({ message: "Trip not found" });
+    if (trip.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    // Generate a new shareId if missing
+    if (!trip.shareId) {
+      // 8-char random string using base36
+      const id = Math.random().toString(36).substring(2, 10);
+      trip.shareId = id;
+      await trip.save();
+    }
+
+    res.json({ shareId: trip.shareId });
+  } catch (error) {
+    console.error("Share error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// PUBLIC - GET /api/trips/shared/:shareId  (no auth)
+// Returns a shared trip. Hides the owner's private info.
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const getSharedTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findOne({ shareId: req.params.shareId }).populate(
+      "user",
+      "name"
+    );
+
+    if (!trip) {
+      return res.status(404).json({ message: "Shared trip not found" });
+    }
+
+    // Return only safe fields (no email, no userId)
+    res.json({
+      _id: trip._id,
+      destination: trip.destination,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      budget: trip.budget,
+      travellers: trip.travellers,
+      interests: trip.interests,
+      itinerary: trip.itinerary,
+      hotels: trip.hotels,
+      budgetBreakdown: trip.budgetBreakdown,
+      sharedBy: trip.user?.name || "Someone",
+      createdAt: trip.createdAt,
+    });
+  } catch (error) {
+    console.error("Shared trip error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+================================================
+FILE: middleware/authMiddleware.js
+================================================
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+export const protect = async (req, res, next) => {
+  let token;
+
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    try {
+      token = req.headers.authorization.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.id).select("-password");
+      next();
+    } catch (error) {
+      return res.status(401).json({ message: "Not authorized, invalid token" });
+    }
+  } else {
+    return res.status(401).json({ message: "Not authorized, no token" });
+  }
+};
+
+
+================================================
+FILE: models/Trip.js
+================================================
+import mongoose from "mongoose";
+
+const tripSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    destination: {
+      type: String,
+      required: [true, "Destination is required"],
+      trim: true,
+    },
+    startDate: {
+      type: Date,
+      required: [true, "Start date is required"],
+    },
+    endDate: {
+      type: Date,
+      required: [true, "End date is required"],
+    },
+    budget: {
+      type: Number,
+      required: [true, "Budget is required"],
+      min: 0,
+    },
+    travellers: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    interests: {
+      type: [String],
+      default: [],
+    },
+    itinerary: {
+      type: Array,
+      default: [],
+    },
+    hotels: {
+      type: Array,
+      default: [],
+    },
+    budgetBreakdown: {
+      flights: { type: Number, default: 0 },
+      hotels: { type: Number, default: 0 },
+      food: { type: Number, default: 0 },
+      activities: { type: Number, default: 0 },
+      total: { type: Number, default: 0 },
+    },
+    // â”€â”€â”€ NEW: unique share identifier for public links â”€â”€â”€
+    shareId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+  },
+  { timestamps: true }
+);
+
+const Trip = mongoose.model("Trip", tripSchema);
+
+export default Trip;
+
+
+================================================
+FILE: models/User.js
+================================================
+import mongoose from "mongoose";
+
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: 6,
+    },
+  },
+  { timestamps: true }
+);
+
+const User = mongoose.model("User", userSchema);
+
+export default User;
+
+
+================================================
+FILE: routes/authRoutes.js
+================================================
+import express from "express";
+import {
+  registerUser,
+  loginUser,
+  googleAuth,
+  getProfile,
+  updateProfile,
+  changePassword,
+} from "../controllers/authController.js";
+import { protect } from "../middleware/authMiddleware.js";
+
+const router = express.Router();
+
+// Public
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+router.post("/google", googleAuth);
+
+// Protected
+router.get("/profile", protect, getProfile);
+router.put("/profile", protect, updateProfile);
+router.put("/password", protect, changePassword);
+
+export default router;
+
+
+================================================
+FILE: routes/tripRoutes.js
+================================================
+[Binary file]
+
+
+================================================
+FILE: services/geminiService.js
+================================================
+// backend/services/geminiService.js
+import { GoogleGenAI } from "@google/genai";
+
+let ai = null;
+
+const getAI = () => {
+  if (!ai) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      throw new Error("GEMINI_API_KEY is not set in .env");
+    }
+    ai = new GoogleGenAI({ apiKey: key });
+  }
+  return ai;
+};
+
+// Try each model ONCE. Fail fast to Groq.
+const MODELS = [
+  "gemini-flash-latest",
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+];
+
+const generateWithRetry = async (prompt) => {
+  const client = getAI();
+  let lastError = null;
+
+  for (const model of MODELS) {
+    try {
+      console.log(`â†’ ${model}`);
+      const response = await client.models.generateContent({
+        model,
+        contents: prompt,
+        config: { responseMimeType: "application/json" },
+      });
+      console.log(`âœ“ ${model} succeeded`);
+      return response.text;
+    } catch (err) {
+      lastError = err;
+      const status = err?.status;
+      const msg = String(err?.message || "").toLowerCase();
+
+      const isNotFound = status === 404 || msg.includes("not found");
+      const isRateLimit = status === 429 || msg.includes("quota");
+      const isBusy = status === 503 || msg.includes("unavailable") || msg.includes("high demand");
+
+      if (isNotFound || isRateLimit) {
+        console.log(`  skipped (${isNotFound ? "404" : "429"})`);
+      } else if (isBusy) {
+        console.log(`  busy (503) â€” next model`);
+      } else {
+        console.log(`  failed: ${err?.message?.slice(0, 80)}`);
+      }
+      // Move on immediately â€” no retries
+    }
+  }
+
+  throw new Error(
+    `All Gemini models failed. Last error: ${lastError?.message || "Unknown"}`
+  );
+};
+
+export const generateItinerary = async (trip) => {
+  const prompt = `You are an expert AI travel planner.
+Generate a complete travel plan based on these details:
+
+Destination: ${trip.destination}
+Start Date: ${trip.startDate.toISOString().split("T")[0]}
+End Date: ${trip.endDate.toISOString().split("T")[0]}
+Budget (INR): ${trip.budget}
+Number of Travellers: ${trip.travellers}
+Interests: ${trip.interests?.length ? trip.interests.join(", ") : "general sightseeing"}
+
+REQUIREMENTS:
+1. Plan one entry per day of the trip, including start and end dates.
+2. Suggest 3 to 5 activities per day, each with time, title, description, location, and cost in INR.
+3. Suggest 3 to 5 realistic hotels near the destination with name, rating (1-5), price per night in INR, and short address.
+4. Provide a budget breakdown: flights, hotels, food, activities, total â€” all in INR.
+5. Keep total within the user's stated budget.
+6. Return ONLY valid JSON. No markdown. No explanations outside the JSON.
+
+RETURN THIS EXACT STRUCTURE:
+{
+  "destination": "string",
+  "summary": "short paragraph",
+  "days": [
+    {
+      "day": 1,
+      "date": "YYYY-MM-DD",
+      "activities": [
+        { "time": "09:00 AM", "title": "string", "description": "string", "location": "string", "cost": 0 }
+      ]
+    }
+  ],
+  "hotels": [
+    { "name": "string", "rating": 4.5, "price": "â‚¹3500/night", "address": "string" }
+  ],
+  "budgetBreakdown": { "flights": 0, "hotels": 0, "food": 0, "activities": 0, "total": 0 }
+}`;
+
+  const text = await generateWithRetry(prompt);
+
+  let itinerary;
+  try {
+    itinerary = JSON.parse(text);
+  } catch (err) {
+    console.error("Invalid JSON from Gemini:", text?.slice(0, 300));
+    throw new Error("Gemini returned invalid JSON. Please try again.");
+  }
+
+  if (!itinerary.destination) itinerary.destination = trip.destination;
+  if (!itinerary.summary) itinerary.summary = `Travel plan for ${trip.destination}`;
+  if (!Array.isArray(itinerary.days)) throw new Error("Itinerary missing 'days' array.");
+  if (!Array.isArray(itinerary.hotels)) itinerary.hotels = [];
+  if (!itinerary.budgetBreakdown) {
+    itinerary.budgetBreakdown = { flights: 0, hotels: 0, food: 0, activities: 0, total: 0 };
+  }
+
+  return itinerary;
+};
+
+
+================================================
+FILE: services/groqService.js
+================================================
+// backend/services/groqService.js
+// Fallback AI provider for when Gemini is overloaded.
+
+import Groq from "groq-sdk";
+
+let groq = null;
+
+const getGroq = () => {
+  if (!groq) {
+    const key = process.env.GROQ_API_KEY;
+    if (!key) {
+      throw new Error("GROQ_API_KEY is not set in .env");
+    }
+    groq = new Groq({ apiKey: key });
+  }
+  return groq;
+};
+
+const GROQ_MODELS = [
+  "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
+  "mixtral-8x7b-32768",
+];
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export const generateItineraryWithGroq = async (trip) => {
+  const client = getGroq();
+
+  const prompt = `You are an expert AI travel planner.
+Generate a complete travel plan based on these details:
+
+Destination: ${trip.destination}
+Start Date: ${trip.startDate.toISOString().split("T")[0]}
+End Date: ${trip.endDate.toISOString().split("T")[0]}
+Budget (INR): ${trip.budget}
+Number of Travellers: ${trip.travellers}
+Interests: ${trip.interests?.length ? trip.interests.join(", ") : "general sightseeing"}
+
+REQUIREMENTS:
+1. Plan one entry per day of the trip, including start and end dates.
+2. Suggest 3 to 5 activities per day, each with time, title, description, location, and cost in INR.
+3. Suggest 3 to 5 realistic hotels near the destination with name, rating (1-5), price per night in INR, and short address.
+4. Provide a budget breakdown: flights, hotels, food, activities, total â€” all in INR.
+5. Keep total within the user's stated budget.
+6. Return ONLY valid JSON. No markdown. No explanations outside the JSON.
+
+RETURN THIS EXACT STRUCTURE:
+{
+  "destination": "string",
+  "summary": "short paragraph",
+  "days": [
+    {
+      "day": 1,
+      "date": "YYYY-MM-DD",
+      "activities": [
+        {
+          "time": "09:00 AM",
+          "title": "string",
+          "description": "string",
+          "location": "string",
+          "cost": 0
+        }
+      ]
+    }
+  ],
+  "hotels": [
+    {
+      "name": "string",
+      "rating": 4.5,
+      "price": "â‚¹3500/night",
+      "address": "string"
+    }
+  ],
+  "budgetBreakdown": {
+    "flights": 0,
+    "hotels": 0,
+    "food": 0,
+    "activities": 0,
+    "total": 0
+  }
+}`;
+
+  let lastError = null;
+
+  for (const model of GROQ_MODELS) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        console.log(`[Groq] Trying ${model} (attempt ${attempt}/2)...`);
+
+        const completion = await client.chat.completions.create({
+          model,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an AI travel planner. Always respond with valid JSON only. No markdown. No code fences.",
+            },
+            { role: "user", content: prompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.7,
+          max_tokens: 4000,
+        });
+
+        const text = completion.choices[0]?.message?.content;
+        if (!text) throw new Error("Groq returned empty response");
+
+        console.log(`[Groq] âœ“ SUCCESS with ${model}`);
+        return text;
+      } catch (err) {
+        lastError = err;
+        const status = err?.status || err?.response?.status;
+        const msg = String(err?.message || "").toLowerCase();
+
+        console.log(
+          `[Groq] âœ— Error from ${model}:`,
+          status,
+          err?.message?.slice(0, 120)
+        );
+
+        const isRateLimit =
+          status === 429 || msg.includes("rate") || msg.includes("quota");
+        const isBusy =
+          status === 503 || msg.includes("overloaded") || msg.includes("unavailable");
+
+        if (isBusy && attempt < 2) {
+          await sleep(3000);
+          continue;
+        }
+
+        // try next model
+        break;
+      }
+    }
+  }
+
+  throw new Error(
+    `All Groq models failed. Last error: ${lastError?.message || "Unknown"}`
+  );
+};
+
+
+================================================
+FILE: services/imageService.js
+================================================
+// backend/services/imageService.js
+// Uses Pexels API (free) to fetch real destination photos.
+
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
+const PEXELS_URL = "https://api.pexels.com/v1/search";
+
+// Cache results in memory for 24h
+const cache = new Map();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+export const getDestinationImage = async (destination) => {
+  if (!PEXELS_API_KEY) {
+    console.warn("PEXELS_API_KEY not set in .env");
+    return null;
+  }
+
+  const cacheKey = `dest:${destination.toLowerCase()}`;
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.time < CACHE_TTL) {
+    return cached.url;
+  }
+
+  try {
+    const url = `${PEXELS_URL}?query=${encodeURIComponent(
+      destination + " travel landscape"
+    )}&per_page=1&orientation=landscape`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: PEXELS_API_KEY },
+    });
+
+    if (!res.ok) throw new Error(`Pexels returned ${res.status}`);
+
+    const data = await res.json();
+    const imageUrl = data.photos?.[0]?.src?.large2x || data.photos?.[0]?.src?.large || null;
+
+    if (imageUrl) {
+      cache.set(cacheKey, { url: imageUrl, time: Date.now() });
+    }
+
+    return imageUrl;
+  } catch (err) {
+    console.error("Pexels image error:", err.message);
+    return null;
+  }
+};
+
+// Get multiple images for a place (for hotel/attraction cards)
+export const getPlaceImages = async (query, count = 1) => {
+  if (!PEXELS_API_KEY) return [];
+
+  const cacheKey = `place:${query.toLowerCase()}:${count}`;
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.time < CACHE_TTL) {
+    return cached.urls;
+  }
+
+  try {
+    const url = `${PEXELS_URL}?query=${encodeURIComponent(
+      query
+    )}&per_page=${count}&orientation=landscape`;
+
+    const res = await fetch(url, {
+      headers: { Authorization: PEXELS_API_KEY },
+    });
+
+    if (!res.ok) throw new Error(`Pexels returned ${res.status}`);
+
+    const data = await res.json();
+    const urls = (data.photos || []).map((p) => p.src.large || p.src.medium);
+
+    cache.set(cacheKey, { urls, time: Date.now() });
+    return urls;
+  } catch (err) {
+    console.error("Pexels images error:", err.message);
+    return [];
+  }
+};
+
+
+================================================
+FILE: services/placesService.js
+================================================
+// backend/services/placesService.js
+// Finds tourist attractions near a location using Overpass API (OpenStreetMap).
+// Tries multiple mirrors, caches by location, and adds Pexels photos.
+
+import { getPlaceImages } from "./imageService.js";
+
+const cache = new Map(); // in-memory cache, keyed by rounded lat/lng
+
+const OVERPASS_MIRRORS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
+
+export const getTouristPlaces = async (lat, lng, radiusMeters = 15000) => {
+  const cacheKey = `${lat.toFixed(1)},${lng.toFixed(1)},${radiusMeters}`;
+
+  if (cache.has(cacheKey)) {
+    console.log("Places cache hit:", cacheKey);
+    return cache.get(cacheKey);
+  }
+
+  const query = `
+    [out:json][timeout:25];
+    (
+      node["tourism"~"attraction|museum|viewpoint|artwork|gallery|zoo|theme_park"](around:${radiusMeters},${lat},${lng});
+      way["tourism"~"attraction|museum|viewpoint|artwork|gallery|zoo|theme_park"](around:${radiusMeters},${lat},${lng});
+    );
+    out center 30;
+  `;
+
+  let rawPlaces = [];
+
+  for (const mirror of OVERPASS_MIRRORS) {
+    try {
+      const res = await fetch(mirror, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "AI-Travel-Planner-MCA/1.0",
+        },
+        body: "data=" + encodeURIComponent(query),
+      });
+
+      if (!res.ok) continue;
+
+      const data = await res.json();
+
+      rawPlaces = (data.elements || [])
+        .map((el) => {
+          const la = el.lat ?? el.center?.lat;
+          const lo = el.lon ?? el.center?.lon;
+          const name = el.tags?.name;
+          if (!name || !la || !lo) return null;
+
+          return {
+            id: el.id,
+            name,
+            lat: la,
+            lng: lo,
+            type: el.tags?.tourism || "attraction",
+            description: el.tags?.description || el.tags?.["description:en"] || "",
+            image: null, // will be filled below
+          };
+        })
+        .filter(Boolean);
+
+      break; // stop trying mirrors if this one worked
+    } catch (err) {
+      console.error(`Places mirror failed (${mirror}):`, err.message);
+    }
+  }
+
+  // Dedupe by name, take first 12
+  const seen = new Set();
+  const unique = [];
+  for (const p of rawPlaces) {
+    if (!seen.has(p.name)) {
+      seen.add(p.name);
+      unique.push(p);
+      if (unique.length >= 12) break;
+    }
+  }
+
+  // Fetch a Pexels photo for each place (in parallel, but with limit)
+  const withImages = await Promise.all(
+    unique.map(async (p) => {
+      const imgs = await getPlaceImages(p.name, 1);
+      return { ...p, image: imgs[0] || null };
+    })
+  );
+
+  cache.set(cacheKey, withImages);
+  return withImages;
+};
+
+
+================================================
+FILE: services/weatherService.js
+================================================
+// backend/services/weatherService.js
+// Uses Open-Meteo + Nominatim (both free, no API key required).
+
+const USER_AGENT =
+  "AI-Travel-Planner-MCA/1.0 (https://github.com/PratikSingh70/AI-travel-planner)";
+
+const geoCache = new Map();
+const GEO_TTL = 30 * 60 * 1000;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Try Open-Meteo first (more lenient), then Nominatim.
+const geocodeOpenMeteo = async (place) => {
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+    place
+  )}&count=1&language=en&format=json`;
+  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  if (!res.ok) throw new Error(`Open-Meteo geocoding ${res.status}`);
+  const data = await res.json();
+  if (!data.results?.length) throw new Error("Open-Meteo: no results");
+  const r = data.results[0];
+  return {
+    lat: r.latitude,
+    lng: r.longitude,
+    displayName: `${r.name}${r.country ? ", " + r.country : ""}`,
+  };
+};
+
+const geocodeNominatim = async (place) => {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+    place
+  )}`;
+  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  if (!res.ok) throw new Error(`Nominatim ${res.status}`);
+  const data = await res.json();
+  if (!data.length) throw new Error("Nominatim: no results");
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon),
+    displayName: data[0].display_name,
+  };
+};
+
+// Try multiple shortened variants of the input
+const geocodeAny = async (place) => {
+  const parts = place
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  const variants = [
+    place,
+    parts.slice(0, 3).join(", "),
+    parts.slice(0, 2).join(", "),
+    parts[0],
+    parts.slice(-2).join(", "),
+  ].filter(Boolean);
+
+  const providers = [geocodeOpenMeteo, geocodeNominatim];
+  let lastError;
+
+  for (const variant of variants) {
+    for (const provider of providers) {
+      try {
+        return await provider(variant);
+      } catch (err) {
+        lastError = err;
+        if (provider === geocodeNominatim) await sleep(300);
+      }
+    }
+  }
+
+  throw new Error(
+    `Could not geocode "${place}". Last error: ${lastError?.message}`
+  );
+};
+
+export const geocode = async (place) => {
+  const key = place.toLowerCase().trim();
+  const cached = geoCache.get(key);
+  if (cached && Date.now() - cached.time < GEO_TTL) {
+    return cached.value;
+  }
+
+  const result = await geocodeAny(place);
+  geoCache.set(key, { value: result, time: Date.now() });
+  return result;
+};
+
+export const getWeather = async (lat, lng) => {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7`;
+
+  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+  if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
+  return await res.json();
+};
+

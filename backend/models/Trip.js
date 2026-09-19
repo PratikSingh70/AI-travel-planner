@@ -38,6 +38,23 @@ const tripSchema = new mongoose.Schema(
       type: Array,
       default: [],
     },
+    hotels: {
+      type: Array,
+      default: [],
+    },
+    budgetBreakdown: {
+      flights: { type: Number, default: 0 },
+      hotels: { type: Number, default: 0 },
+      food: { type: Number, default: 0 },
+      activities: { type: Number, default: 0 },
+      total: { type: Number, default: 0 },
+    },
+    // ─── NEW: unique share identifier for public links ───
+    shareId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
   },
   { timestamps: true }
 );

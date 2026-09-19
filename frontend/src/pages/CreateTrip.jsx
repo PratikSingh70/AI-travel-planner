@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import "./CreateTrip.css";
 
 // Extract a short, geocode-friendly name from a Nominatim display_name
 // Example: "Red Fort, Ring Road, Old Delhi, Delhi, 110003, India"
@@ -108,44 +109,48 @@ const CreateTrip = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0d0d0d] py-12 px-6 transition-colors duration-300">
+    <div className="ct-root">
+      <div className="ct-orb-1" />
+      <div className="ct-orb-2" />
+
       {/* Loading toast */}
       {loading && (
-        <div className="fixed bottom-6 right-6 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-2xl shadow-lg px-5 py-4 flex items-center gap-3 z-[60] animate-fade-in-up">
-          <span className="flex gap-1">
-            <span className="w-2 h-2 rounded-full bg-lime dot-bounce" />
-            <span className="w-2 h-2 rounded-full bg-lime dot-bounce" />
-            <span className="w-2 h-2 rounded-full bg-lime dot-bounce" />
+        <div className="ct-toast">
+          <span className="ct-toast-dots">
+            <span className="ct-toast-dot" />
+            <span className="ct-toast-dot" />
+            <span className="ct-toast-dot" />
           </span>
-          <span className="text-sm font-semibold text-ink dark:text-white">
+          <span className="ct-toast-text">
             Please wait... We are working on it...
           </span>
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto relative">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-ink dark:text-white">
-          Tell us your travel preferences 🏕️🌴
+      <div className="ct-page">
+        <div className="ct-tag">
+          <span className="ct-pulse" />
+          AI Trip Planner
+        </div>
+
+        <h1 className="ct-title">
+          Tell us your travel <span>preferences</span> 🏕️
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-3 mb-12 max-w-xl">
+        <p className="ct-subtitle">
           Just provide some basic information, and our trip planner will
           generate a customized itinerary based on your preferences.
         </p>
 
-        {error && (
-          <p className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-300 p-3 rounded-xl mb-6 text-sm">
-            {error}
-          </p>
-        )}
+        {error && <p className="ct-error">{error}</p>}
 
-        <form onSubmit={handleSubmit} className="space-y-10">
+        <form onSubmit={handleSubmit} className="ct-form">
           {/* DESTINATION */}
           <div
             ref={suggestionsRef}
-            className="relative"
+            className="ct-field"
             style={{ zIndex: 30 }}
           >
-            <label className="block text-xl font-bold text-ink dark:text-white mb-4">
+            <label className="ct-label">
               What is destination of choice?
             </label>
             <input
@@ -155,14 +160,11 @@ const CreateTrip = () => {
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Select..."
-              className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-4 py-3.5 text-ink dark:text-white placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-[#1a1a1a] focus:outline-none focus:border-ink dark:focus:border-white transition"
+              placeholder="Search a city — try Paris, Tokyo, Bali…"
+              className="ct-input"
             />
             {showSuggestions && suggestions.length > 0 && (
-              <div
-                className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg shadow-2xl max-h-72 overflow-y-auto"
-                style={{ zIndex: 50 }}
-              >
+              <div className="ct-suggestions">
                 {suggestions.map((s, i) => (
                   <button
                     key={i}
@@ -171,7 +173,7 @@ const CreateTrip = () => {
                       setDestination(shortenAddress(s.name));
                       setShowSuggestions(false);
                     }}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 text-sm border-b border-gray-100 dark:border-white/5 last:border-b-0 text-ink dark:text-gray-200"
+                    className="ct-suggestion"
                   >
                     {s.name}
                   </button>
@@ -181,8 +183,8 @@ const CreateTrip = () => {
           </div>
 
           {/* DAYS */}
-          <div className="relative" style={{ zIndex: 10 }}>
-            <label className="block text-xl font-bold text-ink dark:text-white mb-4">
+          <div className="ct-field" style={{ zIndex: 10 }}>
+            <label className="ct-label">
               How many days are you planning your trip?
             </label>
             <input
@@ -190,78 +192,57 @@ const CreateTrip = () => {
               min="1"
               value={days}
               onChange={(e) => setDays(e.target.value)}
-              placeholder="Ex.3"
-              className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-4 py-3.5 text-ink dark:text-white placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-[#1a1a1a] focus:outline-none focus:border-ink dark:focus:border-white transition"
+              placeholder="Ex. 3"
+              className="ct-input"
             />
           </div>
 
           {/* BUDGET */}
-          <div className="relative" style={{ zIndex: 10 }}>
-            <label className="block text-xl font-bold text-ink dark:text-white mb-4">
-              What is Your Budget?
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="ct-field" style={{ zIndex: 10 }}>
+            <label className="ct-label">What is Your Budget?</label>
+            <div className="ct-options-grid">
               {BUDGET_OPTIONS.map((b) => (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => setBudget(b.id)}
-                  className={`text-left p-5 rounded-xl border-2 transition ${
-                    budget === b.id
-                      ? "border-ink dark:border-lime bg-gray-50 dark:bg-white/5"
-                      : "border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30"
-                  }`}
+                  className={`ct-option ${budget === b.id ? "ct-selected" : ""}`}
                 >
-                  <div className="text-3xl mb-3">{b.icon}</div>
-                  <div className="font-bold text-ink dark:text-white text-lg">
-                    {b.label}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {b.desc}
-                  </div>
+                  <div className="ct-option-icon">{b.icon}</div>
+                  <div className="ct-option-title">{b.label}</div>
+                  <div className="ct-option-desc">{b.desc}</div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* TRAVELERS */}
-          <div className="relative" style={{ zIndex: 10 }}>
-            <label className="block text-xl font-bold text-ink dark:text-white mb-4">
+          <div className="ct-field" style={{ zIndex: 10 }}>
+            <label className="ct-label">
               Who do you plan on traveling with on your next adventure?
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="ct-options-grid">
               {TRAVELER_OPTIONS.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setTravelerType(t.id)}
-                  className={`text-left p-5 rounded-xl border-2 transition ${
-                    travelerType === t.id
-                      ? "border-ink dark:border-lime bg-gray-50 dark:bg-white/5"
-                      : "border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30"
-                  }`}
+                  className={`ct-option ${travelerType === t.id ? "ct-selected" : ""}`}
                 >
-                  <div className="text-3xl mb-3">{t.icon}</div>
-                  <div className="font-bold text-ink dark:text-white text-lg">
-                    {t.label}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {t.desc}
-                  </div>
+                  <div className="ct-option-icon">{t.icon}</div>
+                  <div className="ct-option-title">{t.label}</div>
+                  <div className="ct-option-desc">{t.desc}</div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* SUBMIT */}
-          <div
-            className="relative flex justify-end pt-4"
-            style={{ zIndex: 5 }}
-          >
+          <div className="ct-actions" style={{ zIndex: 5 }}>
             <button
               type="submit"
               disabled={loading}
-              className="px-8 py-3.5 rounded-lg bg-ink dark:bg-lime text-white dark:text-forest font-bold hover:bg-black dark:hover:bg-lime-dark disabled:opacity-60 btn-press transition"
+              className="ct-submit"
             >
               {loading ? "Generating..." : "Generate Trip"}
             </button>
