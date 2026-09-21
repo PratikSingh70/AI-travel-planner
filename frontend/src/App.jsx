@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import ChatAssistant from "./components/ChatAssistant";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -65,6 +66,7 @@ const App = () => {
         {/* Fallback */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <ChatAssistant />
     </>
   );
 };

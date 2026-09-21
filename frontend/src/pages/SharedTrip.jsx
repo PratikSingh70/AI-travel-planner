@@ -3,32 +3,35 @@ import { useParams, Link } from "react-router-dom";
 import api from "../api/axios";
 import Skeleton from "../components/Skeleton";
 import TripMap from "../components/TripMap";
+import { useCurrency } from "../context/CurrencyContext";
+import "./SharedTrip.css";
 
-const Pill = ({ icon, children }) => (
-  <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-ink">
-    <span className="w-5 h-5 rounded-full bg-lime flex items-center justify-center text-xs">
-      {icon}
-    </span>
-    {children}
-  </span>
-);
+// Extract numeric value from a price string like "₹3500/night" or "3500"
+const parsePrice = (price) => {
+  if (typeof price === "number") return price;
+  if (!price) return null;
+  const match = String(price).replace(/,/g, "").match(/\d+/);
+  return match ? Number(match[0]) : null;
+};
 
 const SharedTripSkeleton = () => (
-  <div className="min-h-screen bg-white pb-20">
-    <div className="max-w-6xl mx-auto px-6 pt-8">
+  <div className="shr-root">
+    <div className="shr-orb-1" />
+    <div className="shr-orb-2" />
+    <div className="shr-page">
       <Skeleton variant="rectangular" width={280} height={40} rounded="9999px" />
       <div style={{ marginTop: 16 }}>
         <Skeleton
           variant="rectangular"
           width="100%"
           style={{ aspectRatio: "21 / 9" }}
-          rounded="24px"
+          rounded="28px"
         />
       </div>
       <div style={{ marginTop: 32 }}>
         <Skeleton variant="rectangular" width="55%" height={48} rounded="12px" />
       </div>
-      <div className="flex flex-wrap gap-3 mt-5">
+      <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
         <Skeleton variant="rectangular" width={110} height={40} rounded="9999px" />
         <Skeleton variant="rectangular" width={140} height={40} rounded="9999px" />
       </div>
@@ -38,6 +41,7 @@ const SharedTripSkeleton = () => (
 
 const SharedTrip = () => {
   const { shareId } = useParams();
+  const { format } = useCurrency();
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -61,12 +65,10 @@ const SharedTrip = () => {
     fetchTrip();
   }, [shareId]);
 
-  // Fire-and-forget image + weather fetch (won't fail the page)
   useEffect(() => {
     if (!trip) return;
     const dest = trip.destination;
 
-    // Destination cover image from Pexels via public fallback
     fetch(
       `https://api.pexels.com/v1/search?query=${encodeURIComponent(
         dest + " travel"
@@ -84,7 +86,6 @@ const SharedTrip = () => {
       })
       .catch(() => {});
 
-    // Weather via Nominatim + Open-Meteo
     fetch(
       `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
         dest
@@ -109,32 +110,32 @@ const SharedTrip = () => {
   }, [trip]);
 
   if (loading) return <SharedTripSkeleton />;
+
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-6">
-        <div className="text-center max-w-md">
-          <p className="text-6xl mb-4">🔍</p>
-          <h1 className="text-2xl font-extrabold text-ink mb-2">
-            Trip not found
-          </h1>
-          <p className="text-gray-500 mb-8">{error}</p>
-          <Link
-            to="/"
-            className="inline-block px-6 py-3 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark transition"
-          >
-            Go to Home
-          </Link>
+      <div className="shr-root">
+        <div className="shr-orb-1" />
+        <div className="shr-orb-2" />
+        <div className="shr-error">
+          <div className="shr-error-inner">
+            <div className="shr-error-icon">🔍</div>
+            <h1 className="shr-error-title">Trip not found</h1>
+            <p className="shr-error-text">{error}</p>
+            <Link to="/" className="shr-cta-btn">
+              Go to Home
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
+
   if (!trip) return null;
 
   const days = Math.max(
     1,
     Math.round(
-      (new Date(trip.endDate) - new Date(trip.startDate)) /
-        (1000 * 60 * 60 * 24)
+      (new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)
     )
   );
   const budgetLabel =
@@ -145,30 +146,27 @@ const SharedTrip = () => {
     `https://picsum.photos/seed/${encodeURIComponent(trip.destination)}/1600/700`;
 
   return (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="max-w-6xl mx-auto px-6 pt-8">
-        {/* Top banner */}
-        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
-          <div className="inline-flex items-center gap-2 bg-lime-light border border-lime/30 rounded-full px-4 py-2">
-            <span className="text-lg">🔗</span>
-            <span className="text-sm font-bold text-forest">
-              Shared trip · by {trip.sharedBy}
-            </span>
+    <div className="shr-root">
+      <div className="shr-orb-1" />
+      <div className="shr-orb-2" />
+
+      <main className="shr-page">
+        {/* Banner */}
+        <div className="shr-banner">
+          <div className="shr-badge">
+            <span className="shr-badge-icon">🔗</span>
+            Shared trip · by {trip.sharedBy}
           </div>
-          <Link
-            to="/register"
-            className="text-sm font-bold text-forest hover:text-lime-dark transition"
-          >
+          <Link to="/register" className="shr-banner-link">
             Plan your own trip →
           </Link>
         </div>
 
         {/* Hero */}
-        <div className="rounded-3xl overflow-hidden aspect-[21/9] bg-gray-100">
+        <div className="shr-hero">
           <img
             src={heroImg}
             alt={trip.destination}
-            className="w-full h-full object-cover"
             onError={(e) => {
               e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
                 trip.destination
@@ -177,33 +175,29 @@ const SharedTrip = () => {
           />
         </div>
 
-        <div className="mt-8">
-          <h1 className="text-3xl md:text-5xl font-extrabold text-ink">
-            {trip.destination}
-          </h1>
-        </div>
+        <h1 className="shr-dest">{trip.destination}</h1>
 
-        <div className="flex flex-wrap gap-3 mt-5">
-          <Pill icon="📅">
+        <div className="shr-pills">
+          <span className="shr-pill">
+            <span className="shr-pill-icon">📅</span>
             {days} Day{days > 1 ? "s" : ""}
-          </Pill>
-          <Pill icon="💰">{budgetLabel} Budget</Pill>
-          <Pill icon="👥">{trip.travellers} Traveller
-            {trip.travellers > 1 ? "s" : ""}</Pill>
+          </span>
+          <span className="shr-pill">
+            <span className="shr-pill-icon">💰</span>
+            {budgetLabel} Budget
+          </span>
+          <span className="shr-pill">
+            <span className="shr-pill-icon">👥</span>
+            {trip.travellers} Traveller{trip.travellers > 1 ? "s" : ""}
+          </span>
         </div>
 
-        {/* INTERESTS */}
         {trip.interests?.length > 0 && (
-          <div className="mt-6">
-            <p className="text-xs uppercase font-bold text-gray-500 mb-2 tracking-widest">
-              Interests
-            </p>
-            <div className="flex flex-wrap gap-2">
+          <div className="shr-interests">
+            <div className="shr-interests-label">Interests</div>
+            <div className="shr-interests-list">
               {trip.interests.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs bg-gray-100 text-ink px-3 py-1 rounded-full"
-                >
+                <span key={tag} className="shr-interest">
                   {tag}
                 </span>
               ))}
@@ -211,38 +205,34 @@ const SharedTrip = () => {
           </div>
         )}
 
-        {/* HOTELS */}
+        {/* Hotels */}
         {trip.hotels?.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Hotel Recommendation
+          <section className="shr-section">
+            <h2 className="shr-section-title">
+              Hotel <span>Recommendation</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="shr-hotels">
               {trip.hotels.map((h, i) => {
                 const imgUrl =
                   h.image ||
-                  `https://picsum.photos/seed/${encodeURIComponent(
-                    h.name
-                  )}/400/300`;
+                  `https://picsum.photos/seed/${encodeURIComponent(h.name)}/400/300`;
+                const priceNum = parsePrice(h.price);
                 return (
-                  <div key={i}>
-                    <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-gray-100">
-                      <img
-                        src={imgUrl}
-                        alt={h.name}
-                        className="w-full h-full object-cover"
-                      />
+                  <div key={i} className="shr-hotel">
+                    <div className="shr-hotel-img">
+                      <img src={imgUrl} alt={h.name} />
                     </div>
-                    <h3 className="mt-3 font-bold text-ink text-sm leading-tight">
-                      {h.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-2">📍 {h.address}</p>
-                    <p className="text-sm font-bold text-ink mt-2">
-                      💰 {h.price}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      ⭐ {h.rating} stars
-                    </p>
+                    <div className="shr-hotel-body">
+                      <h3 className="shr-hotel-name">{h.name}</h3>
+                      <div className="shr-hotel-row">📍 {h.address}</div>
+                      <div className="shr-hotel-price">
+                        💰{" "}
+                        {priceNum !== null
+                          ? `${format(priceNum)}/night`
+                          : h.price}
+                      </div>
+                      <div className="shr-hotel-rating">⭐ {h.rating} stars</div>
+                    </div>
                   </div>
                 );
               })}
@@ -250,51 +240,34 @@ const SharedTrip = () => {
           </section>
         )}
 
-        {/* ITINERARY */}
+        {/* Itinerary */}
         {trip.itinerary?.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-8">
-              Day-by-Day Itinerary
+          <section className="shr-section">
+            <h2 className="shr-section-title">
+              Day-by-Day <span>Itinerary</span>
             </h2>
             {trip.itinerary.map((day) => (
-              <div key={day.day} className="mb-10">
-                <h3 className="text-xl font-extrabold text-ink mb-5">
-                  Day {day.day}{" "}
-                  <span className="text-sm text-gray-400 font-normal">
-                    {day.date}
-                  </span>
+              <div key={day.day} className="shr-day">
+                <h3 className="shr-day-head">
+                  Day {day.day} <span className="date">{day.date}</span>
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="shr-activities">
                   {day.activities.map((act, idx) => {
                     const imgUrl =
                       act.image ||
-                      `https://picsum.photos/seed/${encodeURIComponent(
-                        act.title
-                      )}/200/200`;
+                      `https://picsum.photos/seed/${encodeURIComponent(act.title)}/200/200`;
                     return (
-                      <div key={idx} className="flex flex-col">
-                        <p className="text-red-600 text-sm font-bold mb-2">
-                          {act.time}
-                        </p>
-                        <div className="flex gap-4 p-4 border border-gray-100 rounded-2xl bg-white">
-                          <img
-                            src={imgUrl}
-                            alt={act.title}
-                            className="w-24 h-24 md:w-28 md:h-28 rounded-xl object-cover flex-shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-extrabold text-ink text-base leading-tight">
-                              {act.title}
-                            </h4>
-                            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">
-                              {act.description}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-2">
-                              📍 {act.location}
-                            </p>
-                            <p className="text-xs font-bold text-ink mt-1">
-                              ₹ {act.cost} per person
-                            </p>
+                      <div key={idx} className="shr-activity">
+                        <div className="shr-activity-img">
+                          <img src={imgUrl} alt={act.title} />
+                        </div>
+                        <div className="shr-activity-body">
+                          <div className="shr-activity-time">{act.time}</div>
+                          <h4 className="shr-activity-title">{act.title}</h4>
+                          <p className="shr-activity-desc">{act.description}</p>
+                          <div className="shr-activity-loc">📍 {act.location}</div>
+                          <div className="shr-activity-cost">
+                            {format(act.cost)} per person
                           </div>
                         </div>
                       </div>
@@ -306,52 +279,47 @@ const SharedTrip = () => {
           </section>
         )}
 
-        {/* BUDGET BREAKDOWN */}
+        {/* Budget */}
         {trip.budgetBreakdown?.total > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Budget Breakdown
+          <section className="shr-section">
+            <h2 className="shr-section-title">
+              Budget <span>Breakdown</span>
             </h2>
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md">
+            <div className="shr-budget">
               {[
                 { label: "✈️ Flights", value: trip.budgetBreakdown.flights },
                 { label: "🏨 Hotels", value: trip.budgetBreakdown.hotels },
                 { label: "🍽 Food", value: trip.budgetBreakdown.food },
                 { label: "🎟 Activities", value: trip.budgetBreakdown.activities },
               ].map((item, i) => (
-                <div
-                  key={i}
-                  className="flex justify-between py-2 border-b border-gray-100 last:border-b-0"
-                >
-                  <span className="text-sm text-gray-600">{item.label}</span>
-                  <span className="text-sm font-bold text-ink">
-                    ₹{item.value}
-                  </span>
+                <div key={i} className="shr-budget-row">
+                  <span className="label">{item.label}</span>
+                  <span className="val">{format(item.value)}</span>
                 </div>
               ))}
-              <div className="flex justify-between pt-3 mt-2 border-t-2 border-ink">
-                <span className="font-extrabold text-ink">Total</span>
-                <span className="font-extrabold text-ink">
-                  ₹{trip.budgetBreakdown.total}
-                </span>
+              <div className="shr-budget-total">
+                <span className="label">Total</span>
+                <span className="val">{format(trip.budgetBreakdown.total)}</span>
               </div>
             </div>
           </section>
         )}
 
-        {/* MAP */}
+        {/* Map */}
         {weather?.location && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Destination Map
+          <section className="shr-section">
+            <h2 className="shr-section-title">
+              Destination <span>Map</span>
             </h2>
-            <div className="flex flex-wrap gap-3 mb-5">
-              <Pill icon="🌤️">
+            <div className="shr-map-pills">
+              <span className="shr-pill">
+                <span className="shr-pill-icon">🌤️</span>
                 {Math.round(weather.current?.temperature_2m ?? 0)}°C
-              </Pill>
-              <Pill icon="💨">
+              </span>
+              <span className="shr-pill">
+                <span className="shr-pill-icon">💨</span>
                 {weather.current?.wind_speed_10m ?? 0} km/h wind
-              </Pill>
+              </span>
             </div>
             <TripMap
               lat={weather.location.lat}
@@ -362,21 +330,16 @@ const SharedTrip = () => {
         )}
 
         {/* CTA */}
-        <div className="mt-16 bg-lime-light border-2 border-lime rounded-3xl p-8 text-center">
-          <h3 className="text-2xl font-extrabold text-ink mb-2">
-            Loved this itinerary?
-          </h3>
-          <p className="text-gray-600 mb-6">
+        <div className="shr-cta">
+          <h3 className="shr-cta-title">Loved this itinerary?</h3>
+          <p className="shr-cta-sub">
             Create your own AI-powered trip in under a minute.
           </p>
-          <Link
-            to="/register"
-            className="inline-block px-8 py-3.5 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark transition shadow-[0_6px_20px_-8px_rgba(168,216,74,0.8)]"
-          >
+          <Link to="/register" className="shr-cta-btn">
             ✨ Plan Your Own Trip
           </Link>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

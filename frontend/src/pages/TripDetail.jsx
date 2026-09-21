@@ -12,6 +12,14 @@ import { useCurrency } from "../context/CurrencyContext";
 import { useTripActions } from "../context/TripActionsContext";
 import "./TripDetail.css";
 
+// Extract numeric value from a price string like "₹3500/night" or "3500"
+const parsePrice = (price) => {
+  if (typeof price === "number") return price;
+  if (!price) return null;
+  const match = String(price).replace(/,/g, "").match(/\d+/);
+  return match ? Number(match[0]) : null;
+};
+
 const TripDetailSkeleton = () => (
   <div className="td-root">
     <div className="td-orb-1" />
@@ -32,7 +40,6 @@ const TripDetailSkeleton = () => (
       <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
         <Skeleton variant="rectangular" width={110} height={40} rounded="9999px" />
         <Skeleton variant="rectangular" width={140} height={40} rounded="9999px" />
-        <Skeleton variant="rectangular" width={180} height={40} rounded="9999px" />
       </div>
     </div>
   </div>
@@ -42,7 +49,7 @@ const TripDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { format } = useCurrency();
+  const { format, currency, setCurrency, currencies, detectCurrencyFromDestination } = useCurrency();
   const { setActions } = useTripActions();
 
   const [trip, setTrip] = useState(null);
@@ -65,18 +72,9 @@ const TripDetail = () => {
       try {
         const res = await api.get(`/trips/${id}`);
         setTrip(res.data);
-        api
-          .get(`/trips/${id}/places`)
-          .then((r) => setPlaces(r.data.places || []))
-          .catch(() => {});
-        api
-          .get(`/trips/${id}/weather`)
-          .then((w) => setWeather(w.data))
-          .catch(() => {});
-        api
-          .get(`/trips/${id}/image`)
-          .then((r) => setCoverImage(r.data.imageUrl))
-          .catch(() => {});
+        api.get(`/trips/${id}/places`).then((r) => setPlaces(r.data.places || [])).catch(() => {});
+        api.get(`/trips/${id}/weather`).then((w) => setWeather(w.data)).catch(() => {});
+        api.get(`/trips/${id}/image`).then((r) => setCoverImage(r.data.imageUrl)).catch(() => {});
       } catch (err) {
         console.error(err);
       } finally {
@@ -89,11 +87,9 @@ const TripDetail = () => {
   useEffect(() => {
     if (!trip || generating) return;
     if (searchParams.get("autoGen") !== "1") return;
-
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("autoGen");
     setSearchParams(newParams, { replace: true });
-
     handleGenerate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip, searchParams]);
@@ -107,13 +103,7 @@ const TripDetail = () => {
       trip,
       generatingArt,
       shareLoading,
-      onCalendar: () => {
-        try {
-          downloadICS(trip);
-        } catch (err) {
-          console.error(err);
-        }
-      },
+      onCalendar: () => { try { downloadICS(trip); } catch (e) { console.error(e); } },
       onCoverArt: async () => {
         setArtError("");
         setGeneratingArt(true);
@@ -199,6 +189,11 @@ const TripDetail = () => {
     coverImage ||
     `https://picsum.photos/seed/${encodeURIComponent(trip.destination)}/1600/700`;
 
+  // ── Local currency detection ──
+  const localCode = detectCurrencyFromDestination(trip.destination);
+  const localInfo = localCode ? currencies[localCode] : null;
+  const showLocalBadge = localCode && localCode !== currency;
+
   return (
     <div className="td-root">
       <div className="td-orb-1" />
@@ -224,6 +219,33 @@ const TripDetail = () => {
         </div>
 
         <h1 className="td-dest">{trip.destination}</h1>
+
+        {/* ── Local currency badge ── */}
+        {localInfo && (
+          <div className={`td-local-currency ${showLocalBadge ? "is-different" : "is-active"}`}>
+            <span className="td-local-flag">{localInfo.flag}</span>
+            <span className="td-local-text">
+              {showLocalBadge ? (
+                <>
+                  Local currency is <strong>{localCode}</strong> · {localInfo.name}
+                </>
+              ) : (
+                <>
+                  Viewing in local currency <strong>{localCode}</strong>
+                </>
+              )}
+            </span>
+            {showLocalBadge && (
+              <button
+                type="button"
+                className="td-local-switch"
+                onClick={() => setCurrency(localCode)}
+              >
+                Switch to {localCode} →
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="td-pills">
           <span className="td-pill">
@@ -271,6 +293,7 @@ const TripDetail = () => {
                 const imgUrl =
                   h.image ||
                   `https://picsum.photos/seed/${encodeURIComponent(h.name)}/400/300`;
+                const priceNum = parsePrice(h.price);
                 return (
                   <div key={i} className="td-hotel">
                     <div className="td-hotel-img">
@@ -279,7 +302,9 @@ const TripDetail = () => {
                     <div className="td-hotel-body">
                       <h3 className="td-hotel-name">{h.name}</h3>
                       <div className="td-hotel-row">📍 {h.address}</div>
-                      <div className="td-hotel-price">💰 {h.price}</div>
+                      <div className="td-hotel-price">
+                        💰 {priceNum !== null ? `${format(priceNum)}/night` : h.price}
+                      </div>
                       <div className="td-hotel-rating">⭐ {h.rating} stars</div>
                     </div>
                   </div>
@@ -395,21 +420,15 @@ const TripDetail = () => {
             <div className="td-weather-card">
               <div className="td-weather-left">
                 <div className="td-weather-kicker">Smart Weather Plan</div>
-                <h2 className="td-weather-title">
-                  Plan your trip around the weather
-                </h2>
+                <h2 className="td-weather-title">Plan your trip around the weather</h2>
                 <p className="td-weather-text">
                   We check the weather for each day of your trip. Outdoor plans
                   go on sunny days, and indoor plans go on rainy days.
                 </p>
-                <Link
-                  to={`/trips/${id}/weather-itinerary`}
-                  className="td-weather-cta"
-                >
+                <Link to={`/trips/${id}/weather-itinerary`} className="td-weather-cta">
                   See Smart Weather Plan →
                 </Link>
               </div>
-
               <div className="td-weather-badge">
                 <span className="td-weather-icon">🌤️</span>
                 <div>
@@ -431,7 +450,6 @@ const TripDetail = () => {
             <span className="td-btn-icon">✏️</span>
             <span>Edit Trip</span>
           </Link>
-
           <DeleteButton label="Delete Trip" onClick={handleDelete} />
         </div>
       </div>
@@ -443,10 +461,7 @@ const TripDetail = () => {
       {shareUrl && (
         <div
           className="td-share-back"
-          onClick={() => {
-            setShareUrl("");
-            setCopied(false);
-          }}
+          onClick={() => { setShareUrl(""); setCopied(false); }}
         >
           <div className="td-share-modal" onClick={(e) => e.stopPropagation()}>
             <div className="td-share-head">
@@ -457,17 +472,13 @@ const TripDetail = () => {
                 </p>
               </div>
               <button
-                onClick={() => {
-                  setShareUrl("");
-                  setCopied(false);
-                }}
+                onClick={() => { setShareUrl(""); setCopied(false); }}
                 className="td-share-close"
                 aria-label="Close"
               >
                 ✕
               </button>
             </div>
-
             <div className="td-share-row">
               <input
                 type="text"
@@ -480,13 +491,7 @@ const TripDetail = () => {
                 {copied ? "✓ Copied" : "Copy"}
               </button>
             </div>
-
-            <a
-              href={shareUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="td-share-open"
-            >
+            <a href={shareUrl} target="_blank" rel="noreferrer" className="td-share-open">
               Open in new tab →
             </a>
           </div>
