@@ -44,7 +44,10 @@ const generateWithRetry = async (prompt) => {
 
       const isNotFound = status === 404 || msg.includes("not found");
       const isRateLimit = status === 429 || msg.includes("quota");
-      const isBusy = status === 503 || msg.includes("unavailable") || msg.includes("high demand");
+      const isBusy =
+        status === 503 ||
+        msg.includes("unavailable") ||
+        msg.includes("high demand");
 
       if (isNotFound || isRateLimit) {
         console.log(`  skipped (${isNotFound ? "404" : "429"})`);
@@ -63,6 +66,8 @@ const generateWithRetry = async (prompt) => {
 };
 
 export const generateItinerary = async (trip) => {
+  const spotsCount = trip.spotsCount || 5;
+
   const prompt = `You are an expert AI travel planner.
 Generate a complete travel plan based on these details:
 
@@ -71,6 +76,7 @@ Start Date: ${trip.startDate.toISOString().split("T")[0]}
 End Date: ${trip.endDate.toISOString().split("T")[0]}
 Budget (INR): ${trip.budget}
 Number of Travellers: ${trip.travellers}
+Places to Cover: ${spotsCount} distinct spots
 Interests: ${trip.interests?.length ? trip.interests.join(", ") : "general sightseeing"}
 
 REQUIREMENTS:
@@ -79,7 +85,8 @@ REQUIREMENTS:
 3. Suggest 3 to 5 realistic hotels near the destination with name, rating (1-5), price per night in INR, and short address.
 4. Provide a budget breakdown: flights, hotels, food, activities, total — all in INR.
 5. Keep total within the user's stated budget.
-6. Return ONLY valid JSON. No markdown. No explanations outside the JSON.
+6. Cover exactly ${spotsCount} distinct places across the trip. Spread them evenly across the days. Do not repeat the same place on multiple days.
+7. Return ONLY valid JSON. No markdown. No explanations outside the JSON.
 
 RETURN THIS EXACT STRUCTURE:
 {
@@ -111,11 +118,19 @@ RETURN THIS EXACT STRUCTURE:
   }
 
   if (!itinerary.destination) itinerary.destination = trip.destination;
-  if (!itinerary.summary) itinerary.summary = `Travel plan for ${trip.destination}`;
-  if (!Array.isArray(itinerary.days)) throw new Error("Itinerary missing 'days' array.");
+  if (!itinerary.summary)
+    itinerary.summary = `Travel plan for ${trip.destination}`;
+  if (!Array.isArray(itinerary.days))
+    throw new Error("Itinerary missing 'days' array.");
   if (!Array.isArray(itinerary.hotels)) itinerary.hotels = [];
   if (!itinerary.budgetBreakdown) {
-    itinerary.budgetBreakdown = { flights: 0, hotels: 0, food: 0, activities: 0, total: 0 };
+    itinerary.budgetBreakdown = {
+      flights: 0,
+      hotels: 0,
+      food: 0,
+      activities: 0,
+      total: 0,
+    };
   }
 
   return itinerary;

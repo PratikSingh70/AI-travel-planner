@@ -4,41 +4,35 @@ import api from "../api/axios";
 import Skeleton from "../components/Skeleton";
 import TripMap from "../components/TripMap";
 import DeleteButton from "../components/DeleteButton";
-import ExportPDFButton from "../components/ExportPDFButton";
 import ItineraryPaper from "../components/ItineraryPaper";
 import SkyFlightButton from "../components/SkyFlightButton";
-
-const Pill = ({ icon, children }) => (
-  <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-ink">
-    <span className="w-5 h-5 rounded-full bg-lime flex items-center justify-center text-xs">
-      {icon}
-    </span>
-    {children}
-  </span>
-);
+import { downloadICS } from "../utils/ics";
+import { buildCoverArtUrl, preloadImage } from "../utils/coverArt";
+import { useCurrency } from "../context/CurrencyContext";
+import { useTripActions } from "../context/TripActionsContext";
+import "./TripDetail.css";
 
 const TripDetailSkeleton = () => (
-  <div className="min-h-screen bg-white pb-20">
-    <div className="max-w-6xl mx-auto px-6 pt-8">
+  <div className="td-root">
+    <div className="td-orb-1" />
+    <div className="td-orb-2" />
+    <div className="td-page">
       <Skeleton variant="text" width={120} height={14} />
       <div style={{ marginTop: 16 }}>
         <Skeleton
           variant="rectangular"
           width="100%"
           style={{ aspectRatio: "21 / 9" }}
-          rounded="24px"
+          rounded="28px"
         />
       </div>
       <div style={{ marginTop: 32 }}>
         <Skeleton variant="rectangular" width="55%" height={48} rounded="12px" />
       </div>
-      <div className="flex flex-wrap gap-3 mt-5">
+      <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
         <Skeleton variant="rectangular" width={110} height={40} rounded="9999px" />
         <Skeleton variant="rectangular" width={140} height={40} rounded="9999px" />
         <Skeleton variant="rectangular" width={180} height={40} rounded="9999px" />
-      </div>
-      <div style={{ marginTop: 32 }}>
-        <Skeleton variant="rectangular" width={280} height={54} rounded="9999px" />
       </div>
     </div>
   </div>
@@ -48,6 +42,8 @@ const TripDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { format } = useCurrency();
+  const { setActions } = useTripActions();
 
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +53,9 @@ const TripDetail = () => {
   const [places, setPlaces] = useState([]);
   const [coverImage, setCoverImage] = useState(null);
 
-  // ─── SHARE state ───
+  const [generatingArt, setGeneratingArt] = useState(false);
+  const [artError, setArtError] = useState("");
+
   const [shareUrl, setShareUrl] = useState("");
   const [shareLoading, setShareLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -88,7 +86,6 @@ const TripDetail = () => {
     fetchTrip();
   }, [id]);
 
-  // Auto-trigger generation when arriving from Edit Trip (?autoGen=1)
   useEffect(() => {
     if (!trip || generating) return;
     if (searchParams.get("autoGen") !== "1") return;
@@ -101,6 +98,55 @@ const TripDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip, searchParams]);
 
+  useEffect(() => {
+    if (!trip) {
+      setActions(null);
+      return;
+    }
+    setActions({
+      trip,
+      generatingArt,
+      shareLoading,
+      onCalendar: () => {
+        try {
+          downloadICS(trip);
+        } catch (err) {
+          console.error(err);
+        }
+      },
+      onCoverArt: async () => {
+        setArtError("");
+        setGeneratingArt(true);
+        try {
+          const url = buildCoverArtUrl(trip, Date.now() % 1000);
+          const ok = await preloadImage(url);
+          if (!ok) throw new Error("Image service unavailable");
+          await api.put(`/trips/${id}`, { image: url });
+          setTrip((prev) => ({ ...prev, image: url }));
+        } catch (err) {
+          console.error(err);
+          setArtError("Could not generate cover art. Try again.");
+        } finally {
+          setGeneratingArt(false);
+        }
+      },
+      onShare: async () => {
+        setShareLoading(true);
+        try {
+          const res = await api.post(`/trips/${id}/share`);
+          const shareId = res.data.shareId;
+          setShareUrl(`${window.location.origin}/share/${shareId}`);
+        } catch (err) {
+          alert(err.response?.data?.message || "Could not generate share link");
+        } finally {
+          setShareLoading(false);
+        }
+      },
+    });
+    return () => setActions(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip, id, generatingArt, shareLoading]);
+
   const handleGenerate = async () => {
     setGenError("");
     setGenerating(true);
@@ -112,31 +158,12 @@ const TripDetail = () => {
         hotels: res.data.hotels || [],
         budgetBreakdown: res.data.budgetBreakdown,
       });
-
-      if (window.__skyTripBtn?.setComplete) {
-        window.__skyTripBtn.setComplete();
-      }
+      if (window.__skyTripBtn?.setComplete) window.__skyTripBtn.setComplete();
     } catch (err) {
       setGenError(err.response?.data?.message || "AI generation failed");
-      if (window.__skyTripBtn?.reset) {
-        window.__skyTripBtn.reset();
-      }
+      if (window.__skyTripBtn?.reset) window.__skyTripBtn.reset();
     } finally {
       setGenerating(false);
-    }
-  };
-
-  const handleShare = async () => {
-    setShareLoading(true);
-    try {
-      const res = await api.post(`/trips/${id}/share`);
-      const shareId = res.data.shareId;
-      const url = `${window.location.origin}/share/${shareId}`;
-      setShareUrl(url);
-    } catch (err) {
-      alert(err.response?.data?.message || "Could not generate share link");
-    } finally {
-      setShareLoading(false);
     }
   };
 
@@ -150,38 +177,44 @@ const TripDetail = () => {
     }
   };
 
+  const handleDelete = async () => {
+    await api.delete(`/trips/${id}`);
+    navigate("/trips");
+  };
+
   if (loading) return <TripDetailSkeleton />;
   if (!trip) return null;
 
   const days = Math.max(
     1,
     Math.round(
-      (new Date(trip.endDate) - new Date(trip.startDate)) /
-        (1000 * 60 * 60 * 24)
+      (new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)
     )
   );
   const budgetLabel =
     trip.budget < 20000 ? "Cheap" : trip.budget < 50000 ? "Moderate" : "Luxury";
 
   const heroImg =
+    trip.image ||
     coverImage ||
     `https://picsum.photos/seed/${encodeURIComponent(trip.destination)}/1600/700`;
 
   return (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="max-w-6xl mx-auto px-6 pt-8">
-        <Link
-          to="/trips"
-          className="text-sm text-gray-500 hover:text-ink transition"
-        >
-          ← Back to trips
-        </Link>
+    <div className="td-root">
+      <div className="td-orb-1" />
+      <div className="td-orb-2" />
 
-        <div className="mt-4 rounded-3xl overflow-hidden aspect-[21/9] bg-gray-100">
+      <div className="td-page">
+        <div className="td-top-row">
+          <Link to="/trips" className="td-back">
+            ← Back to trips
+          </Link>
+        </div>
+
+        <div className="td-hero">
           <img
             src={heroImg}
             alt={trip.destination}
-            className="w-full h-full object-cover"
             onError={(e) => {
               e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
                 trip.destination
@@ -190,28 +223,33 @@ const TripDetail = () => {
           />
         </div>
 
-        <div className="mt-8">
-          <h1 className="text-3xl md:text-5xl font-extrabold text-ink">
-            {trip.destination}
-          </h1>
-        </div>
+        <h1 className="td-dest">{trip.destination}</h1>
 
-        <div className="flex flex-wrap gap-3 mt-5">
-          <Pill icon="📅">
+        <div className="td-pills">
+          <span className="td-pill">
+            <span className="td-pill-icon">📅</span>
             {days} Day{days > 1 ? "s" : ""}
-          </Pill>
-          <Pill icon="💰">{budgetLabel} Budget</Pill>
-          <Pill icon="👥">No. Of Traveler: {trip.travellers}</Pill>
+          </span>
+          {trip.spotsCount > 0 && (
+            <span className="td-pill">
+              <span className="td-pill-icon">📍</span>
+              {trip.spotsCount} places
+            </span>
+          )}
+          <span className="td-pill">
+            <span className="td-pill-icon">💰</span>
+            {format(trip.budget)} · {budgetLabel}
+          </span>
+          <span className="td-pill">
+            <span className="td-pill-icon">👥</span>
+            Travellers: {trip.travellers}
+          </span>
         </div>
 
-        {genError && (
-          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mt-6 text-sm">
-            {genError}
-          </p>
-        )}
+        {genError && <p className="td-error">{genError}</p>}
+        {artError && <p className="td-error">{artError}</p>}
 
-        {/* SKY FLIGHT GENERATE / REGENERATE BUTTON */}
-        <div className="mt-8">
+        <div style={{ marginTop: 32 }}>
           <SkyFlightButton
             label={trip.itinerary?.length ? "Regenerate Trip" : "Generate Trip"}
             loadingLabel="Curating Your Itinerary"
@@ -224,41 +262,26 @@ const TripDetail = () => {
         </div>
 
         {trip.hotels?.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Hotel Recommendation
+          <section className="td-section">
+            <h2 className="td-section-title">
+              Hotel <span>Recommendation</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="td-hotels">
               {trip.hotels.map((h, i) => {
                 const imgUrl =
                   h.image ||
-                  `https://picsum.photos/seed/${encodeURIComponent(
-                    h.name
-                  )}/400/300`;
+                  `https://picsum.photos/seed/${encodeURIComponent(h.name)}/400/300`;
                 return (
-                  <div key={i}>
-                    <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-gray-100">
-                      <img
-                        src={imgUrl}
-                        alt={h.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
-                            h.name
-                          )}/400/300`;
-                        }}
-                      />
+                  <div key={i} className="td-hotel">
+                    <div className="td-hotel-img">
+                      <img src={imgUrl} alt={h.name} />
                     </div>
-                    <h3 className="mt-3 font-bold text-ink text-sm leading-tight">
-                      {h.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-2">📍 {h.address}</p>
-                    <p className="text-sm font-bold text-ink mt-2">
-                      💰 {h.price}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      ⭐ {h.rating} stars
-                    </p>
+                    <div className="td-hotel-body">
+                      <h3 className="td-hotel-name">{h.name}</h3>
+                      <div className="td-hotel-row">📍 {h.address}</div>
+                      <div className="td-hotel-price">💰 {h.price}</div>
+                      <div className="td-hotel-rating">⭐ {h.rating} stars</div>
+                    </div>
                   </div>
                 );
               })}
@@ -267,52 +290,32 @@ const TripDetail = () => {
         )}
 
         {trip.itinerary?.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-8">
-              Places to Visit
+          <section className="td-section">
+            <h2 className="td-section-title">
+              Places to <span>Visit</span>
             </h2>
             {trip.itinerary.map((day) => (
-              <div key={day.day} className="mb-10">
-                <h3 className="text-xl font-extrabold text-ink mb-5">
-                  Day {day.day}
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div key={day.day} className="td-day">
+                <h3 className="td-day-head">Day {day.day}</h3>
+                <div className="td-activities">
                   {day.activities.map((act, idx) => {
                     const imgUrl =
                       act.image ||
-                      `https://picsum.photos/seed/${encodeURIComponent(
-                        act.title
-                      )}/200/200`;
+                      `https://picsum.photos/seed/${encodeURIComponent(act.title)}/200/200`;
                     return (
-                      <div key={idx} className="flex flex-col">
-                        <p className="text-red-600 text-sm font-bold mb-2">
-                          {act.time}
-                        </p>
-                        <div className="flex gap-4 p-4 border border-gray-100 rounded-2xl card-hover bg-white">
-                          <img
-                            src={imgUrl}
-                            alt={act.title}
-                            className="w-24 h-24 md:w-28 md:h-28 rounded-xl object-cover flex-shrink-0"
-                            onError={(e) => {
-                              e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
-                                act.title
-                              )}/200/200`;
-                            }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-extrabold text-ink text-base leading-tight">
-                              {act.title}
-                            </h4>
-                            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">
-                              {act.description}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-2">
-                              ⏱{" "}
-                              {act.time?.split("-")[1]?.trim() || "Flexible"}
-                            </p>
-                            <p className="text-xs font-bold text-ink mt-1">
-                              ₹ {act.cost} per person
-                            </p>
+                      <div key={idx} className="td-activity">
+                        <div className="td-activity-img">
+                          <img src={imgUrl} alt={act.title} />
+                        </div>
+                        <div className="td-activity-body">
+                          <div className="td-activity-time">{act.time}</div>
+                          <h4 className="td-activity-title">{act.title}</h4>
+                          <p className="td-activity-desc">{act.description}</p>
+                          <div className="td-activity-loc">
+                            ⏱ {act.time?.split("-")[1]?.trim() || "Flexible"}
+                          </div>
+                          <div className="td-activity-cost">
+                            {format(act.cost)} per person
                           </div>
                         </div>
                       </div>
@@ -325,52 +328,37 @@ const TripDetail = () => {
         )}
 
         {places.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Famous Tourist Spots Nearby
+          <section className="td-section">
+            <h2 className="td-section-title">
+              Famous Tourist <span>Spots Nearby</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {places.map((p, i) => {
+            <div className="td-places">
+              {places.map((p) => {
                 const imgUrl =
                   p.image ||
-                  `https://picsum.photos/seed/${encodeURIComponent(
-                    p.name
-                  )}/400/300`;
+                  `https://picsum.photos/seed/${encodeURIComponent(p.name)}/400/300`;
                 return (
-                  <div key={p.id}>
-                    <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-gray-100">
-                      <img
-                        src={imgUrl}
-                        alt={p.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
-                            p.name
-                          )}/400/300`;
-                        }}
-                      />
+                  <div key={p.id} className="td-place">
+                    <div className="td-place-img">
+                      <img src={imgUrl} alt={p.name} />
                     </div>
-                    <div className="flex justify-between items-start gap-2 mt-3">
-                      <h3 className="font-bold text-ink text-sm leading-tight">
-                        {p.name}
-                      </h3>
-                      <span className="text-xs bg-lime-light text-forest px-2 py-0.5 rounded-full whitespace-nowrap font-semibold">
-                        {p.type}
-                      </span>
+                    <div className="td-place-body">
+                      <div className="td-place-head">
+                        <h3 className="td-place-name">{p.name}</h3>
+                        <span className="td-place-tag">{p.type}</span>
+                      </div>
+                      {p.description && (
+                        <p className="td-place-desc">{p.description}</p>
+                      )}
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=16/${p.lat}/${p.lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="td-place-link"
+                      >
+                        View on map →
+                      </a>
                     </div>
-                    {p.description && (
-                      <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                        {p.description}
-                      </p>
-                    )}
-                    <a
-                      href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=16/${p.lat}/${p.lng}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-lime-dark font-semibold hover:underline mt-2 inline-block"
-                    >
-                      View on map →
-                    </a>
                   </div>
                 );
               })}
@@ -379,17 +367,19 @@ const TripDetail = () => {
         )}
 
         {weather?.location && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Destination Map
+          <section className="td-section">
+            <h2 className="td-section-title">
+              Destination <span>Map</span>
             </h2>
-            <div className="flex flex-wrap gap-3 mb-5">
-              <Pill icon="🌤️">
+            <div className="td-pills" style={{ marginBottom: 18 }}>
+              <span className="td-pill">
+                <span className="td-pill-icon">🌤️</span>
                 {Math.round(weather.current?.temperature_2m ?? 0)}°C
-              </Pill>
-              <Pill icon="💨">
+              </span>
+              <span className="td-pill">
+                <span className="td-pill-icon">💨</span>
                 {weather.current?.wind_speed_10m ?? 0} km/h wind
-              </Pill>
+              </span>
             </div>
             <TripMap
               lat={weather.location.lat}
@@ -400,40 +390,35 @@ const TripDetail = () => {
           </section>
         )}
 
-        {/* ═══════════ SMART WEATHER PLAN ═══════════ */}
         {weather?.location && (
-          <section className="mt-16">
-            <div className="rounded-3xl border-2 border-lime/30 bg-gradient-to-br from-lime-light/50 to-white p-8 md:p-10">
-              <div className="flex items-start justify-between gap-8 flex-wrap">
-                <div className="flex-1 min-w-[260px]">
-                  <p className="text-xs font-bold uppercase tracking-widest text-lime-dark mb-2">
-                    Smart Weather Plan
-                  </p>
-                  <h2 className="text-2xl md:text-3xl font-extrabold text-ink leading-tight">
-                    Plan your trip around the weather
-                  </h2>
-                  <p className="text-sm text-gray-600 mt-3 max-w-lg leading-relaxed">
-                    We check the weather for each day of your trip. Outdoor
-                    plans go on sunny days, and indoor plans go on rainy days.
-                  </p>
-                  <Link
-                    to={`/trips/${id}/weather-itinerary`}
-                    className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark btn-press transition shadow-[0_6px_20px_-8px_rgba(168,216,74,0.8)]"
-                  >
-                    See Smart Weather Plan →
-                  </Link>
-                </div>
+          <section className="td-section">
+            <div className="td-weather-card">
+              <div className="td-weather-left">
+                <div className="td-weather-kicker">Smart Weather Plan</div>
+                <h2 className="td-weather-title">
+                  Plan your trip around the weather
+                </h2>
+                <p className="td-weather-text">
+                  We check the weather for each day of your trip. Outdoor plans
+                  go on sunny days, and indoor plans go on rainy days.
+                </p>
+                <Link
+                  to={`/trips/${id}/weather-itinerary`}
+                  className="td-weather-cta"
+                >
+                  See Smart Weather Plan →
+                </Link>
+              </div>
 
-                <div className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 px-6 py-5 shadow-sm">
-                  <span className="text-4xl leading-none">🌤️</span>
-                  <div>
-                    <p className="text-3xl font-extrabold text-ink leading-none">
-                      {Math.round(weather.current?.temperature_2m ?? 0)}°
-                      <span className="text-base text-gray-400 ml-1">C</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2 font-semibold">
-                      💨 {Math.round(weather.current?.wind_speed_10m ?? 0)} km/h wind
-                    </p>
+              <div className="td-weather-badge">
+                <span className="td-weather-icon">🌤️</span>
+                <div>
+                  <div className="td-weather-temp">
+                    {Math.round(weather.current?.temperature_2m ?? 0)}°
+                    <span className="unit">C</span>
+                  </div>
+                  <div className="td-weather-wind">
+                    💨 {Math.round(weather.current?.wind_speed_10m ?? 0)} km/h wind
                   </div>
                 </div>
               </div>
@@ -441,38 +426,13 @@ const TripDetail = () => {
           </section>
         )}
 
-        {/* ACTION BUTTONS */}
-        <div className="mt-16 pt-6 border-t border-gray-100 flex flex-wrap gap-4 justify-between items-center">
-          <div className="flex flex-wrap gap-3 items-center">
-            <ExportPDFButton
-              targetId="itineraryPaper"
-              holderId="itnHolder"
-              filename={`${trip.destination.replace(/\s+/g, "-")}-itinerary.pdf`}
-            />
+        <div className="td-actions-bar">
+          <Link to={`/trips/${id}/edit`} className="td-btn td-btn-edit">
+            <span className="td-btn-icon">✏️</span>
+            <span>Edit Trip</span>
+          </Link>
 
-            <Link
-              to={`/trips/${id}/edit`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 text-ink text-[13px] font-semibold hover:border-forest hover:text-forest transition"
-            >
-              ✏️ Edit Trip
-            </Link>
-
-            <button
-              onClick={handleShare}
-              disabled={shareLoading}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 text-ink text-[13px] font-semibold hover:border-forest hover:text-forest transition disabled:opacity-60"
-            >
-              {shareLoading ? "Creating..." : "🔗 Share"}
-            </button>
-          </div>
-
-          <DeleteButton
-            label="Delete Trip"
-            onClick={async () => {
-              await api.delete(`/trips/${id}`);
-              navigate("/trips");
-            }}
-          />
+          <DeleteButton label="Delete Trip" onClick={handleDelete} />
         </div>
       </div>
 
@@ -480,25 +440,19 @@ const TripDetail = () => {
         <ItineraryPaper trip={trip} places={places} />
       </div>
 
-      {/* SHARE MODAL */}
       {shareUrl && (
         <div
-          className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4"
+          className="td-share-back"
           onClick={() => {
             setShareUrl("");
             setCopied(false);
           }}
         >
-          <div
-            className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-start mb-4">
+          <div className="td-share-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="td-share-head">
               <div>
-                <h3 className="text-lg font-extrabold text-ink">
-                  🔗 Share this trip
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <h3 className="td-share-title">🔗 Share this trip</h3>
+                <p className="td-share-sub">
                   Anyone with this link can view your itinerary.
                 </p>
               </div>
@@ -507,25 +461,22 @@ const TripDetail = () => {
                   setShareUrl("");
                   setCopied(false);
                 }}
-                className="text-gray-400 hover:text-ink text-xl leading-none"
+                className="td-share-close"
                 aria-label="Close"
               >
                 ✕
               </button>
             </div>
 
-            <div className="flex gap-2 mb-4">
+            <div className="td-share-row">
               <input
                 type="text"
                 readOnly
                 value={shareUrl}
                 onClick={(e) => e.target.select()}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-ink bg-gray-50 focus:outline-none"
+                className="td-share-input"
               />
-              <button
-                onClick={copyShareUrl}
-                className="px-4 py-2.5 rounded-lg bg-lime text-forest font-bold text-sm hover:bg-lime-dark transition whitespace-nowrap"
-              >
+              <button onClick={copyShareUrl} className="td-share-copy">
                 {copied ? "✓ Copied" : "Copy"}
               </button>
             </div>
@@ -534,7 +485,7 @@ const TripDetail = () => {
               href={shareUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-xs text-lime-dark font-semibold hover:underline"
+              className="td-share-open"
             >
               Open in new tab →
             </a>

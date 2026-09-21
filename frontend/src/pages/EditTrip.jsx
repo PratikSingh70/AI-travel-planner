@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import api from "../api/axios";
+import "./EditTrip.css";
 
 const shortenAddress = (displayName) => {
   if (!displayName) return "";
@@ -26,12 +27,12 @@ const EditTrip = () => {
   const [endDate, setEndDate] = useState("");
   const [budget, setBudget] = useState("");
   const [travellers, setTravellers] = useState(1);
+  const [spotsCount, setSpotsCount] = useState(5);
 
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionsRef = useRef(null);
 
-  // Load existing trip
   useEffect(() => {
     const loadTrip = async () => {
       try {
@@ -42,6 +43,7 @@ const EditTrip = () => {
         setEndDate(t.endDate ? t.endDate.split("T")[0] : "");
         setBudget(t.budget ? String(t.budget) : "");
         setTravellers(t.travellers || 1);
+        setSpotsCount(t.spotsCount || 5);
       } catch (err) {
         setError(err.response?.data?.message || "Could not load trip");
       } finally {
@@ -51,7 +53,6 @@ const EditTrip = () => {
     loadTrip();
   }, [id]);
 
-  // Destination autocomplete
   useEffect(() => {
     if (destination.length < 3) {
       setSuggestions([]);
@@ -74,7 +75,6 @@ const EditTrip = () => {
     return () => clearTimeout(t);
   }, [destination]);
 
-  // Close suggestions on outside click
   useEffect(() => {
     const handler = (e) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
@@ -95,6 +95,9 @@ const EditTrip = () => {
     if (new Date(endDate) <= new Date(startDate)) {
       return setError("End date must be after start date");
     }
+    if (spotsCount < 1 || spotsCount > 50) {
+      return setError("Places count must be between 1 and 50");
+    }
 
     try {
       setSaving(true);
@@ -104,8 +107,8 @@ const EditTrip = () => {
         endDate,
         budget: Number(budget),
         travellers: Number(travellers),
+        spotsCount: Number(spotsCount),
       });
-      // ─── NEW: navigate with autoGen flag so TripDetail regenerates AI ───
       navigate(`/trips/${id}?autoGen=1`);
     } catch (err) {
       setError(err.response?.data?.message || "Could not update trip");
@@ -114,46 +117,38 @@ const EditTrip = () => {
     }
   };
 
-  const inputClass =
-    "w-full border border-gray-200 rounded-lg px-4 py-3.5 text-ink placeholder-gray-400 bg-white focus:outline-none focus:border-forest transition";
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-8 h-8 border-4 border-ink border-t-transparent rounded-full animate-spin" />
+      <div className="et-loading">
+        <div className="et-spinner" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white py-12 px-6">
-      <div className="max-w-3xl mx-auto relative">
-        <Link
-          to={`/trips/${id}`}
-          className="text-sm text-gray-500 hover:text-ink transition"
-        >
+    <div className="et-root">
+      <div className="et-orb-1" />
+      <div className="et-orb-2" />
+
+      <div className="et-page">
+        <Link to={`/trips/${id}`} className="et-back">
           ← Back to trip
         </Link>
 
-        <h1 className="mt-6 text-3xl md:text-4xl font-extrabold text-ink">
-          Edit your trip ✏️
+        <h1 className="et-title">
+          Edit your <span>trip</span> 
         </h1>
-        <p className="text-gray-500 mt-3 mb-12 max-w-xl">
-          Update the details of your trip. The itinerary stays the same.
+        <p className="et-subtitle">
+          Update the details of your trip. Saving will regenerate the AI
+          itinerary with your new preferences.
         </p>
 
-        {error && (
-          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mb-6 text-sm">
-            {error}
-          </p>
-        )}
+        {error && <p className="et-error">{error}</p>}
 
-        <form onSubmit={handleSubmit} className="space-y-10">
-          {/* DESTINATION */}
-          <div ref={suggestionsRef} className="relative" style={{ zIndex: 30 }}>
-            <label className="block text-xl font-bold text-ink mb-4">
-              Destination
-            </label>
+        <form onSubmit={handleSubmit} className="et-form">
+          {/* Destination */}
+          <div ref={suggestionsRef} className="et-field" style={{ zIndex: 30 }}>
+            <label className="et-label">Destination</label>
             <input
               value={destination}
               onChange={(e) => {
@@ -161,14 +156,11 @@ const EditTrip = () => {
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Select..."
-              className={inputClass}
+              placeholder="Search a city..."
+              className="et-input"
             />
             {showSuggestions && suggestions.length > 0 && (
-              <div
-                className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-72 overflow-y-auto"
-                style={{ zIndex: 50 }}
-              >
+              <div className="et-suggestions">
                 {suggestions.map((s, i) => (
                   <button
                     key={i}
@@ -177,7 +169,7 @@ const EditTrip = () => {
                       setDestination(shortenAddress(s.name));
                       setShowSuggestions(false);
                     }}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 text-ink"
+                    className="et-suggestion"
                   >
                     {s.name}
                   </button>
@@ -186,86 +178,105 @@ const EditTrip = () => {
             )}
           </div>
 
-          {/* DATES */}
-          <div className="relative" style={{ zIndex: 10 }}>
-            <label className="block text-xl font-bold text-ink mb-4">
-              Trip dates
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Dates */}
+          <div className="et-field" style={{ zIndex: 10 }}>
+            <label className="et-label">Trip dates</label>
+            <div className="et-row">
               <div>
-                <label className="block text-sm text-gray-500 mb-2">
-                  Start date
-                </label>
+                <span className="et-sublabel">Start date</span>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className={inputClass}
+                  className="et-input"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-500 mb-2">
-                  End date
-                </label>
+                <span className="et-sublabel">End date</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className={inputClass}
+                  className="et-input"
                 />
               </div>
             </div>
           </div>
 
-          {/* BUDGET + TRAVELLERS */}
-          <div
-            className="relative grid grid-cols-1 md:grid-cols-2 gap-4"
-            style={{ zIndex: 10 }}
-          >
-            <div>
-              <label className="block text-xl font-bold text-ink mb-4">
-                Budget (INR)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                placeholder="25000"
-                className={inputClass}
-              />
+          {/* Places count */}
+          <div className="et-field" style={{ zIndex: 10 }}>
+            <label className="et-label">
+              How many places do you want to visit?
+            </label>
+            <p className="et-hint">
+              Total distinct spots within your destination. For example, 5 cities
+              across Rajasthan, or 8 must-see spots in Tokyo.
+            </p>
+
+            <div className="et-chips">
+              {[3, 5, 7, 10, 15].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setSpotsCount(n)}
+                  className={`et-chip ${spotsCount === n ? "active" : ""}`}
+                >
+                  {n} places
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="block text-xl font-bold text-ink mb-4">
-                Travellers
-              </label>
+
+            <div className="et-spots-row">
               <input
                 type="number"
                 min="1"
-                value={travellers}
-                onChange={(e) => setTravellers(e.target.value)}
-                className={inputClass}
+                max="50"
+                value={spotsCount}
+                onChange={(e) => setSpotsCount(Number(e.target.value) || 1)}
+                className="et-input et-spots-input"
               />
+              <span className="et-spots-hint">places (custom — 1 to 50)</span>
             </div>
           </div>
 
-          {/* ACTIONS */}
-          <div
-            className="relative flex justify-end gap-3 pt-4"
-            style={{ zIndex: 5 }}
-          >
-            <Link
-              to={`/trips/${id}`}
-              className="px-6 py-3.5 rounded-lg border border-gray-200 text-ink font-semibold hover:bg-gray-50 transition"
-            >
+          {/* Budget + travellers */}
+          <div className="et-field" style={{ zIndex: 10 }}>
+            <div className="et-row">
+              <div>
+                <label className="et-label">Budget (INR)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  placeholder="25000"
+                  className="et-input"
+                />
+              </div>
+              <div>
+                <label className="et-label">Travellers</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={travellers}
+                  onChange={(e) => setTravellers(e.target.value)}
+                  className="et-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="et-actions">
+            <Link to={`/trips/${id}`} className="et-btn et-btn-ghost">
               Cancel
             </Link>
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-3.5 rounded-lg bg-lime text-forest font-bold hover:bg-lime-dark disabled:opacity-60 btn-press transition shadow-[0_6px_20px_-8px_rgba(168,216,74,0.8)]"
+              className="et-btn et-btn-primary"
             >
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? "Saving..." : "Save & Regenerate"}
             </button>
           </div>
         </form>

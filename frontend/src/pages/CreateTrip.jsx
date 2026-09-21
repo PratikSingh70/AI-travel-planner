@@ -3,9 +3,6 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import "./CreateTrip.css";
 
-// Extract a short, geocode-friendly name from a Nominatim display_name
-// Example: "Red Fort, Ring Road, Old Delhi, Delhi, 110003, India"
-//      → "Red Fort, Delhi, India"
 const shortenAddress = (displayName) => {
   if (!displayName) return "";
   const parts = displayName
@@ -113,7 +110,6 @@ const CreateTrip = () => {
       <div className="ct-orb-1" />
       <div className="ct-orb-2" />
 
-      {/* Loading toast */}
       {loading && (
         <div className="ct-toast">
           <span className="ct-toast-dots">
@@ -134,7 +130,7 @@ const CreateTrip = () => {
         </div>
 
         <h1 className="ct-title">
-          Tell us your travel <span>preferences</span> 🏕️
+          Tell us your travel <span>preferences</span> 🏝️
         </h1>
         <p className="ct-subtitle">
           Just provide some basic information, and our trip planner will

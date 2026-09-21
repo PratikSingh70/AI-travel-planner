@@ -26,6 +26,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export const generateItineraryWithGroq = async (trip) => {
   const client = getGroq();
+  const spotsCount = trip.spotsCount || 5;
 
   const prompt = `You are an expert AI travel planner.
 Generate a complete travel plan based on these details:
@@ -35,6 +36,7 @@ Start Date: ${trip.startDate.toISOString().split("T")[0]}
 End Date: ${trip.endDate.toISOString().split("T")[0]}
 Budget (INR): ${trip.budget}
 Number of Travellers: ${trip.travellers}
+Places to Cover: ${spotsCount} distinct spots
 Interests: ${trip.interests?.length ? trip.interests.join(", ") : "general sightseeing"}
 
 REQUIREMENTS:
@@ -43,7 +45,8 @@ REQUIREMENTS:
 3. Suggest 3 to 5 realistic hotels near the destination with name, rating (1-5), price per night in INR, and short address.
 4. Provide a budget breakdown: flights, hotels, food, activities, total — all in INR.
 5. Keep total within the user's stated budget.
-6. Return ONLY valid JSON. No markdown. No explanations outside the JSON.
+6. Cover exactly ${spotsCount} distinct places across the trip. Spread them evenly across the days. Do not repeat the same place on multiple days.
+7. Return ONLY valid JSON. No markdown. No explanations outside the JSON.
 
 RETURN THIS EXACT STRUCTURE:
 {
@@ -107,7 +110,36 @@ RETURN THIS EXACT STRUCTURE:
         if (!text) throw new Error("Groq returned empty response");
 
         console.log(`[Groq] ✓ SUCCESS with ${model}`);
-        return text;
+
+        // Parse and validate — mirrors geminiService
+        let itinerary;
+        try {
+          itinerary = JSON.parse(text);
+        } catch (err) {
+          console.error(
+            "[Groq] Invalid JSON:",
+            text?.slice(0, 300)
+          );
+          throw new Error("Groq returned invalid JSON. Please try again.");
+        }
+
+        if (!itinerary.destination) itinerary.destination = trip.destination;
+        if (!itinerary.summary)
+          itinerary.summary = `Travel plan for ${trip.destination}`;
+        if (!Array.isArray(itinerary.days))
+          throw new Error("Itinerary missing 'days' array.");
+        if (!Array.isArray(itinerary.hotels)) itinerary.hotels = [];
+        if (!itinerary.budgetBreakdown) {
+          itinerary.budgetBreakdown = {
+            flights: 0,
+            hotels: 0,
+            food: 0,
+            activities: 0,
+            total: 0,
+          };
+        }
+
+        return itinerary;
       } catch (err) {
         lastError = err;
         const status = err?.status || err?.response?.status;
@@ -122,7 +154,9 @@ RETURN THIS EXACT STRUCTURE:
         const isRateLimit =
           status === 429 || msg.includes("rate") || msg.includes("quota");
         const isBusy =
-          status === 503 || msg.includes("overloaded") || msg.includes("unavailable");
+          status === 503 ||
+          msg.includes("overloaded") ||
+          msg.includes("unavailable");
 
         if (isBusy && attempt < 2) {
           await sleep(3000);

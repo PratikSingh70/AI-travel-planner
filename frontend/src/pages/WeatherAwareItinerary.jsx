@@ -80,7 +80,7 @@ const DESTINATIONS = {
   },
 };
 
-/* ─────────── Activity classifier for real trips ─────────── */
+/* ─────────── Activity classifier ─────────── */
 const OUTDOOR_KEYWORDS = [
   "hike", "trek", "walk", "stroll", "park", "garden", "beach", "mountain",
   "lake", "river", "viewpoint", "bridge", "terrace", "farm", "ruins",
@@ -169,7 +169,7 @@ function classifyTripActivities(itinerary) {
   return out;
 }
 
-/* ─────────── Forecast fetch ─────────── */
+/* ─────────── Forecast ─────────── */
 async function fetchForecast(lat, lon, startISO, days) {
   const endISO = addDaysISO(startISO, days - 1);
   const url =
@@ -232,7 +232,6 @@ function optimizeItinerary(activities, days, slotsPerDay) {
 
   const slots = days.map(() => slotsPerDay);
   const assignment = days.map(() => []);
-  const changes = [];
 
   for (const act of outdoor) {
     let bestDay = -1;
@@ -246,19 +245,6 @@ function optimizeItinerary(activities, days, slotsPerDay) {
       }
     }
     if (bestDay < 0) continue;
-
-    if (bestDay !== act.originalDay) {
-      changes.push({
-        id: act.id,
-        activity: act.name,
-        from: act.originalDay,
-        to: bestDay,
-        kind: "outdoor",
-        reason: `${days[bestDay].rain}% rain vs ${
-          days[act.originalDay]?.rain ?? "?"
-        }% on the original day · sensitivity ${act.sensitivity}/5`,
-      });
-    }
     assignment[bestDay].push({ ...act, moved: bestDay !== act.originalDay });
     slots[bestDay]--;
   }
@@ -275,22 +261,11 @@ function optimizeItinerary(activities, days, slotsPerDay) {
       }
     }
     if (bestDay < 0) continue;
-
-    if (bestDay !== act.originalDay) {
-      changes.push({
-        id: act.id,
-        activity: act.name,
-        from: act.originalDay,
-        to: bestDay,
-        kind: "indoor",
-        reason: `indoor activity placed on the ${days[bestDay].rain}% rain day, freeing a dry day for outdoor plans`,
-      });
-    }
     assignment[bestDay].push({ ...act, moved: bestDay !== act.originalDay });
     slots[bestDay]--;
   }
 
-  return { assignment, changes };
+  return { assignment };
 }
 
 function naiveItinerary(activities, days, slotsPerDay) {
@@ -377,7 +352,7 @@ function DayColumn({ day, index, activities, isToday }) {
   );
 }
 
-/* ─────────── Main page ─────────── */
+/* ─────────── Main ─────────── */
 const WeatherAwareItinerary = () => {
   const { id } = useParams();
   const isRealTrip = Boolean(id);
@@ -506,50 +481,10 @@ const WeatherAwareItinerary = () => {
     if (mode === "naive") {
       return {
         assignment: naiveItinerary(acts, state.days, slotsPerDay),
-        changes: [],
       };
     }
     return optimizeItinerary(acts, state.days, slotsPerDay);
   }, [state, mode, destination]);
-
-  const stats = useMemo(() => {
-    if (state.status !== "ready" || !itinerary || !destination) return null;
-    const days = state.days;
-    const acts = destination.activities;
-    const slotsPerDay = Math.max(2, Math.ceil(acts.length / days.length) + 1);
-
-    const scoreAssignment = (assignment) => {
-      let penalty = 0;
-      let outdoorPlaced = 0;
-      assignment.forEach((actsArr, d) => {
-        actsArr.forEach((a) => {
-          if (a.type === "outdoor") {
-            penalty += days[d].rain * (a.sensitivity / 5);
-            outdoorPlaced++;
-          }
-        });
-      });
-      return { penalty: Math.round(penalty), outdoorPlaced };
-    };
-
-    const optimized = scoreAssignment(itinerary.assignment);
-    const naive = scoreAssignment(naiveItinerary(acts, days, slotsPerDay));
-
-    const maxPenalty = naive.penalty || 1;
-    const improvement = Math.max(
-      0,
-      Math.min(1, 1 - optimized.penalty / maxPenalty)
-    );
-
-    return {
-      naivePenalty: naive.penalty,
-      optPenalty: optimized.penalty,
-      improvement,
-      movedCount: itinerary.changes.length,
-      rainyDays: days.filter((d) => d.rain >= 50).length,
-      dryDays: days.filter((d) => d.rain < 20).length,
-    };
-  }, [state, itinerary, destination]);
 
   const avgRain =
     state.status === "ready"
@@ -777,7 +712,8 @@ const WeatherAwareItinerary = () => {
                 Trip <span>Weather</span>
               </h2>
               <span className="wai-section-hint">
-                {stats?.dryDays} sunny · {stats?.rainyDays} rainy
+                {state.days.filter((d) => d.rain < 20).length} sunny ·{" "}
+                {state.days.filter((d) => d.rain >= 50).length} rainy
               </span>
             </div>
             <div className="wai-weather-strip">
@@ -804,7 +740,7 @@ const WeatherAwareItinerary = () => {
           </div>
         )}
 
-        {state.status === "ready" && itinerary && stats && destination && (
+        {state.status === "ready" && itinerary && destination && (
           <>
             <div className="wai-section-head">
               <h2 className="wai-section-title">
@@ -820,9 +756,7 @@ const WeatherAwareItinerary = () => {
               </h2>
               <span className="wai-section-hint">
                 {mode === "optimized"
-                  ? `${stats.movedCount} activit${
-                      stats.movedCount === 1 ? "y" : "ies"
-                    } moved`
+                  ? `Outdoor plans on sunny days · indoor on rainy`
                   : "Original order"}
               </span>
             </div>
@@ -851,89 +785,6 @@ const WeatherAwareItinerary = () => {
               <div className="wai-legend-item">
                 <span className="wai-legend-dot rainy" />
                 Rainy day (50% or more rain)
-              </div>
-            </div>
-
-            <div className="wai-ai-panel">
-              <div className="wai-panel">
-                <div className="wai-panel-label">
-                  <span className="wai-badge">AI</span> What We Changed
-                </div>
-                <div className="wai-stat-row">
-                  <div className="wai-stat">
-                    <div className="wai-stat-label">Rain Risk</div>
-                    <div
-                      className={`wai-stat-value ${
-                        stats.optPenalty < stats.naivePenalty ? "good" : ""
-                      }`}
-                    >
-                      {stats.optPenalty}
-                      <span>vs {stats.naivePenalty}</span>
-                    </div>
-                    <div className="wai-stat-sub">
-                      Lower is better — how much rain risk we removed
-                    </div>
-                  </div>
-                  <div className="wai-stat">
-                    <div className="wai-stat-label">Activities Moved</div>
-                    <div className="wai-stat-value good">
-                      {stats.movedCount}
-                      <span>/ {destination.activities.length}</span>
-                    </div>
-                    <div className="wai-stat-sub">
-                      {stats.movedCount === 0
-                        ? "Already good — no changes needed"
-                        : "Moved to better days"}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ marginTop: 16 }}>
-                  <div className="wai-panel-label" style={{ marginBottom: 6 }}>
-                    Improvement
-                  </div>
-                  <div className="wai-score-bar">
-                    <div
-                      className="wai-score-fill"
-                      style={{
-                        width: `${Math.round(stats.improvement * 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="wai-stat-sub" style={{ marginTop: 8 }}>
-                    {Math.round(stats.improvement * 100)}% less rain on outdoor
-                    activities
-                    {stats.improvement > 0.5 && " — much better than before"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="wai-panel">
-                <div className="wai-panel-label">
-                  <span className="wai-badge">LIST</span> Activity Changes
-                </div>
-                {itinerary.changes.length === 0 ? (
-                  <div className="wai-change-empty">
-                    {mode === "optimized"
-                      ? "🎉 Nothing to change — outdoor plans already land on sunny days."
-                      : "Tap Smart Weather to see the changes."}
-                  </div>
-                ) : (
-                  <div className="wai-changes-list">
-                    {itinerary.changes.map((c, idx) => (
-                      <div className="wai-change-row" key={c.id + idx}>
-                        <span className="wai-change-arrow">→</span>
-                        <div>
-                          <div className="wai-change-text">
-                            <strong>{c.activity}</strong> moved from{" "}
-                            <strong>Day {c.from + 1}</strong> to{" "}
-                            <strong>Day {c.to + 1}</strong>
-                          </div>
-                          <div className="wai-change-reason">{c.reason}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </>

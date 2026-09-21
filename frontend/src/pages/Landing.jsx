@@ -1,14 +1,44 @@
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Landing.css";
+
+const ROTATE_WORDS = [
+  "India",
+  "Japan",
+  "Bali",
+  "America",
+  "Canada",
+  "Sri Lanka",
+  "Nepal",
+  "Saudi Arabia",
+  "Thailand",
+  "Dubai",
+  "France",
+  "Iceland",
+];
 
 const Landing = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  const [wordIndex, setWordIndex] = useState(0);
+  const [wordOut, setWordOut] = useState(false);
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setWordOut(true);
+      setTimeout(() => {
+        setWordIndex((i) => (i + 1) % ROTATE_WORDS.length);
+        setWordOut(false);
+      }, 400);
+    }, 1600);
+    return () => clearInterval(iv);
+  }, []);
+
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   const handlePlanTrip = () => {
@@ -27,6 +57,88 @@ const Landing = () => {
     <div className="lp-root">
       {/* ───── Background scene ───── */}
       <div className="lp-bg-scene" aria-hidden="true">
+
+        {/* Sun with rotating rays */}
+        <div className="lp-sun">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="sunCore" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#fff9c4" />
+                <stop offset="55%" stopColor="#fde047" />
+                <stop offset="100%" stopColor="#facc15" />
+              </radialGradient>
+              <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#fde047" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#fde047" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <circle cx="50" cy="50" r="46" fill="url(#sunGlow)" className="lp-sun-glow" />
+            <g className="lp-sun-rays">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <rect
+                  key={i}
+                  x="48.6"
+                  y="2"
+                  width="2.8"
+                  height="12"
+                  rx="1.4"
+                  fill="#facc15"
+                  opacity="0.7"
+                  transform={`rotate(${(i * 360) / 12} 50 50)`}
+                />
+              ))}
+            </g>
+            <circle cx="50" cy="50" r="22" fill="url(#sunCore)" className="lp-sun-core" />
+          </svg>
+        </div>
+
+        {/* Drifting clouds */}
+        <div className="lp-cloud lp-cloud-1">
+          <svg viewBox="0 0 120 50" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M20 42 C 6 42 2 32 10 26 C 8 16 18 10 28 14 C 34 4 50 2 60 12 C 70 4 86 6 92 18 C 104 14 116 22 114 34 C 118 42 108 46 96 44 L 20 42 Z"
+              fill="#ffffff"
+              opacity="0.55"
+            />
+          </svg>
+        </div>
+        <div className="lp-cloud lp-cloud-2">
+          <svg viewBox="0 0 120 50" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M20 42 C 6 42 2 32 10 26 C 8 16 18 10 28 14 C 34 4 50 2 60 12 C 70 4 86 6 92 18 C 104 14 116 22 114 34 C 118 42 108 46 96 44 L 20 42 Z"
+              fill="#ffffff"
+              opacity="0.4"
+            />
+          </svg>
+        </div>
+        <div className="lp-cloud lp-cloud-3">
+          <svg viewBox="0 0 120 50" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M20 42 C 6 42 2 32 10 26 C 8 16 18 10 28 14 C 34 4 50 2 60 12 C 70 4 86 6 92 18 C 104 14 116 22 114 34 C 118 42 108 46 96 44 L 20 42 Z"
+              fill="#ffffff"
+              opacity="0.35"
+            />
+          </svg>
+        </div>
+
+        {/* Bird flock 1 */}
+        <div className="lp-birds lp-birds-1">
+          <svg viewBox="0 0 60 20" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 10 Q 8 4 12 10 Q 16 4 20 10" stroke="#2f3a1f" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+            <path d="M28 6 Q 32 1 36 6 Q 40 1 44 6" stroke="#2f3a1f" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+            <path d="M36 15 Q 39 11 42 15 Q 45 11 48 15" stroke="#2f3a1f" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+          </svg>
+        </div>
+
+        {/* Bird flock 2 */}
+        <div className="lp-birds lp-birds-2">
+          <svg viewBox="0 0 60 20" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 12 Q 10 6 14 12 Q 18 6 22 12" stroke="#2f3a1f" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <path d="M34 4 Q 37 0 40 4 Q 43 0 46 4" stroke="#2f3a1f" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+          </svg>
+        </div>
+
+        {/* Landscape */}
         <svg
           className="lp-landscape"
           viewBox="0 0 1440 620"
@@ -67,8 +179,8 @@ const Landing = () => {
             fill="url(#lpHillNear)"
           />
 
-          {/* Palm tree #1 — left */}
-          <g opacity=".5" fill="#adc766">
+          {/* Palm tree 1 (swaying) */}
+          <g className="lp-palm lp-palm-1" opacity=".5" fill="#adc766">
             <path d="M100 575 C 108 500, 135 435, 168 382 L 180 375 C 150 435, 128 500, 135 575 Z" />
             <path d="M174 378 C 160 340, 135 315, 100 305 C 130 325, 155 355, 172 385 Z" />
             <path d="M174 378 C 178 335, 185 305, 198 275 C 190 310, 182 345, 178 380 Z" />
@@ -82,8 +194,8 @@ const Landing = () => {
             <circle cx="176" cy="391" r="4" />
           </g>
 
-          {/* Palm tree #2 — right */}
-          <g opacity=".5" fill="#adc766">
+          {/* Palm tree 2 (swaying, opposite phase) */}
+          <g className="lp-palm lp-palm-2" opacity=".5" fill="#adc766">
             <path d="M1275 575 C 1280 510, 1288 450, 1290 405 L 1305 400 C 1305 450, 1302 510, 1308 575 Z" />
             <path d="M1297 402 C 1270 375, 1240 360, 1205 358 C 1235 370, 1265 385, 1295 405 Z" />
             <path d="M1297 402 C 1290 365, 1285 335, 1290 305 C 1300 340, 1302 370, 1300 405 Z" />
@@ -94,7 +206,6 @@ const Landing = () => {
             <path d="M1297 402 C 1270 425, 1250 455, 1240 490 C 1258 458, 1278 430, 1295 405 Z" />
           </g>
 
-          {/* Bushes */}
           <g opacity=".38" fill="#c6d98b">
             <ellipse cx="360" cy="562" rx="72" ry="30" />
             <ellipse cx="1080" cy="576" rx="92" ry="34" />
@@ -102,7 +213,7 @@ const Landing = () => {
           </g>
         </svg>
 
-        {/* Floating icons */}
+        {/* Floating paper planes / pins / leaves */}
         <span className="lp-floater p1">
           <svg viewBox="0 0 24 24" fill="currentColor">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
@@ -134,6 +245,14 @@ const Landing = () => {
             <path d="M20 3v2c0 8-5 13-13 13H5l1 2h1c9 0 15-6 15-15V3h-2z" opacity=".5" />
           </svg>
         </span>
+
+        {/* Twinkling sparkles */}
+        <span className="lp-sparkle s1" />
+        <span className="lp-sparkle s2" />
+        <span className="lp-sparkle s3" />
+        <span className="lp-sparkle s4" />
+        <span className="lp-sparkle s5" />
+        <span className="lp-sparkle s6" />
       </div>
 
       {/* ───── Topbar ───── */}
@@ -148,33 +267,20 @@ const Landing = () => {
           <nav className="lp-mainnav" aria-label="Primary">
             <Link to="/" className="lp-active">Home</Link>
             <Link to="/trips/new">Destinations</Link>
-            <Link to="/weather-itinerary">Weather</Link>
+            <Link to="/weather">Weather</Link>
             <Link to="/trips">My Trips</Link>
           </nav>
 
           <div className="lp-user">
             {user ? (
               <>
-                <Link
-                  to="/profile"
-                  className="lp-avatar"
-                  title={user.name}
-                  aria-hidden="true"
-                >
+                <Link to="/profile" className="lp-avatar" title={user.name} aria-hidden="true">
                   {initials}
                 </Link>
-                <button
-                  className="lp-btn-logout"
-                  type="button"
-                  onClick={handleLogout}
-                >
+                <button className="lp-btn-logout" type="button" onClick={handleLogout}>
                   Logout
                 </button>
-                <button
-                  className="lp-btn-more"
-                  type="button"
-                  aria-label="More options"
-                >
+                <button className="lp-btn-more" type="button" aria-label="More options">
                   <svg viewBox="0 0 24 24" fill="currentColor">
                     <circle cx="12" cy="5" r="1.8" />
                     <circle cx="12" cy="12" r="1.8" />
@@ -184,12 +290,8 @@ const Landing = () => {
               </>
             ) : (
               <>
-                <Link to="/login" className="lp-auth-login">
-                  Login
-                </Link>
-                <Link to="/register" className="lp-auth-cta">
-                  Get Started
-                </Link>
+                <Link to="/login" className="lp-auth-login">Login</Link>
+                <Link to="/register" className="lp-auth-cta">Get Started</Link>
               </>
             )}
           </div>
@@ -199,8 +301,15 @@ const Landing = () => {
       {/* ───── Main ───── */}
       <main className="lp-main">
         <h1 className="lp-headline">
-          Turn Your Dream Trips
-          <span className="lp-hl">Into Reality</span>
+          <span className="lp-headline-line">Your next trip to</span>
+          <span className="lp-headline-rotate">
+            <span className={`lp-rotator${wordOut ? " out" : ""}`}>
+              {ROTATE_WORDS[wordIndex]}
+            </span>
+          </span>
+          <span className="lp-headline-line lp-headline-accent">
+            planned in seconds.
+          </span>
         </h1>
 
         <p className="lp-sub">
@@ -215,14 +324,7 @@ const Landing = () => {
         <ul className="lp-features">
           <li>
             <span className="lp-check" aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#12200a"
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg viewBox="0 0 24 24" fill="none" stroke="#12200a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 6L9 17l-5-5" />
               </svg>
             </span>
@@ -230,14 +332,7 @@ const Landing = () => {
           </li>
           <li>
             <span className="lp-check" aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#12200a"
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg viewBox="0 0 24 24" fill="none" stroke="#12200a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 6L9 17l-5-5" />
               </svg>
             </span>
@@ -245,14 +340,7 @@ const Landing = () => {
           </li>
           <li>
             <span className="lp-check" aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#12200a"
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg viewBox="0 0 24 24" fill="none" stroke="#12200a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 6L9 17l-5-5" />
               </svg>
             </span>
@@ -260,6 +348,53 @@ const Landing = () => {
           </li>
         </ul>
       </main>
+
+      {/* ───── Footer ───── */}
+      <footer className="lp-footer">
+        <div className="lp-footer-content">
+          <div className="lp-footer-brand">
+            <h3>AI Travel Planner</h3>
+            <p>Your AI-powered travel companion. Plan less, explore more.</p>
+          </div>
+
+          <div className="lp-footer-links">
+            <div className="lp-footer-column">
+              <h4>Product</h4>
+              <ul>
+                <li><Link to="/trips/new">Create Trip</Link></li>
+                <li><Link to="/trips">My Trips</Link></li>
+                <li><Link to="/weather">Weather</Link></li>
+                <li><Link to="/journal">Journal</Link></li>
+              </ul>
+            </div>
+
+            <div className="lp-footer-column">
+              <h4>Account</h4>
+              <ul>
+                <li><Link to="/profile">Profile</Link></li>
+                <li><Link to="/dashboard">Dashboard</Link></li>
+                <li><Link to="/login">Sign in</Link></li>
+                <li><Link to="/register">Get Started</Link></li>
+              </ul>
+            </div>
+
+            <div className="lp-footer-column">
+              <h4>Data</h4>
+              <ul>
+                <li><span>Open-Meteo</span></li>
+                <li><span>OpenStreetMap</span></li>
+                <li><span>Gemini · Groq</span></li>
+                <li><span>Pexels</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div className="lp-footer-bottom">
+          <p>© {new Date().getFullYear()} AI Travel Planner. All rights reserved.</p>
+          <p>Made with ❤️ for travelers</p>
+        </div>
+      </footer>
     </div>
   );
 };

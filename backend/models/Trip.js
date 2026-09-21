@@ -30,6 +30,12 @@ const tripSchema = new mongoose.Schema(
       default: 1,
       min: 1,
     },
+    spotsCount: {
+      type: Number,
+      default: 5,
+      min: 1,
+      max: 50,
+    },
     interests: {
       type: [String],
       default: [],
@@ -49,7 +55,12 @@ const tripSchema = new mongoose.Schema(
       activities: { type: Number, default: 0 },
       total: { type: Number, default: 0 },
     },
-    // ─── NEW: unique share identifier for public links ───
+    // ─── AI-generated cover art URL ───
+    image: {
+      type: String,
+      default: "",
+    },
+    // ─── unique share identifier for public links ───
     shareId: {
       type: String,
       unique: true,

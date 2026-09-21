@@ -1,4 +1,6 @@
+// frontend/src/components/ExportPDFButton.jsx
 import { useRef, useState, useEffect } from "react";
+import "./ExportPDFButton.css";
 
 const loadHtml2Pdf = () => {
   if (window.html2pdf) return Promise.resolve(window.html2pdf);
@@ -13,12 +15,13 @@ const loadHtml2Pdf = () => {
 };
 
 const ExportPDFButton = ({ targetId, filename, holderId }) => {
-  const srRef = useRef(null);
-  const [running, setRunning] = useState(false);
-  const [win, setWin] = useState(false);
+  const [state, setState] = useState("idle"); // idle | running | done
   const busyRef = useRef(false);
   const audioRef = useRef({ ac: null, noiseBuf: null });
 
+  /* ─────────────────────────────────────────────
+     Audio setup — Web Audio API (no files needed)
+     ───────────────────────────────────────────── */
   const getAudio = () => {
     const a = audioRef.current;
     if (!a.ac) {
@@ -34,6 +37,7 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
     return a.ac;
   };
 
+  /* Unlock audio on first user gesture (browser autoplay policy) */
   useEffect(() => {
     const unlock = () => {
       getAudio();
@@ -43,6 +47,7 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
     return () => window.removeEventListener("pointerdown", unlock);
   }, []);
 
+  /* ─── Sound 1: Button press — square blip ─── */
   const sPress = (t) => {
     const ctx = getAudio();
     if (!ctx) return;
@@ -59,6 +64,7 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
     o.stop(t + 0.09);
   };
 
+  /* ─── Sound 2: Parachute descent — filtered noise sweeping down ─── */
   const sDescent = (t, dur) => {
     const ctx = getAudio();
     if (!ctx) return;
@@ -81,6 +87,7 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
     n.stop(t + dur + 0.06);
   };
 
+  /* ─── Sound 3: Landing thud — sine sweep down ─── */
   const sThud = (t) => {
     const ctx = getAudio();
     if (!ctx) return;
@@ -97,6 +104,7 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
     o.stop(t + 0.33);
   };
 
+  /* ─── Sound 4: Success ping — triangle ding ─── */
   const sPing = (t) => {
     const ctx = getAudio();
     if (!ctx) return;
@@ -113,6 +121,7 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
     o.stop(t + 0.52);
   };
 
+  /* ─── Sound 5: Victory chord — C-E-G-C ─── */
   const sVictory = (t) => {
     const ctx = getAudio();
     if (!ctx) return;
@@ -132,17 +141,25 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
     });
   };
 
+  /* ─── Play the full sequence ─── */
   const playFull = () => {
     const ctx = getAudio();
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn("[PDF Button] AudioContext unavailable");
+      return;
+    }
     const t = ctx.currentTime + 0.02;
-    sPress(t);
-    sDescent(t + 0.1, 0.6);
-    sThud(t + 0.9);
-    sPing(t + 1.0);
-    sVictory(t + 1.2);
+
+    sPress(t);              // 0.00s — button click
+    sDescent(t + 0.1, 1.6); // 0.10s — parachute descends (1.6s whoosh)
+    sThud(t + 1.85);        // 1.85s — landing thud
+    sPing(t + 2.0);         // 2.00s — ping when badge pops
+    sVictory(t + 2.25);     // 2.25s — victory chord
   };
 
+  /* ─────────────────────────────────────────────
+     PDF export
+     ───────────────────────────────────────────── */
   const runExport = async () => {
     const target = document.getElementById(targetId);
     const holder = holderId ? document.getElementById(holderId) : null;
@@ -154,7 +171,7 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
 
     if (holder) holder.classList.add("is-exporting");
 
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 250));
 
     try {
       const html2pdf = await loadHtml2Pdf();
@@ -188,32 +205,37 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
     }
   };
 
+  /* ─────────────────────────────────────────────
+     Click handler
+     ───────────────────────────────────────────── */
   const handleClick = () => {
     if (busyRef.current) return;
     busyRef.current = true;
 
+    // 1) Start the parachute animation
+    setState("running");
+
+    // 2) Play the synced sound sequence
     playFull();
-    setRunning(true);
-    setWin(false);
 
-    setTimeout(() => {
-      setWin(true);
-      if (srRef.current) srRef.current.textContent = "Itinerary downloaded.";
-    }, 1200);
+    // 3) At 2.0s, swap label to "PDF Downloaded!"
+    setTimeout(() => setState("done"), 2000);
 
-    setTimeout(() => {
-      runExport();
-    }, 1400);
+    // 4) At 2.3s, actually export the PDF
+    setTimeout(() => runExport(), 2300);
 
+    // 5) Reset at 4.8s
     setTimeout(() => {
-      setRunning(false);
-      setWin(false);
+      setState("idle");
       busyRef.current = false;
-      if (srRef.current) srRef.current.textContent = "";
-    }, 4000);
+    }, 4800);
   };
 
-  const cls = ["pdf-btn", running ? "running" : "", win ? "win" : ""]
+  const cls = [
+    "pdf-btn",
+    state === "running" ? "running" : "",
+    state === "done" ? "win" : "",
+  ]
     .filter(Boolean)
     .join(" ");
 
@@ -223,17 +245,19 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
       className={cls}
       onClick={handleClick}
       aria-label="Export PDF Itinerary"
+      disabled={state === "running"}
     >
-      <span className="sr-only" ref={srRef} role="status" aria-live="polite"></span>
+      <span className="sr-only" role="status" aria-live="polite">
+        {state === "running" ? "Preparing PDF" : state === "done" ? "PDF ready" : ""}
+      </span>
 
-      <span className="pdf-btn__skin" aria-hidden="true" />
+      <span className="pdf-btn__sky" aria-hidden="true" />
+      <span className="pdf-btn__shockwave" aria-hidden="true" />
 
-      <span className="pdf-btn__icon-zone" aria-hidden="true">
+      <span className="pdf-btn__payload" aria-hidden="true">
         <span className="pdf-btn__trail" />
-        <span className="pdf-btn__shockwave" />
-
         <svg
-          className="pdf-btn__payload"
+          className="pdf-btn__para-svg"
           viewBox="0 0 40 46"
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -284,14 +308,7 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
           </g>
 
           <g className="crate-g">
-            <rect
-              x="15"
-              y="24"
-              width="10"
-              height="6"
-              rx="1.6"
-              fill="url(#packGrad)"
-            />
+            <rect x="15" y="24" width="10" height="6" rx="1.6" fill="url(#packGrad)" />
             <rect
               x="11"
               y="28"
@@ -324,15 +341,6 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
         </svg>
       </span>
 
-      <span className="pdf-btn__label-stack">
-        <span className="pdf-btn__lbl pdf-btn__lbl-default">
-          Export PDF Itinerary
-        </span>
-        <span className="pdf-btn__lbl pdf-btn__lbl-done">
-          Itinerary Downloaded!
-        </span>
-      </span>
-
       <span className="pdf-btn__badge" aria-hidden="true">
         <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
           <circle
@@ -352,6 +360,18 @@ const ExportPDFButton = ({ targetId, filename, holderId }) => {
             strokeLinejoin="round"
           />
         </svg>
+      </span>
+
+      <span className="pdf-btn__label-stack">
+        <span className="pdf-btn__lbl pdf-btn__lbl-default">
+          📄 Export PDF Itinerary
+        </span>
+        <span className="pdf-btn__lbl pdf-btn__lbl-drop">
+          🪂 Dropping your PDF…
+        </span>
+        <span className="pdf-btn__lbl pdf-btn__lbl-done">
+          ✅ PDF Downloaded!
+        </span>
       </span>
     </button>
   );

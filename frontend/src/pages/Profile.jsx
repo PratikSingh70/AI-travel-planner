@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import "./Profile.css";
 
 const Profile = () => {
   const { logout } = useAuth();
@@ -123,8 +124,8 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0d0d0d]">
-        <div className="w-8 h-8 border-4 border-lime border-t-transparent rounded-full animate-spin" />
+      <div className="pf-loading">
+        <div className="pf-spinner" />
       </div>
     );
   }
@@ -138,193 +139,165 @@ const Profile = () => {
     .slice(0, 2)
     .toUpperCase();
 
-  const inputClass =
-    "w-full rounded-xl px-4 py-3 transition " +
-    "bg-[#1a1a1a] text-white placeholder-gray-500 " +
-    "border border-white/10 " +
-    "focus:outline-none focus:border-lime " +
-    "focus:ring-2 focus:ring-lime/30";
-
   return (
-    <div className="min-h-screen bg-[#0d0d0d] py-12 px-6">
-      <div className="max-w-4xl mx-auto">
-        {/* HEADER CARD */}
-        <div className="bg-[#141414] border border-white/10 rounded-3xl p-8 animate-fade-in-up">
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            {/* AVATAR */}
-            <div className="w-24 h-24 rounded-full bg-lime flex items-center justify-center text-forest font-extrabold text-3xl flex-shrink-0 shadow-[0_0_30px_-5px_rgba(168,216,74,0.6)]">
-              {initials}
-            </div>
+    <div className="pf-root">
+      <div className="pf-orb-1" />
+      <div className="pf-orb-2" />
 
-            {/* INFO */}
-            <div className="flex-1 text-center md:text-left">
-              {!editingName ? (
-                <>
-                  <div className="flex items-center gap-3 justify-center md:justify-start">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-white">
-                      {profile.name}
-                    </h1>
-                    <button
-                      onClick={() => {
-                        setEditingName(true);
-                        setNewName(profile.name);
-                        setNameError("");
-                        setNameSuccess("");
-                      }}
-                      className="text-xs text-gray-400 hover:text-lime border border-white/10 rounded-full px-3 py-1 transition"
-                      title="Edit name"
-                    >
-                      ✏️ Edit
-                    </button>
-                  </div>
-                  <p className="text-gray-400 mt-2">{profile.email}</p>
-                  <p className="text-xs text-gray-500 mt-3">
-                    Joined {formatDate(profile.createdAt)}
-                  </p>
-                </>
-              ) : (
-                <form onSubmit={handleSaveName} className="space-y-3">
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    className={inputClass}
-                    placeholder="Your name"
-                    autoFocus
-                  />
-                  {nameError && (
-                    <p className="text-red-400 text-sm">{nameError}</p>
-                  )}
-                  {nameSuccess && (
-                    <p className="text-lime text-sm">{nameSuccess}</p>
-                  )}
-                  <div className="flex gap-2 justify-center md:justify-start">
-                    <button
-                      type="submit"
-                      disabled={savingName}
-                      className="px-4 py-2 rounded-lg bg-lime text-forest text-sm font-bold hover:bg-lime-dark disabled:opacity-60 btn-press transition"
-                    >
-                      {savingName ? "Saving..." : "Save"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingName(false)}
-                      className="px-4 py-2 rounded-lg border border-white/10 text-gray-300 text-sm font-semibold hover:bg-white/5 transition"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
+      <main className="pf-page">
+        {/* Header */}
+        <header className="pf-header">
+          <div className="pf-tag">
+            <span className="pf-pulse" />
+            Your account
+          </div>
+          <h1 className="pf-title">
+            Your <span>Profile</span>
+          </h1>
+          <p className="pf-subtitle">
+            Manage your account details, change your password, and see your
+            travel stats.
+          </p>
+        </header>
+
+        {/* Hero card */}
+        <div className="pf-hero">
+          <div className="pf-avatar">{initials}</div>
+          <div className="pf-hero-info">
+            {!editingName ? (
+              <>
+                <div className="pf-name-row">
+                  <h2 className="pf-name">{profile.name}</h2>
+                  <button
+                    type="button"
+                    className="pf-edit-btn"
+                    onClick={() => {
+                      setEditingName(true);
+                      setNewName(profile.name);
+                      setNameError("");
+                      setNameSuccess("");
+                    }}
+                  >
+                    ✏️ Edit
+                  </button>
+                </div>
+                <p className="pf-email">{profile.email}</p>
+                <p className="pf-joined">Joined {formatDate(profile.createdAt)}</p>
+              </>
+            ) : (
+              <form onSubmit={handleSaveName} className="pf-edit-form">
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="pf-input"
+                  placeholder="Your name"
+                  autoFocus
+                />
+                {nameError && <p className="pf-alert pf-alert-error">{nameError}</p>}
+                {nameSuccess && (
+                  <p className="pf-alert pf-alert-success">{nameSuccess}</p>
+                )}
+                <div className="pf-edit-actions">
+                  <button
+                    type="submit"
+                    disabled={savingName}
+                    className="pf-btn pf-btn-primary"
+                  >
+                    {savingName ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingName(false)}
+                    className="pf-btn pf-btn-ghost"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
 
-        {/* STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-5 animate-fade-in-up delay-100">
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-              Trips Planned
-            </p>
-            <p className="text-3xl font-extrabold text-white mt-2">
-              {stats.trips}
-            </p>
+        {/* Stats */}
+        <div className="pf-stats">
+          <div className="pf-stat">
+            <div className="pf-stat-label">Trips Planned</div>
+            <div className="pf-stat-value">{stats.trips}</div>
           </div>
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-5 animate-fade-in-up delay-200">
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-              Total Budget
-            </p>
-            <p className="text-3xl font-extrabold text-lime mt-2">
+          <div className="pf-stat">
+            <div className="pf-stat-label">Total Budget</div>
+            <div className="pf-stat-value accent">
               ₹{stats.totalBudget.toLocaleString()}
-            </p>
+            </div>
           </div>
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-5 animate-fade-in-up delay-300">
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-              Avg Budget / Trip
-            </p>
-            <p className="text-3xl font-extrabold text-white mt-2">
+          <div className="pf-stat">
+            <div className="pf-stat-label">Avg Budget / Trip</div>
+            <div className="pf-stat-value">
               ₹{stats.avgBudget.toLocaleString()}
-            </p>
+            </div>
           </div>
         </div>
 
-        {/* CHANGE PASSWORD */}
-        <div className="bg-[#141414] border border-white/10 rounded-3xl p-8 mt-6 animate-fade-in-up delay-300">
-          <div className="flex items-center justify-between mb-6">
+        {/* Change password */}
+        <div className="pf-panel">
+          <div className="pf-panel-head">
             <div>
-              <h2 className="text-xl font-extrabold text-white">
-                🔒 Change Password
-              </h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Update your account password
-              </p>
+              <h2 className="pf-panel-title">🔒 Change Password</h2>
+              <p className="pf-panel-sub">Update your account password</p>
             </div>
             <button
               type="button"
-              onClick={() => setShowPasswords(!showPasswords)}
-              className="text-xs text-gray-400 hover:text-lime transition"
+              className="pf-toggle-pass"
+              onClick={() => setShowPasswords((v) => !v)}
             >
               {showPasswords ? "Hide" : "Show"} passwords
             </button>
           </div>
 
-          {pwdError && (
-            <p className="bg-red-500/10 border border-red-500/30 text-red-300 p-3 rounded-xl mb-4 text-sm">
-              {pwdError}
-            </p>
-          )}
-          {pwdSuccess && (
-            <p className="bg-lime/10 border border-lime/30 text-lime p-3 rounded-xl mb-4 text-sm">
-              {pwdSuccess}
-            </p>
-          )}
+          {pwdError && <p className="pf-alert pf-alert-error">{pwdError}</p>}
+          {pwdSuccess && <p className="pf-alert pf-alert-success">{pwdSuccess}</p>}
 
-          <form onSubmit={handleChangePassword} className="space-y-4">
+          <form onSubmit={handleChangePassword} className="pf-form">
             <div>
-              <label className="block text-sm font-semibold text-white mb-2">
-                Current password
-              </label>
+              <label className="pf-label">Current password</label>
               <input
                 type={showPasswords ? "text" : "password"}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className={inputClass}
+                className="pf-input"
                 placeholder="Enter current password"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="pf-form-grid">
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
-                  New password
-                </label>
+                <label className="pf-label">New password</label>
                 <input
                   type={showPasswords ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className={inputClass}
+                  className="pf-input"
                   placeholder="Min 6 characters"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
-                  Confirm new password
-                </label>
+                <label className="pf-label">Confirm new password</label>
                 <input
                   type={showPasswords ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={inputClass}
+                  className="pf-input"
                   placeholder="Repeat new password"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="pf-form-actions">
               <button
                 type="submit"
                 disabled={savingPassword}
-                className="px-6 py-3 rounded-lg bg-lime text-forest font-bold hover:bg-lime-dark disabled:opacity-60 btn-press transition"
+                className="pf-btn pf-btn-primary"
               >
                 {savingPassword ? "Updating..." : "Update Password"}
               </button>
@@ -332,22 +305,25 @@ const Profile = () => {
           </form>
         </div>
 
-        {/* LOGOUT */}
-        <div className="bg-[#141414] border border-white/10 rounded-3xl p-6 mt-6 flex flex-wrap justify-between items-center gap-4 animate-fade-in-up delay-300">
-          <div>
-            <h3 className="font-bold text-white">Sign out of this device</h3>
-            <p className="text-sm text-gray-400 mt-1">
-              You'll need to log in again to access your trips.
-            </p>
+        {/* Logout */}
+        <div className="pf-panel">
+          <div className="pf-danger-panel">
+            <div>
+              <h3 className="pf-danger-title">Sign out of this device</h3>
+              <p className="pf-danger-sub">
+                You'll need to log in again to access your trips.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="pf-btn-danger"
+            >
+              Logout
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-5 py-2.5 rounded-full border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition"
-          >
-            Logout
-          </button>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

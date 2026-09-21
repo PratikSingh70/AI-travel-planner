@@ -1,0 +1,372 @@
+/* frontend/src/pages/TripComparison.css */
+
+.cmp-root {
+  --cmp-bg: #050505;
+  --cmp-card: #111111;
+  --cmp-card-hover: #181818;
+  --cmp-border: rgba(255, 255, 255, 0.1);
+  --cmp-muted: #888888;
+  --cmp-dim: #52525b;
+  --cmp-lime: #a3e635;
+  --cmp-lime-bright: #bef264;
+  --cmp-lime-glow: rgba(163, 230, 53, 0.4);
+  --cmp-lime-subtle: rgba(163, 230, 53, 0.12);
+
+  position: relative;
+  background: var(--cmp-bg);
+  color: #fff;
+  min-height: 100vh;
+  font-family: 'Poppins', system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+.cmp-orb-1, .cmp-orb-2 {
+  position: fixed;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+.cmp-orb-1 {
+  top: -120px; left: 8%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, var(--cmp-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
+  animation: cmpFloat 10s ease-in-out infinite alternate;
+}
+.cmp-orb-2 {
+  bottom: -120px; right: 8%;
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(96,165,250,0.18) 0%, transparent 70%);
+  animation: cmpFloat 13s ease-in-out infinite alternate-reverse;
+}
+@keyframes cmpFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 40px) scale(1.15); }
+}
+
+.cmp-page {
+  position: relative;
+  z-index: 10;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.cmp-header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 36px;
+}
+.cmp-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--cmp-lime);
+  background: var(--cmp-lime-subtle);
+  border: 1px solid rgba(163, 230, 53, 0.3);
+  padding: 5px 12px; border-radius: 9999px;
+  width: fit-content;
+}
+.cmp-pulse {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cmp-lime);
+  box-shadow: 0 0 10px var(--cmp-lime);
+  animation: cmpPulse 1.5s infinite;
+}
+@keyframes cmpPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.8); }
+}
+.cmp-title {
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: #fff;
+  margin: 0;
+}
+.cmp-title span {
+  color: var(--cmp-lime);
+  text-shadow: 0 0 30px var(--cmp-lime-glow);
+}
+.cmp-subtitle {
+  font-size: 0.95rem;
+  color: var(--cmp-muted);
+  max-width: 640px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ─── Selection bar ─── */
+.cmp-select {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--cmp-card);
+  border: 1px solid var(--cmp-border);
+  border-radius: 20px;
+}
+@media (max-width: 640px) {
+  .cmp-select {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cmp-select-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cmp-select-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--cmp-dim);
+}
+.cmp-select-input {
+  width: 100%;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 13px 16px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color-scheme: dark;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cmp-select-input:focus {
+  border-color: var(--cmp-lime);
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.15);
+}
+
+.cmp-swap {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(163, 230, 53, 0.35);
+  background: var(--cmp-lime-subtle);
+  color: var(--cmp-lime);
+  font-size: 1.25rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.25s, background 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: end;
+}
+.cmp-swap:hover {
+  background: var(--cmp-lime);
+  color: #000;
+  transform: rotate(180deg);
+  box-shadow: 0 0 20px var(--cmp-lime-glow);
+}
+@media (max-width: 640px) {
+  .cmp-swap {
+    width: 100%;
+    align-self: stretch;
+  }
+}
+
+/* ─── Trip header cards ─── */
+.cmp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+@media (max-width: 640px) {
+  .cmp-grid { grid-template-columns: 1fr; }
+}
+
+.cmp-card {
+  background: var(--cmp-card);
+  border: 1px solid var(--cmp-border);
+  border-radius: 20px;
+  padding: 20px;
+  text-align: center;
+  transition: border-color 0.25s, transform 0.25s;
+}
+.cmp-card:hover {
+  border-color: rgba(163, 230, 53, 0.4);
+  transform: translateY(-3px);
+}
+.cmp-card-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.cmp-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cmp-card-emoji {
+  font-size: 3rem;
+}
+.cmp-card-name {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+.cmp-card-link {
+  color: var(--cmp-lime);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.cmp-card-link:hover {
+  color: var(--cmp-lime-bright);
+}
+
+/* ─── Comparison table ─── */
+.cmp-table {
+  background: var(--cmp-card);
+  border: 1px solid var(--cmp-border);
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.cmp-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 12px;
+  padding: 16px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: center;
+}
+.cmp-row:last-child {
+  border-bottom: none;
+}
+.cmp-row-head {
+  background: rgba(163, 230, 53, 0.06);
+  font-weight: 800;
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+.cmp-row-head .cmp-row-label,
+.cmp-row-head .cmp-row-val {
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cmp-row-label {
+  color: var(--cmp-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cmp-row-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 10px;
+  transition: background 0.25s;
+}
+
+.cmp-row-val.win {
+  color: var(--cmp-lime);
+  background: var(--cmp-lime-subtle);
+  box-shadow: inset 0 0 0 1px rgba(163, 230, 53, 0.3);
+}
+
+@media (max-width: 640px) {
+  .cmp-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 14px 18px;
+  }
+  .cmp-row-head {
+    display: none;
+  }
+  .cmp-row-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .cmp-row-val {
+    display: flex;
+    justify-content: space-between;
+  }
+}
+
+/* ─── Summary ─── */
+.cmp-summary {
+  text-align: center;
+  padding: 18px;
+  font-size: 0.82rem;
+  color: var(--cmp-muted);
+}
+
+/* ─── Empty state ─── */
+.cmp-empty {
+  text-align: center;
+  padding: 80px 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.01);
+  margin-top: 40px;
+}
+.cmp-empty-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+.cmp-empty-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 10px;
+}
+.cmp-empty-text {
+  font-size: 0.88rem;
+  color: var(--cmp-muted);
+  max-width: 400px;
+  margin: 0 auto 24px;
+  line-height: 1.6;
+}
+.cmp-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--cmp-lime), var(--cmp-lime-bright));
+  color: #000;
+  padding: 12px 24px;
+  border-radius: 14px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 8px 22px -6px rgba(163, 230, 53, 0.55);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.cmp-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -6px rgba(163, 230, 53, 0.75);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmp-orb-1, .cmp-orb-2, .cmp-pulse { animation: none !important; }
+}
