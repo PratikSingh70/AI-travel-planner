@@ -3,15 +3,18 @@ import { useParams, Link } from "react-router-dom";
 import api from "../api/axios";
 import Skeleton from "../components/Skeleton";
 import TripMap from "../components/TripMap";
-import { useCurrency } from "../context/CurrencyContext";
 import "./SharedTrip.css";
 
-// Extract numeric value from a price string like "₹3500/night" or "3500"
 const parsePrice = (price) => {
   if (typeof price === "number") return price;
   if (!price) return null;
   const match = String(price).replace(/,/g, "").match(/\d+/);
   return match ? Number(match[0]) : null;
+};
+
+const formatINR = (value) => {
+  const n = Number(value) || 0;
+  return `₹${n.toLocaleString("en-IN")}`;
 };
 
 const SharedTripSkeleton = () => (
@@ -41,7 +44,6 @@ const SharedTripSkeleton = () => (
 
 const SharedTrip = () => {
   const { shareId } = useParams();
-  const { format } = useCurrency();
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -151,7 +153,6 @@ const SharedTrip = () => {
       <div className="shr-orb-2" />
 
       <main className="shr-page">
-        {/* Banner */}
         <div className="shr-banner">
           <div className="shr-badge">
             <span className="shr-badge-icon">🔗</span>
@@ -162,7 +163,6 @@ const SharedTrip = () => {
           </Link>
         </div>
 
-        {/* Hero */}
         <div className="shr-hero">
           <img
             src={heroImg}
@@ -205,7 +205,6 @@ const SharedTrip = () => {
           </div>
         )}
 
-        {/* Hotels */}
         {trip.hotels?.length > 0 && (
           <section className="shr-section">
             <h2 className="shr-section-title">
@@ -226,10 +225,7 @@ const SharedTrip = () => {
                       <h3 className="shr-hotel-name">{h.name}</h3>
                       <div className="shr-hotel-row">📍 {h.address}</div>
                       <div className="shr-hotel-price">
-                        💰{" "}
-                        {priceNum !== null
-                          ? `${format(priceNum)}/night`
-                          : h.price}
+                        💰 {priceNum !== null ? `${formatINR(priceNum)}/night` : h.price}
                       </div>
                       <div className="shr-hotel-rating">⭐ {h.rating} stars</div>
                     </div>
@@ -240,7 +236,6 @@ const SharedTrip = () => {
           </section>
         )}
 
-        {/* Itinerary */}
         {trip.itinerary?.length > 0 && (
           <section className="shr-section">
             <h2 className="shr-section-title">
@@ -267,7 +262,7 @@ const SharedTrip = () => {
                           <p className="shr-activity-desc">{act.description}</p>
                           <div className="shr-activity-loc">📍 {act.location}</div>
                           <div className="shr-activity-cost">
-                            {format(act.cost)} per person
+                            {formatINR(act.cost)} per person
                           </div>
                         </div>
                       </div>
@@ -279,7 +274,6 @@ const SharedTrip = () => {
           </section>
         )}
 
-        {/* Budget */}
         {trip.budgetBreakdown?.total > 0 && (
           <section className="shr-section">
             <h2 className="shr-section-title">
@@ -294,18 +288,17 @@ const SharedTrip = () => {
               ].map((item, i) => (
                 <div key={i} className="shr-budget-row">
                   <span className="label">{item.label}</span>
-                  <span className="val">{format(item.value)}</span>
+                  <span className="val">{formatINR(item.value)}</span>
                 </div>
               ))}
               <div className="shr-budget-total">
                 <span className="label">Total</span>
-                <span className="val">{format(trip.budgetBreakdown.total)}</span>
+                <span className="val">{formatINR(trip.budgetBreakdown.total)}</span>
               </div>
             </div>
           </section>
         )}
 
-        {/* Map */}
         {weather?.location && (
           <section className="shr-section">
             <h2 className="shr-section-title">
@@ -329,7 +322,6 @@ const SharedTrip = () => {
           </section>
         )}
 
-        {/* CTA */}
         <div className="shr-cta">
           <h3 className="shr-cta-title">Loved this itinerary?</h3>
           <p className="shr-cta-sub">

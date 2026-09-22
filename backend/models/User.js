@@ -14,10 +14,20 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    // Not required — Google users won't have a password
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: false,
       minlength: 6,
+    },
+    // Added for Google OAuth
+    googleId: {
+      type: String,
+      default: null,
+    },
+    avatar: {
+      type: String,
+      default: null,
     },
   },
   { timestamps: true }

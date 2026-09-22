@@ -17,9 +17,7 @@ const SORTS = [
   { key: "za", label: "Z → A" },
 ];
 
-const CART_STORAGE_KEY = "aitp.selectedTrips";
-
-/* ─────────── Helpers ─────────── */
+/* ─────── Helpers ─────── */
 function getBudgetTier(budget) {
   const n = Number(budget) || 0;
   if (n < 20000) return "cheap";
@@ -57,7 +55,6 @@ function relativeTime(iso) {
   return `${y} year${y === 1 ? "" : "s"} ago`;
 }
 
-/* Pick a nice emoji based on destination text */
 function pickEmoji(destination) {
   const t = (destination || "").toLowerCase();
   if (t.includes("bali") || t.includes("beach")) return "🏝️";
@@ -84,7 +81,6 @@ function pickEmoji(destination) {
   return "✈️";
 }
 
-/* Extract a short country/region from destination string */
 function extractCountry(destination) {
   if (!destination) return "";
   const parts = destination.split(",").map((p) => p.trim()).filter(Boolean);
@@ -92,7 +88,7 @@ function extractCountry(destination) {
   return "";
 }
 
-/* ─────────── Skeleton grid ─────────── */
+/* ─────── Skeleton grid ─────── */
 const SkeletonGrid = () => (
   <div className="tr-grid">
     {Array.from({ length: 6 }).map((_, i) => (
@@ -101,7 +97,7 @@ const SkeletonGrid = () => (
   </div>
 );
 
-/* ─────────── Main page ─────────── */
+/* ─────── Main page ─────── */
 const Trips = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -113,22 +109,7 @@ const Trips = () => {
   const [tier, setTier] = useState(searchParams.get("tier") || "all");
   const [sort, setSort] = useState(searchParams.get("sort") || "newest");
 
-  const [selected, setSelected] = useState(() => {
-    try {
-      const raw = localStorage.getItem(CART_STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [toast, setToast] = useState({ show: false, text: "", icon: "✓" });
-  const [badgeBump, setBadgeBump] = useState(false);
-
   const searchRef = useRef(null);
-  const toastTimerRef = useRef(null);
 
   /* Fetch trips */
   useEffect(() => {
@@ -147,13 +128,6 @@ const Trips = () => {
       cancelled = true;
     };
   }, []);
-
-  /* Persist cart */
-  useEffect(() => {
-    try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(selected));
-    } catch {}
-  }, [selected]);
 
   /* Sync URL */
   useEffect(() => {
@@ -175,8 +149,7 @@ const Trips = () => {
         searchRef.current?.focus();
       }
       if (e.key === "Escape") {
-        if (drawerOpen) setDrawerOpen(false);
-        else if (document.activeElement === searchRef.current) {
+        if (document.activeElement === searchRef.current) {
           setQuery("");
           searchRef.current?.blur();
         }
@@ -184,37 +157,7 @@ const Trips = () => {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [drawerOpen]);
-
-  /* Toast */
-  const showToast = (text, icon = "✓") => {
-    setToast({ show: true, text, icon });
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => {
-      setToast((t) => ({ ...t, show: false }));
-    }, 1800);
-  };
-
-  /* Selection toggle */
-  const toggleTrip = (id) => {
-    setSelected((prev) => {
-      const isSel = prev.includes(id);
-      if (isSel) {
-        showToast("Removed from selection", "×");
-        return prev.filter((x) => x !== id);
-      }
-      showToast("Added to selection", "✓");
-      return [...prev, id];
-    });
-    setBadgeBump(true);
-    setTimeout(() => setBadgeBump(false), 300);
-  };
-
-  const clearCart = () => {
-    if (selected.length === 0) return;
-    setSelected([]);
-    showToast("Selection cleared", "🗑️");
-  };
+  }, []);
 
   /* Visible trips */
   const visibleTrips = useMemo(() => {
@@ -241,23 +184,6 @@ const Trips = () => {
     });
   }, [trips, query, tier, sort]);
 
-  const selectedTrips = useMemo(
-    () =>
-      selected
-        .map((id) => trips.find((t) => t._id === id))
-        .filter(Boolean),
-    [selected, trips]
-  );
-
-  const totalDays = useMemo(
-    () =>
-      selectedTrips.reduce(
-        (sum, t) => sum + daysBetween(t.startDate, t.endDate),
-        0
-      ),
-    [selectedTrips]
-  );
-
   const hasFilters = query.trim() || tier !== "all" || sort !== "newest";
 
   /* Handlers */
@@ -280,12 +206,6 @@ const Trips = () => {
     }
   };
 
-  const buildPlan = () => {
-    const names = selectedTrips.map((t) => t.destination).join(", ");
-    showToast(`Building plan for ${names}`, "✨");
-    setDrawerOpen(false);
-  };
-
   return (
     <div className="tr-root">
       <div className="tr-orb-1" />
@@ -303,24 +223,9 @@ const Trips = () => {
                 My <span>Trips</span>
               </h1>
               <p className="tr-subtitle">
-                Search, filter, and sort your trips. Tap{" "}
-                <strong>＋ Select</strong> on any card to add it to your
-                selection — the cart keeps your picks even after a refresh.
+                Search, filter, and sort your trips. Click any card to open it.
               </p>
             </div>
-
-            <button
-              className={`tr-cart-btn ${selected.length > 0 ? "has-items" : ""}`}
-              onClick={() => setDrawerOpen(true)}
-              type="button"
-              aria-label="Open selected trips"
-            >
-              <span>🛒</span>
-              <span>Selected</span>
-              <span className={`tr-cart-badge ${badgeBump ? "bump" : ""}`}>
-                {selected.length}
-              </span>
-            </button>
           </div>
         </header>
 
@@ -496,14 +401,13 @@ const Trips = () => {
             {visibleTrips.map((trip, i) => {
               const tier = getBudgetTier(trip.budget);
               const days = daysBetween(trip.startDate, trip.endDate);
-              const isSel = selected.includes(trip._id);
               const country = extractCountry(trip.destination);
               const emoji = pickEmoji(trip.destination);
 
               return (
                 <article
                   key={trip._id}
-                  className={`tr-card tier-${tier} ${isSel ? "selected" : ""}`}
+                  className={`tr-card tier-${tier}`}
                   style={{ animationDelay: `${i * 0.04}s` }}
                   tabIndex={0}
                   onClick={() => handleCardClick(trip._id)}
@@ -527,25 +431,6 @@ const Trips = () => {
                       <span className={`tr-tier tier-${tier}`}>
                         {tierLabel(tier)}
                       </span>
-                      <button
-                        type="button"
-                        className={`tr-select ${isSel ? "selected" : ""}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleTrip(trip._id);
-                        }}
-                        aria-pressed={isSel}
-                      >
-                        {isSel ? (
-                          <>
-                            <span>✓</span> Selected
-                          </>
-                        ) : (
-                          <>
-                            <span>＋</span> Select
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
 
@@ -580,129 +465,10 @@ const Trips = () => {
             fontWeight: 600,
           }}
         >
-          <span>Filters sync to the URL · Selections saved locally</span>
+          <span>Filters sync to the URL</span>
           <span>AI Travel Planner © My Trips</span>
         </footer>
       </main>
-
-      {/* Overlay */}
-      <div
-        className={`tr-overlay ${drawerOpen ? "open" : ""}`}
-        onClick={() => setDrawerOpen(false)}
-      />
-
-      {/* Drawer */}
-      <aside className={`tr-drawer ${drawerOpen ? "open" : ""}`}>
-        <div className="tr-drawer-head">
-          <div className="tr-drawer-title">
-            🛒 Selected <span>({selected.length})</span>
-          </div>
-          <button
-            className="tr-drawer-close"
-            onClick={() => setDrawerOpen(false)}
-            type="button"
-            aria-label="Close drawer"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="tr-drawer-summary">
-          <div className="tr-summary-stat">
-            <div className="tr-summary-label">Trips</div>
-            <div className="tr-summary-value">
-              {selected.length}
-              <span>selected</span>
-            </div>
-          </div>
-          <div className="tr-summary-stat">
-            <div className="tr-summary-label">Total days</div>
-            <div className="tr-summary-value accent">
-              {totalDays}
-              <span>days</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="tr-drawer-body">
-          {selectedTrips.length === 0 ? (
-            <div className="tr-cart-empty">
-              <div className="tr-cart-empty-icon">🛒</div>
-              <div className="tr-cart-empty-title">Nothing selected yet</div>
-              <p className="tr-cart-empty-text">
-                Tap <strong>＋ Select</strong> on any trip card to add it here.
-                Your picks are saved locally.
-              </p>
-            </div>
-          ) : (
-            selectedTrips.map((trip) => {
-              const tier = getBudgetTier(trip.budget);
-              const days = daysBetween(trip.startDate, trip.endDate);
-              const emoji = pickEmoji(trip.destination);
-              return (
-                <div
-                  key={trip._id}
-                  className={`tr-cart-item tier-${tier}`}
-                >
-                  <div className="tr-cart-item-thumb">
-                    {trip.image ? (
-                      <img
-                        src={trip.image}
-                        alt={trip.destination}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      emoji
-                    )}
-                  </div>
-                  <div className="tr-cart-item-body">
-                    <div className="tr-cart-item-name">
-                      {trip.destination}
-                    </div>
-                    <div className="tr-cart-item-meta">{days} days</div>
-                  </div>
-                  <button
-                    type="button"
-                    className="tr-cart-item-remove"
-                    onClick={() => toggleTrip(trip._id)}
-                    aria-label={`Remove ${trip.destination}`}
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        <div className="tr-drawer-foot">
-          <div className="tr-drawer-actions">
-            <button
-              className="tr-btn-cart-primary"
-              type="button"
-              disabled={selectedTrips.length === 0}
-              onClick={buildPlan}
-            >
-              ✨ Build itinerary
-            </button>
-            <button
-              className="tr-btn-cart-ghost"
-              type="button"
-              onClick={clearCart}
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Toast */}
-      <div className={`tr-toast ${toast.show ? "show" : ""}`}>
-        <span>{toast.icon}</span>
-        <span>{toast.text}</span>
-      </div>
     </div>
   );
 };

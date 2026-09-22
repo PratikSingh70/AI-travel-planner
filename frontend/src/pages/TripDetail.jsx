@@ -6,18 +6,28 @@ import TripMap from "../components/TripMap";
 import DeleteButton from "../components/DeleteButton";
 import ItineraryPaper from "../components/ItineraryPaper";
 import SkyFlightButton from "../components/SkyFlightButton";
-import { downloadICS } from "../utils/ics";
-import { buildCoverArtUrl, preloadImage } from "../utils/coverArt";
-import { useCurrency } from "../context/CurrencyContext";
 import { useTripActions } from "../context/TripActionsContext";
 import "./TripDetail.css";
 
-// Extract numeric value from a price string like "₹3500/night" or "3500"
 const parsePrice = (price) => {
   if (typeof price === "number") return price;
   if (!price) return null;
   const match = String(price).replace(/,/g, "").match(/\d+/);
   return match ? Number(match[0]) : null;
+};
+
+const formatINR = (value) => {
+  const n = Number(value) || 0;
+  return `₹${n.toLocaleString("en-IN")}`;
+};
+
+/* Build a Booking.com search URL for the hotel */
+const getBookingUrl = (hotel, destination) => {
+  const parts = [hotel?.name, destination].filter(Boolean);
+  const query = parts.join(" ").trim() || "hotel";
+  return `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(
+    query
+  )}`;
 };
 
 const TripDetailSkeleton = () => (
@@ -40,6 +50,7 @@ const TripDetailSkeleton = () => (
       <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
         <Skeleton variant="rectangular" width={110} height={40} rounded="9999px" />
         <Skeleton variant="rectangular" width={140} height={40} rounded="9999px" />
+        <Skeleton variant="rectangular" width={180} height={40} rounded="9999px" />
       </div>
     </div>
   </div>
@@ -49,7 +60,6 @@ const TripDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { format, currency, setCurrency, currencies, detectCurrencyFromDestination } = useCurrency();
   const { setActions } = useTripActions();
 
   const [trip, setTrip] = useState(null);
@@ -59,9 +69,6 @@ const TripDetail = () => {
   const [weather, setWeather] = useState(null);
   const [places, setPlaces] = useState([]);
   const [coverImage, setCoverImage] = useState(null);
-
-  const [generatingArt, setGeneratingArt] = useState(false);
-  const [artError, setArtError] = useState("");
 
   const [shareUrl, setShareUrl] = useState("");
   const [shareLoading, setShareLoading] = useState(false);
@@ -101,25 +108,7 @@ const TripDetail = () => {
     }
     setActions({
       trip,
-      generatingArt,
       shareLoading,
-      onCalendar: () => { try { downloadICS(trip); } catch (e) { console.error(e); } },
-      onCoverArt: async () => {
-        setArtError("");
-        setGeneratingArt(true);
-        try {
-          const url = buildCoverArtUrl(trip, Date.now() % 1000);
-          const ok = await preloadImage(url);
-          if (!ok) throw new Error("Image service unavailable");
-          await api.put(`/trips/${id}`, { image: url });
-          setTrip((prev) => ({ ...prev, image: url }));
-        } catch (err) {
-          console.error(err);
-          setArtError("Could not generate cover art. Try again.");
-        } finally {
-          setGeneratingArt(false);
-        }
-      },
       onShare: async () => {
         setShareLoading(true);
         try {
@@ -135,7 +124,7 @@ const TripDetail = () => {
     });
     return () => setActions(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip, id, generatingArt, shareLoading]);
+  }, [trip, id, shareLoading]);
 
   const handleGenerate = async () => {
     setGenError("");
@@ -172,6 +161,11 @@ const TripDetail = () => {
     navigate("/trips");
   };
 
+  const openBooking = (hotel) => {
+    const url = getBookingUrl(hotel, trip.destination);
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   if (loading) return <TripDetailSkeleton />;
   if (!trip) return null;
 
@@ -188,11 +182,6 @@ const TripDetail = () => {
     trip.image ||
     coverImage ||
     `https://picsum.photos/seed/${encodeURIComponent(trip.destination)}/1600/700`;
-
-  // ── Local currency detection ──
-  const localCode = detectCurrencyFromDestination(trip.destination);
-  const localInfo = localCode ? currencies[localCode] : null;
-  const showLocalBadge = localCode && localCode !== currency;
 
   return (
     <div className="td-root">
@@ -220,33 +209,6 @@ const TripDetail = () => {
 
         <h1 className="td-dest">{trip.destination}</h1>
 
-        {/* ── Local currency badge ── */}
-        {localInfo && (
-          <div className={`td-local-currency ${showLocalBadge ? "is-different" : "is-active"}`}>
-            <span className="td-local-flag">{localInfo.flag}</span>
-            <span className="td-local-text">
-              {showLocalBadge ? (
-                <>
-                  Local currency is <strong>{localCode}</strong> · {localInfo.name}
-                </>
-              ) : (
-                <>
-                  Viewing in local currency <strong>{localCode}</strong>
-                </>
-              )}
-            </span>
-            {showLocalBadge && (
-              <button
-                type="button"
-                className="td-local-switch"
-                onClick={() => setCurrency(localCode)}
-              >
-                Switch to {localCode} →
-              </button>
-            )}
-          </div>
-        )}
-
         <div className="td-pills">
           <span className="td-pill">
             <span className="td-pill-icon">📅</span>
@@ -260,7 +222,7 @@ const TripDetail = () => {
           )}
           <span className="td-pill">
             <span className="td-pill-icon">💰</span>
-            {format(trip.budget)} · {budgetLabel}
+            {formatINR(trip.budget)} · {budgetLabel}
           </span>
           <span className="td-pill">
             <span className="td-pill-icon">👥</span>
@@ -269,7 +231,6 @@ const TripDetail = () => {
         </div>
 
         {genError && <p className="td-error">{genError}</p>}
-        {artError && <p className="td-error">{artError}</p>}
 
         <div style={{ marginTop: 32 }}>
           <SkyFlightButton
@@ -295,15 +256,33 @@ const TripDetail = () => {
                   `https://picsum.photos/seed/${encodeURIComponent(h.name)}/400/300`;
                 const priceNum = parsePrice(h.price);
                 return (
-                  <div key={i} className="td-hotel">
+                  <div
+                    key={i}
+                    className="td-hotel"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openBooking(h)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openBooking(h);
+                      }
+                    }}
+                    aria-label={`Book ${h.name} on Booking.com`}
+                  >
                     <div className="td-hotel-img">
                       <img src={imgUrl} alt={h.name} />
+                      <div className="td-hotel-img-overlay">
+                        <span className="td-hotel-book-badge">
+                          🏨 Book Now →
+                        </span>
+                      </div>
                     </div>
                     <div className="td-hotel-body">
                       <h3 className="td-hotel-name">{h.name}</h3>
                       <div className="td-hotel-row">📍 {h.address}</div>
                       <div className="td-hotel-price">
-                        💰 {priceNum !== null ? `${format(priceNum)}/night` : h.price}
+                        💰 {priceNum !== null ? `${formatINR(priceNum)}/night` : h.price}
                       </div>
                       <div className="td-hotel-rating">⭐ {h.rating} stars</div>
                     </div>
@@ -340,7 +319,7 @@ const TripDetail = () => {
                             ⏱ {act.time?.split("-")[1]?.trim() || "Flexible"}
                           </div>
                           <div className="td-activity-cost">
-                            {format(act.cost)} per person
+                            {formatINR(act.cost)} per person
                           </div>
                         </div>
                       </div>
@@ -411,6 +390,7 @@ const TripDetail = () => {
               lng={weather.location.lng}
               label={trip.destination}
               places={places}
+              itinerary={trip.itinerary}
             />
           </section>
         )}

@@ -2,8 +2,7 @@ import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import ChatAssistant from "./components/ChatAssistant";
-import Register from "./pages/Register";
-import Login from "./pages/Login";
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Trips from "./pages/Trips";
 import CreateTrip from "./pages/CreateTrip";
@@ -16,7 +15,6 @@ import WeatherAwareItinerary from "./pages/WeatherAwareItinerary";
 import WeatherTrips from "./pages/WeatherTrips";
 import TripJournal from "./pages/TripJournal";
 import JournalTrips from "./pages/JournalTrips";
-import TripComparison from "./pages/TripComparison";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./context/AuthContext";
 
@@ -35,7 +33,7 @@ const PrivateRoute = ({ children }) => {
 
 const App = () => {
   const location = useLocation();
-  const hideNavbar = location.pathname === "/";
+  const hideNavbar = ["/", "/login", "/register"].includes(location.pathname);
 
   return (
     <>
@@ -44,8 +42,8 @@ const App = () => {
       <Routes>
         {/* Public */}
         <Route path="/" element={<Landing />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<Auth initialMode="login" />} />
+        <Route path="/register" element={<Auth initialMode="signup" />} />
         <Route path="/share/:shareId" element={<SharedTrip />} />
 
         {/* Protected */}
@@ -61,7 +59,6 @@ const App = () => {
         <Route path="/trips/:id/weather-itinerary" element={<PrivateRoute><WeatherAwareItinerary /></PrivateRoute>} />
         <Route path="/journal" element={<PrivateRoute><JournalTrips /></PrivateRoute>} />
         <Route path="/journal/demo" element={<PrivateRoute><TripJournal /></PrivateRoute>} />
-        <Route path="/compare" element={<PrivateRoute><TripComparison /></PrivateRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<NotFound />} />
