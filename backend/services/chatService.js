@@ -24,14 +24,15 @@ const getGroq = () => {
 };
 
 const GEMINI_MODELS = [
-  "gemini-flash-latest",
+  "gemini-3.6-flash",
   "gemini-2.5-flash",
-  "gemini-2.0-flash",
+  "gemini-flash-latest",
 ];
 
 const GROQ_MODELS = [
   "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
+  "llama-3.2-3b-preview",
+  "mixtral-8x7b-32768",
 ];
 
 const buildSystemPrompt = (trip) => {
@@ -56,10 +57,10 @@ The user is currently viewing this trip. Use these details when relevant:
 - Dates: ${start} → ${end}
 - Budget: ₹${trip.budget} INR
 - Travellers: ${trip.travellers}
-${trip.itinerary?.length ? `- Itinerary has ${trip.itinerary.length} days planned` : "- No itinerary generated yet"}
+${trip.itinerary?.length ? `- Itinerary has ${trip.itinerary.length} days planned` : ""}
 ${trip.hotels?.length ? `- Hotels suggested: ${trip.hotels.map((h) => h.name).join(", ")}` : ""}
 
-When relevant, reference this trip's details in your answer.`;
+Reference these details when relevant.`;
   }
 
   return base;
@@ -71,6 +72,8 @@ const chatWithGemini = async (messages, systemPrompt) => {
 
   for (const model of GEMINI_MODELS) {
     try {
+      console.log(`[Chat] Trying Gemini: ${model}`);
+
       const contents = messages.map((m) => ({
         role: m.role === "assistant" ? "model" : "user",
         parts: [{ text: m.content }],
@@ -84,15 +87,15 @@ const chatWithGemini = async (messages, systemPrompt) => {
 
       const text = response.text;
       if (!text) throw new Error("Empty Gemini response");
+      console.log(`[Chat] ✓ Gemini ${model}`);
       return text;
     } catch (err) {
       lastErr = err;
-      const status = err?.status;
-      // Try next model on 404/429
-      if (status === 404 || status === 429) continue;
+      console.log(`[Chat] ✗ Gemini ${model}: ${err.message?.slice(0, 100)}`);
+      continue;
     }
   }
-  throw new Error(`Gemini chat failed: ${lastErr?.message || "Unknown"}`);
+  throw new Error(`All Gemini chat models failed. Last: ${lastErr?.message}`);
 };
 
 const chatWithGroq = async (messages, systemPrompt) => {
@@ -101,6 +104,8 @@ const chatWithGroq = async (messages, systemPrompt) => {
 
   for (const model of GROQ_MODELS) {
     try {
+      console.log(`[Chat] Trying Groq: ${model}`);
+
       const completion = await client.chat.completions.create({
         model,
         messages: [
@@ -116,13 +121,15 @@ const chatWithGroq = async (messages, systemPrompt) => {
 
       const text = completion.choices[0]?.message?.content;
       if (!text) throw new Error("Empty Groq response");
+      console.log(`[Chat] ✓ Groq ${model}`);
       return text;
     } catch (err) {
       lastErr = err;
+      console.log(`[Chat] ✗ Groq ${model}: ${err.message?.slice(0, 100)}`);
       continue;
     }
   }
-  throw new Error(`Groq chat failed: ${lastErr?.message || "Unknown"}`);
+  throw new Error(`All Groq chat models failed. Last: ${lastErr?.message}`);
 };
 
 export const chatWithAI = async (messages, trip = null) => {
@@ -132,7 +139,7 @@ export const chatWithAI = async (messages, trip = null) => {
     const text = await chatWithGemini(messages, systemPrompt);
     return { text, provider: "gemini" };
   } catch (err) {
-    console.warn("Gemini chat failed, falling back to Groq:", err.message);
+    console.warn("[Chat] Gemini failed, falling back to Groq");
     const text = await chatWithGroq(messages, systemPrompt);
     return { text, provider: "groq" };
   }

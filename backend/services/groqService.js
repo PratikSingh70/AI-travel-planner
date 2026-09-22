@@ -1,6 +1,4 @@
 // backend/services/groqService.js
-// Fallback AI provider for when Gemini is overloaded.
-
 import Groq from "groq-sdk";
 
 let groq = null;
@@ -8,9 +6,7 @@ let groq = null;
 const getGroq = () => {
   if (!groq) {
     const key = process.env.GROQ_API_KEY;
-    if (!key) {
-      throw new Error("GROQ_API_KEY is not set in .env");
-    }
+    if (!key) throw new Error("GROQ_API_KEY is not set in .env");
     groq = new Groq({ apiKey: key });
   }
   return groq;
@@ -18,7 +14,7 @@ const getGroq = () => {
 
 const GROQ_MODELS = [
   "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
+  "llama-3.2-3b-preview",
   "mixtral-8x7b-32768",
 ];
 
@@ -53,35 +49,10 @@ RETURN THIS EXACT STRUCTURE:
   "destination": "string",
   "summary": "short paragraph",
   "days": [
-    {
-      "day": 1,
-      "date": "YYYY-MM-DD",
-      "activities": [
-        {
-          "time": "09:00 AM",
-          "title": "string",
-          "description": "string",
-          "location": "string",
-          "cost": 0
-        }
-      ]
-    }
+    { "day": 1, "date": "YYYY-MM-DD", "activities": [{ "time": "09:00 AM", "title": "string", "description": "string", "location": "string", "cost": 0 }] }
   ],
-  "hotels": [
-    {
-      "name": "string",
-      "rating": 4.5,
-      "price": "₹3500/night",
-      "address": "string"
-    }
-  ],
-  "budgetBreakdown": {
-    "flights": 0,
-    "hotels": 0,
-    "food": 0,
-    "activities": 0,
-    "total": 0
-  }
+  "hotels": [{ "name": "string", "rating": 4.5, "price": "₹3500/night", "address": "string" }],
+  "budgetBreakdown": { "flights": 0, "hotels": 0, "food": 0, "activities": 0, "total": 0 }
 }`;
 
   let lastError = null;
@@ -111,15 +82,11 @@ RETURN THIS EXACT STRUCTURE:
 
         console.log(`[Groq] ✓ SUCCESS with ${model}`);
 
-        // Parse and validate — mirrors geminiService
         let itinerary;
         try {
           itinerary = JSON.parse(text);
         } catch (err) {
-          console.error(
-            "[Groq] Invalid JSON:",
-            text?.slice(0, 300)
-          );
+          console.error("[Groq] Invalid JSON:", text?.slice(0, 300));
           throw new Error("Groq returned invalid JSON. Please try again.");
         }
 
@@ -157,13 +124,21 @@ RETURN THIS EXACT STRUCTURE:
           status === 503 ||
           msg.includes("overloaded") ||
           msg.includes("unavailable");
+        const isNotFound =
+          status === 404 ||
+          msg.includes("does not exist") ||
+          msg.includes("not found");
 
-        if (isBusy && attempt < 2) {
+        if (isNotFound) {
+          console.log(`[Groq] ${model} not available — next`);
+          break;
+        }
+
+        if ((isBusy || isRateLimit) && attempt < 2) {
           await sleep(3000);
           continue;
         }
 
-        // try next model
         break;
       }
     }

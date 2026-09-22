@@ -14,13 +14,11 @@ const getAI = () => {
   return ai;
 };
 
-// Try each model ONCE. Fail fast to Groq.
+// Updated 2026 model names — gemini-2.0-flash is gone
 const MODELS = [
+  "gemini-3.6-flash",
+  "gemini-2.5-flash",
   "gemini-flash-latest",
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
 ];
 
 const generateWithRetry = async (prompt) => {
@@ -29,7 +27,7 @@ const generateWithRetry = async (prompt) => {
 
   for (const model of MODELS) {
     try {
-      console.log(`→ ${model}`);
+      console.log(`→ Trying ${model}...`);
       const response = await client.models.generateContent({
         model,
         contents: prompt,
@@ -42,21 +40,15 @@ const generateWithRetry = async (prompt) => {
       const status = err?.status;
       const msg = String(err?.message || "").toLowerCase();
 
-      const isNotFound = status === 404 || msg.includes("not found");
-      const isRateLimit = status === 429 || msg.includes("quota");
-      const isBusy =
-        status === 503 ||
-        msg.includes("unavailable") ||
-        msg.includes("high demand");
-
-      if (isNotFound || isRateLimit) {
-        console.log(`  skipped (${isNotFound ? "404" : "429"})`);
-      } else if (isBusy) {
-        console.log(`  busy (503) — next model`);
+      if (status === 404 || msg.includes("not found") || msg.includes("no longer available")) {
+        console.log(`  ✗ ${model} not available — next`);
+      } else if (status === 429 || msg.includes("quota")) {
+        console.log(`  ✗ ${model} rate limited — next`);
+      } else if (status === 503 || msg.includes("high demand")) {
+        console.log(`  ✗ ${model} busy — next`);
       } else {
-        console.log(`  failed: ${err?.message?.slice(0, 80)}`);
+        console.log(`  ✗ ${model} failed: ${err?.message?.slice(0, 80)}`);
       }
-      // Move on immediately — no retries
     }
   }
 
