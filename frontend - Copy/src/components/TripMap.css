@@ -1,0 +1,127 @@
+/* frontend/src/components/TripMap.css */
+
+/* Wrapper isolates the map into its own stacking context */
+.trip-map-wrap {
+  position: relative;
+  z-index: 0;            /* LOW — below navbar (100) and other UI */
+  isolation: isolate;    /* creates a new stacking context */
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #050505;
+  box-shadow:
+    0 16px 40px -20px rgba(0, 0, 0, 0.9),
+    0 0 30px -12px rgba(163, 230, 53, 0.15);
+}
+
+/* Force the Leaflet container to stay inside the wrapper */
+.trip-map-wrap .leaflet-container {
+  z-index: 0 !important;
+  border-radius: 20px;
+  font-family: 'Poppins', system-ui, sans-serif;
+  background: #0b0b0b;
+}
+
+/* Keep Leaflet's internal panes from escaping above the navbar */
+.trip-map-wrap .leaflet-pane,
+.trip-map-wrap .leaflet-top,
+.trip-map-wrap .leaflet-bottom {
+  z-index: auto !important;
+}
+
+.trip-map-wrap .leaflet-pane { z-index: 400 !important; }
+.trip-map-wrap .leaflet-tile-pane    { z-index: 200 !important; }
+.trip-map-wrap .leaflet-overlay-pane { z-index: 400 !important; }
+.trip-map-wrap .leaflet-shadow-pane  { z-index: 500 !important; }
+.trip-map-wrap .leaflet-marker-pane  { z-index: 600 !important; }
+.trip-map-wrap .leaflet-tooltip-pane { z-index: 650 !important; }
+.trip-map-wrap .leaflet-popup-pane   { z-index: 700 !important; }
+
+/* Leaflet controls (zoom +/-) */
+.trip-map-wrap .leaflet-top,
+.trip-map-wrap .leaflet-bottom {
+  z-index: 800 !important;
+}
+
+/* Zoom buttons — dark glass */
+.trip-map-wrap .leaflet-control-zoom {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.9);
+}
+.trip-map-wrap .leaflet-control-zoom a {
+  background: rgba(11, 11, 11, 0.95) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  font-weight: 700;
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  font-size: 18px !important;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.trip-map-wrap .leaflet-control-zoom a:hover {
+  background: #a3e635 !important;
+  color: #000000 !important;
+  border-color: #a3e635 !important;
+}
+.trip-map-wrap .leaflet-control-zoom a.leaflet-disabled {
+  background: rgba(11, 11, 11, 0.6) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Attribution bar — dark glass */
+.trip-map-wrap .leaflet-control-attribution {
+  background: rgba(11, 11, 11, 0.85) !important;
+  color: #888888 !important;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 10px 0 0 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+.trip-map-wrap .leaflet-control-attribution a {
+  color: #a3e635 !important;
+  text-decoration: none;
+  font-weight: 700;
+}
+.trip-map-wrap .leaflet-control-attribution a:hover {
+  color: #bef264 !important;
+  text-decoration: underline;
+}
+
+/* Popups — dark card */
+.trip-map-wrap .leaflet-popup-content-wrapper {
+  background: #0b0b0b;
+  color: #ffffff;
+  border: 1px solid rgba(163, 230, 53, 0.35);
+  border-radius: 14px;
+  box-shadow:
+    0 16px 32px -12px rgba(0, 0, 0, 0.95),
+    0 0 24px -8px rgba(163, 230, 53, 0.25);
+}
+.trip-map-wrap .leaflet-popup-content {
+  margin: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.trip-map-wrap .leaflet-popup-content strong {
+  color: #ffffff;
+  font-weight: 800;
+}
+.trip-map-wrap .leaflet-popup-tip {
+  background: #0b0b0b;
+  border: 1px solid rgba(163, 230, 53, 0.35);
+  box-shadow: none;
+}
+.trip-map-wrap .leaflet-popup-close-button {
+  color: #888888 !important;
+  font-size: 18px !important;
+  padding: 6px 8px !important;
+}
+.trip-map-wrap .leaflet-popup-close-button:hover {
+  color: #a3e635 !important;
+}

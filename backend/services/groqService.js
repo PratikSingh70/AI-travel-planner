@@ -24,159 +24,73 @@ const GROQ_MODELS = [
   "openai/gpt-oss-20b",
 ];
 
-const itinerarySchema = {
-  type: "object",
-  additionalProperties: false,
+// ─────────────────────────────────────────────────────────────
+// JSON REPAIR HELPER
+// Handles the malformed JSON that GPT-OSS sometimes emits,
+// including the missing "{" before "day":N entries and
+// trailing commas, smart quotes, etc.
+// ─────────────────────────────────────────────────────────────
+const tryRepairJSON = (text) => {
+  if (!text || typeof text !== "string") return null;
 
-  properties: {
-    destination: {
-      type: "string",
-    },
+  let cleaned = text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .replace(/,\s*([}\]])/g, "$1")          // strip trailing commas
+    .replace(/[\u201C\u201D]/g, '"')        // smart double quotes → straight
+    .replace(/[\u2018\u2019]/g, "'")        // smart single quotes
+    .trim();
 
-    summary: {
-      type: "string",
-    },
+  // Attempt 1 — straight parse
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    /* continue to repair */
+  }
 
-    days: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
+  // Attempt 2 — insert missing "{" before each `,"day":N`
+  // (this is the exact failure pattern seen in GPT-OSS output)
+  let repaired = cleaned.replace(
+    /,\s*"day"\s*:/g,
+    ',{"day":'
+  );
 
-        properties: {
-          day: {
-            type: "integer",
-          },
+  try {
+    return JSON.parse(repaired);
+  } catch {
+    /* continue to repair */
+  }
 
-          date: {
-            type: "string",
-          },
+  // Attempt 3 — also wrap entries that appear at the start of the array
+  repaired = repaired.replace(
+    /\[\s*"day"\s*:/g,
+    '[{"day":'
+  );
 
-          activities: {
-            type: "array",
-            items: {
-              type: "object",
-              additionalProperties: false,
+  try {
+    return JSON.parse(repaired);
+  } catch {
+    /* continue */
+  }
 
-              properties: {
-                time: {
-                  type: "string",
-                },
+  // Attempt 4 — best-effort: trim to last complete top-level key
+  try {
+    const lastClose = cleaned.lastIndexOf("}}");
+    if (lastClose > 0) {
+      const truncated = cleaned.slice(0, lastClose + 2) + "}";
+      return JSON.parse(truncated);
+    }
+  } catch {
+    /* give up */
+  }
 
-                title: {
-                  type: "string",
-                },
-
-                description: {
-                  type: "string",
-                },
-
-                location: {
-                  type: "string",
-                },
-
-                cost: {
-                  type: "number",
-                },
-              },
-
-              required: [
-                "time",
-                "title",
-                "description",
-                "location",
-                "cost",
-              ],
-            },
-          },
-        },
-
-        required: [
-          "day",
-          "date",
-          "activities",
-        ],
-      },
-    },
-
-    hotels: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-
-        properties: {
-          name: {
-            type: "string",
-          },
-
-          rating: {
-            type: "number",
-          },
-
-          price: {
-            type: "string",
-          },
-
-          address: {
-            type: "string",
-          },
-        },
-
-        required: [
-          "name",
-          "rating",
-          "price",
-          "address",
-        ],
-      },
-    },
-
-    budgetBreakdown: {
-      type: "object",
-      additionalProperties: false,
-
-      properties: {
-        flights: {
-          type: "number",
-        },
-
-        hotels: {
-          type: "number",
-        },
-
-        food: {
-          type: "number",
-        },
-
-        activities: {
-          type: "number",
-        },
-
-        total: {
-          type: "number",
-        },
-      },
-
-      required: [
-        "flights",
-        "hotels",
-        "food",
-        "activities",
-        "total",
-      ],
-    },
-  },
-
-  required: [
-    "destination",
-    "summary",
-    "days",
-    "hotels",
-    "budgetBreakdown",
-  ],
+  return null;
 };
 
+// ─────────────────────────────────────────────────────────────
+// MAIN FUNCTION
+// ─────────────────────────────────────────────────────────────
 export const generateItineraryWithGroq = async (trip) => {
   const client = getGroq();
 
@@ -211,20 +125,26 @@ Interests: ${
 
 OUTPUT STRUCTURE — FOLLOW EXACTLY
 
-The response must be a single JSON object with EXACTLY these five top-level keys:
+Return ONE valid JSON object with EXACTLY these five top-level keys:
   destination, summary, days, hotels, budgetBreakdown
 
-The "days" array has one entry per day. Each entry contains EXACTLY three keys:
+The "days" array has one entry per day. Each entry MUST be a complete
+JSON object wrapped in braces { }, with EXACTLY three keys:
   "day"         — integer (1, 2, 3, ...)
   "date"        — string "YYYY-MM-DD"
   "activities"  — array of activity objects
+
+CRITICAL: every element of the "days" array MUST start with "{" and end
+with "}". Do not omit the opening brace. Example of a correct entry:
+
+  {"day": 1, "date": "2026-09-23", "activities": [...]}
 
 Do NOT add any other key inside a day object.
 Do NOT put "budgetBreakdown" inside a day object.
 Do NOT put "hotels" or "summary" inside a day object.
 Do NOT put any per-day totals anywhere.
-The ONLY place "budgetBreakdown" appears is at the TOP LEVEL of the response,
-as a sibling of "days", not inside it.
+The ONLY place "budgetBreakdown" appears is at the TOP LEVEL of the
+response, as a sibling of "days", not inside it.
 
 Each activity object contains EXACTLY five keys:
   time, title, description, location, cost
@@ -246,7 +166,7 @@ CONTENT RULES
 7. Budget breakdown numbers are plain numbers in INR.
 8. Keep the total close to or below the user's budget.
 9. Cover ${spotsCount} distinct places across the trip, no repeats.
-10. Return JSON only. No markdown. No commentary.
+10. Return JSON only. No markdown. No commentary. No code fences.
 `;
 
   let lastError = null;
@@ -263,7 +183,7 @@ CONTENT RULES
             {
               role: "system",
               content:
-                "You are a professional AI travel planner. Generate accurate structured travel itinerary data based on the user's trip details. Follow the requested JSON structure exactly.",
+                "You are a professional AI travel planner. Generate accurate structured travel itinerary data based on the user's trip details. Always return valid, complete JSON.",
             },
 
             {
@@ -272,23 +192,13 @@ CONTENT RULES
             },
           ],
 
-          response_format: {
-            type: "json_schema",
-
-            json_schema: {
-              name: "travel_itinerary",
-
-              strict: true,
-
-              schema: itinerarySchema,
-            },
-          },
+          response_format: { type: "json_object" },
 
           temperature: 0.4,
 
           max_completion_tokens: 8000,
 
-          reasoning_effort: "low",
+          reasoning_effort: "medium",
           reasoning_format: "hidden",
         });
 
@@ -302,29 +212,29 @@ CONTENT RULES
       }
 
       console.log(
-        `[Groq] ✓ SUCCESS with ${model}`
+        `[Groq] ✓ Raw response received from ${model} (${text.length} chars)`
       );
 
-      let itinerary;
+      const itinerary = tryRepairJSON(text);
 
-      try {
-        itinerary = JSON.parse(text);
-      } catch (error) {
+      if (!itinerary) {
         console.error(
-          "[Groq] JSON parse error:",
-          error
+          "[Groq] Could not parse or repair JSON. First 300 chars:",
+          text?.slice(0, 300)
         );
-
         throw new Error(
-          "Groq returned invalid JSON"
+          "Groq returned unparseable JSON"
         );
       }
 
-      // Additional validation
+      console.log(
+        `[Groq] ✓ SUCCESS with ${model}`
+      );
+
+      // Validation / normalization
 
       if (!itinerary.destination) {
-        itinerary.destination =
-          trip.destination;
+        itinerary.destination = trip.destination;
       }
 
       if (!itinerary.summary) {
@@ -369,16 +279,6 @@ CONTENT RULES
         status,
         message.substring(0, 300)
       );
-
-      if (
-        message
-          .toLowerCase()
-          .includes("json_validate_failed")
-      ) {
-        console.log(
-          `[Groq] JSON validation failed for ${model}`
-        );
-      }
 
       if (
         status === 429 ||

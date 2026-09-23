@@ -55,12 +55,16 @@ const tripSchema = new mongoose.Schema(
       activities: { type: Number, default: 0 },
       total: { type: Number, default: 0 },
     },
-    // ─── AI-generated cover art URL ───
+    // ─── AI-recommended map center for the trip ───
+    mapCenter: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+      label: { type: String, default: "" },
+    },
     image: {
       type: String,
       default: "",
     },
-    // ─── unique share identifier for public links ───
     shareId: {
       type: String,
       unique: true,

@@ -1,0 +1,215 @@
+/* frontend/src/pages/JournalTrips.css */
+
+.jt-root {
+  --jt-bg: #050505;
+  --jt-card: #111111;
+  --jt-border: rgba(255, 255, 255, 0.1);
+  --jt-muted: #888888;
+  --jt-dim: #52525b;
+  --jt-lime: #a3e635;
+  --jt-lime-bright: #bef264;
+  --jt-lime-glow: rgba(163, 230, 53, 0.4);
+  --jt-lime-subtle: rgba(163, 230, 53, 0.12);
+  background: var(--jt-bg);
+  color: #fff;
+  min-height: 100vh;
+  font-family: 'Poppins', system-ui, sans-serif;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.jt-orb-1, .jt-orb-2 {
+  position: fixed;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+.jt-orb-1 {
+  top: -120px; left: 8%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, var(--jt-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
+  animation: jtFloat 10s ease-in-out infinite alternate;
+}
+.jt-orb-2 {
+  bottom: -120px; right: 8%;
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(96,165,250,0.18) 0%, transparent 70%);
+  animation: jtFloat 13s ease-in-out infinite alternate-reverse;
+}
+@keyframes jtFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 40px) scale(1.15); }
+}
+
+.jt-page {
+  position: relative;
+  z-index: 10;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.jt-header {
+  display: flex; flex-direction: column; gap: 14px;
+  margin-bottom: 36px;
+}
+.jt-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--jt-lime);
+  background: var(--jt-lime-subtle);
+  border: 1px solid rgba(163, 230, 53, 0.3);
+  padding: 5px 12px; border-radius: 9999px;
+  width: fit-content;
+}
+.jt-pulse {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--jt-lime);
+  box-shadow: 0 0 10px var(--jt-lime);
+  animation: jtPulse 1.5s infinite;
+}
+@keyframes jtPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+.jt-title {
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  font-weight: 900; line-height: 1.05;
+  letter-spacing: -0.035em; color: #fff;
+}
+.jt-title span { color: var(--jt-lime); text-shadow: 0 0 30px var(--jt-lime-glow); }
+.jt-subtitle {
+  font-size: 0.95rem; color: var(--jt-muted);
+  max-width: 640px; line-height: 1.6;
+}
+
+.jt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 40px;
+}
+
+.jt-card {
+  background: var(--jt-card);
+  border: 1px solid var(--jt-border);
+  border-radius: 20px;
+  padding: 22px 20px;
+  text-decoration: none;
+  color: inherit;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1),
+              border-color 0.25s, box-shadow 0.25s, background 0.25s;
+  animation: jtCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes jtCardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.jt-card:hover {
+  transform: translateY(-5px);
+  background: #181818;
+  border-color: rgba(163, 230, 53, 0.5);
+  box-shadow: 0 16px 30px -12px rgba(0,0,0,0.9),
+              0 0 24px rgba(163,230,53,0.14);
+}
+
+.jt-card-thumb {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: #000;
+  border: 1px solid rgba(163, 230, 53, 0.4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.jt-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.jt-card-name {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.jt-card-meta {
+  font-size: 0.78rem;
+  color: var(--jt-muted);
+  font-weight: 600;
+}
+.jt-card-warn { color: #fb923c; }
+.jt-card-cta {
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--jt-lime);
+  transition: color 0.2s;
+}
+.jt-card:hover .jt-card-cta { color: var(--jt-lime-bright); }
+
+.jt-skeleton {
+  background: linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%);
+  background-size: 200% 100%;
+  animation: jtShimmer 1.4s infinite;
+  border-radius: 20px;
+  min-height: 180px;
+  border: 1px solid var(--jt-border);
+}
+@keyframes jtShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.jt-empty {
+  text-align: center;
+  padding: 70px 20px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 24px;
+  background: rgba(255,255,255,0.01);
+}
+.jt-empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
+.jt-empty-title {
+  font-size: 1.15rem; font-weight: 800; color: #fff;
+  margin-bottom: 8px;
+}
+.jt-empty-text {
+  font-size: 0.85rem; color: var(--jt-muted);
+  max-width: 400px; margin: 0 auto 20px; line-height: 1.6;
+}
+.jt-btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, var(--jt-lime), var(--jt-lime-bright));
+  color: #000;
+  padding: 11px 22px;
+  border-radius: 14px;
+  font-size: 0.85rem; font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 8px 24px -6px rgba(163, 230, 53, 0.5);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.jt-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -6px rgba(163, 230, 53, 0.7);
+}
+
+.jt-footer {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.75rem;
+  color: var(--jt-dim);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jt-orb-1, .jt-orb-2, .jt-pulse, .jt-card { animation: none !important; }
+}

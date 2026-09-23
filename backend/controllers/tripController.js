@@ -2,6 +2,10 @@ import Trip from "../models/Trip.js";
 import crypto from "node:crypto";
 import { generateItinerary } from "../services/geminiService.js";
 import { generateItineraryWithGroq } from "../services/groqService.js";
+import { generateItineraryWithCerebras } from "../services/cerebrasService.js";
+import { generateItineraryWithOpenRouter } from "../services/openRouterService.js";
+import { generateItineraryWithMistral } from "../services/mistralService.js";
+import { generateItineraryWithGitHubModels } from "../services/githubModelsService.js";
 import { geocode, getWeather } from "../services/weatherService.js";
 import { getDestinationImage, getPlaceImages } from "../services/imageService.js";
 import { getTouristPlaces } from "../services/placesService.js";
@@ -164,6 +168,43 @@ export const deleteTrip = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────
+// Helper: choose the best place to center the map on
+// ─────────────────────────────────────────────────────────────
+const pickMapCenterQuery = (itinerary, fallbackDestination) => {
+  const days = Array.isArray(itinerary?.days) ? itinerary.days : [];
+
+  // 1. First activity's location on day 1 — usually the base city
+  const firstActivity = days[0]?.activities?.[0];
+  if (firstActivity?.location) {
+    return firstActivity.location;
+  }
+
+  // 2. Most-frequent location across all days
+  const freq = new Map();
+  for (const day of days) {
+    for (const act of day.activities || []) {
+      if (act.location) {
+        freq.set(act.location, (freq.get(act.location) || 0) + 1);
+      }
+    }
+  }
+  if (freq.size) {
+    let bestLoc = null;
+    let bestCount = 0;
+    for (const [loc, count] of freq) {
+      if (count > bestCount) {
+        bestCount = count;
+        bestLoc = loc;
+      }
+    }
+    if (bestLoc) return bestLoc;
+  }
+
+  // 3. Fall back to raw destination
+  return fallbackDestination;
+};
+
 // GENERATE ITINERARY - POST /api/trips/:id/generate
 export const generateTripItinerary = async (req, res) => {
   try {
@@ -176,22 +217,87 @@ export const generateTripItinerary = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    let itinerary;
-    let provider = "gemini";
+    let itinerary = null;
+    let provider = null;
+    let lastError = null;
 
-    try {
-      console.log("→ Attempting Gemini...");
-      itinerary = await generateItinerary(trip);
-      console.log("✓ Gemini succeeded");
-    } catch (geminiError) {
-      console.warn("✗ Gemini failed:", geminiError.message);
-      console.log("→ Falling back to Groq...");
-      provider = "groq";
-      itinerary = await generateItineraryWithGroq(trip);
-      console.log("✓ Groq succeeded");
+    // ─────────────────────────────────────────────────
+    // Chain of AI providers
+    // ─────────────────────────────────────────────────
+    const providers = [
+      { name: "gemini",        fn: () => generateItinerary(trip) },
+      { name: "groq",          fn: () => generateItineraryWithGroq(trip) },
+      { name: "cerebras",      fn: () => generateItineraryWithCerebras(trip) },
+      { name: "openrouter",    fn: () => generateItineraryWithOpenRouter(trip) },
+      { name: "mistral",       fn: () => generateItineraryWithMistral(trip) },
+      { name: "github-models", fn: () => generateItineraryWithGitHubModels(trip) },
+    ];
+
+    for (const p of providers) {
+      try {
+        console.log(`→ Attempting ${p.name}...`);
+        itinerary = await p.fn();
+        provider = p.name;
+        console.log(`✓ ${p.name} succeeded`);
+        break;
+      } catch (err) {
+        lastError = err;
+        console.warn(`✗ ${p.name} failed: ${String(err.message).slice(0, 200)}`);
+      }
     }
 
-    trip.itinerary = itinerary.days;
+    if (!itinerary) {
+      console.error("✗ All AI providers failed.");
+      throw new Error(
+        `All AI services are currently unavailable. Last error: ${
+          lastError?.message?.slice(0, 200) || "Unknown"
+        }`
+      );
+    }
+
+    // ─────────────────────────────────────────────────
+    // Determine the map center from AI-recommended place
+    // ─────────────────────────────────────────────────
+    const mapCenterQuery = pickMapCenterQuery(itinerary, trip.destination);
+    console.log(`[Map] Selected map center query: "${mapCenterQuery}"`);
+
+    let mapCenter = { lat: null, lng: null, label: mapCenterQuery };
+
+    try {
+      const geo = await geocode(mapCenterQuery);
+      if (geo && typeof geo.lat === "number" && typeof geo.lng === "number") {
+        mapCenter = {
+          lat: geo.lat,
+          lng: geo.lng,
+          label: geo.displayName || mapCenterQuery,
+        };
+        console.log(
+          `[Map] Geocoded "${mapCenterQuery}" → ${geo.lat}, ${geo.lng} (${geo.source})`
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[Map] Could not geocode "${mapCenterQuery}": ${err.message}. Trying destination fallback.`
+      );
+
+      try {
+        const geo2 = await geocode(trip.destination);
+        if (geo2 && typeof geo2.lat === "number") {
+          mapCenter = {
+            lat: geo2.lat,
+            lng: geo2.lng,
+            label: geo2.displayName || trip.destination,
+          };
+        }
+      } catch {
+        /* leave null */
+      }
+    }
+
+    // ─────────────────────────────────────────────────
+    // Save to trip
+    // ─────────────────────────────────────────────────
+    trip.itinerary = itinerary.days || [];
     trip.hotels = itinerary.hotels || [];
     trip.budgetBreakdown = itinerary.budgetBreakdown || {
       flights: 0,
@@ -200,8 +306,12 @@ export const generateTripItinerary = async (req, res) => {
       activities: 0,
       total: 0,
     };
+    trip.mapCenter = mapCenter;
     await trip.save();
 
+    // ─────────────────────────────────────────────────
+    // Attach images (safe)
+    // ─────────────────────────────────────────────────
     const safeImages = async (query) => {
       try {
         const imgs = await getPlaceImages(query, 1);
@@ -213,7 +323,7 @@ export const generateTripItinerary = async (req, res) => {
 
     const hotelsWithImages = await Promise.all(
       (trip.hotels || []).map(async (h) => ({
-        ...h.toObject?.() || h,
+        ...(h.toObject?.() || h),
         image: await safeImages(`${h.name || "hotel"} hotel`),
       }))
     );
@@ -240,6 +350,7 @@ export const generateTripItinerary = async (req, res) => {
       itinerary: trip.itinerary,
       hotels: trip.hotels,
       budgetBreakdown: trip.budgetBreakdown,
+      mapCenter: trip.mapCenter,
     });
   } catch (error) {
     console.error("AI generation error:", error);
@@ -253,7 +364,7 @@ export const generateTripItinerary = async (req, res) => {
       raw.includes("high demand")
     ) {
       friendly =
-        "Both AI providers are busy right now. Please wait a minute and try again.";
+        "All AI providers are busy right now. Please wait a minute and try again.";
     } else if (raw.includes("API key not valid")) {
       friendly = "API key is invalid. Check backend .env.";
     } else if (raw.includes("quota") || raw.includes("429")) {
@@ -277,7 +388,18 @@ export const getTripWeather = async (req, res) => {
     }
 
     try {
-      const location = await geocode(trip.destination);
+      // Prefer AI-recommended mapCenter
+      let location;
+      if (trip.mapCenter?.lat && trip.mapCenter?.lng) {
+        location = {
+          lat: trip.mapCenter.lat,
+          lng: trip.mapCenter.lng,
+          displayName: trip.mapCenter.label || trip.destination,
+        };
+      } else {
+        location = await geocode(trip.destination);
+      }
+
       const weather = await getWeather(location.lat, location.lng);
       return res.json({
         location,
@@ -319,7 +441,17 @@ export const getTripPlaces = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const location = await geocode(trip.destination);
+    let location;
+    if (trip.mapCenter?.lat && trip.mapCenter?.lng) {
+      location = {
+        lat: trip.mapCenter.lat,
+        lng: trip.mapCenter.lng,
+        displayName: trip.mapCenter.label || trip.destination,
+      };
+    } else {
+      location = await geocode(trip.destination);
+    }
+
     const places = await getTouristPlaces(location.lat, location.lng);
 
     res.json({ location, places });
@@ -402,6 +534,7 @@ export const getSharedTrip = async (req, res) => {
       itinerary: trip.itinerary,
       hotels: trip.hotels,
       budgetBreakdown: trip.budgetBreakdown,
+      mapCenter: trip.mapCenter,
       sharedBy: trip.user?.name || "Someone",
       createdAt: trip.createdAt,
     });
