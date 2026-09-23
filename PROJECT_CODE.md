@@ -1,75 +1,15 @@
-﻿# AI Travel Planner — Complete Source Code
+﻿
+# AI Travel Planner - Complete Source Code
 
-### FILE: backend\package.json
-```
-{
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
-  "type": "module",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@google/genai": "^2.22.0",
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "groq-sdk": "^1.6.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.5.1",
-    "node-fetch": "^3.3.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.4"
-  }
-}
-```
+> Auto-generated from actual project files.
+> Last updated: 2026-09-23 11:27
 
-### FILE: backend\server.js
-```
-import "dotenv/config";
-import express from "express";
-import cors from "cors";
-import connectDB from "./config/db.js";
-import authRoutes from "./routes/authRoutes.js";
-import tripRoutes from "./routes/tripRoutes.js";
+---
 
-connectDB();
+## Backend
 
-const app = express();
+### backend/config/db.js
 
-// middleware
-app.use(cors());
-app.use(express.json());
-
-// test route
-app.get("/", (req, res) => {
-  res.json({ message: "API is running..." });
-});
-
-// routes
-app.use("/api/auth", authRoutes);
-app.use("/api/trips", tripRoutes);
-
-const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
-```
-
-### FILE: backend\user.js
-```
-```
-
-### FILE: backend\config\db.js
 ```
 import mongoose from "mongoose";
 
@@ -86,7 +26,8 @@ const connectDB = async () => {
 export default connectDB;
 ```
 
-### FILE: backend\controllers\authController.js
+### backend/controllers/authController.js
+
 ```
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
@@ -299,7 +240,54 @@ export const changePassword = async (req, res) => {
 };
 ```
 
-### FILE: backend\controllers\tripController.js
+### backend/controllers/chatController.js
+
+```
+// backend/controllers/chatController.js
+import { chatWithAI } from "../services/chatService.js";
+import Trip from "../models/Trip.js";
+
+export const sendChatMessage = async (req, res) => {
+  try {
+    const { messages, tripId } = req.body;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ message: "Messages array is required" });
+    }
+
+    // Cap to last 10 messages, trim each to 2000 chars
+    const trimmed = messages.slice(-10).map((m) => ({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: String(m.content || "").slice(0, 2000),
+    }));
+
+    // Load trip context if provided and owned by user
+    let trip = null;
+    if (tripId) {
+      try {
+        const t = await Trip.findById(tripId);
+        if (t && t.user.toString() === req.user._id.toString()) {
+          trip = t;
+        }
+      } catch {
+        /* ignore invalid id */
+      }
+    }
+
+    const { text, provider } = await chatWithAI(trimmed, trip);
+
+    res.json({ reply: text, provider });
+  } catch (error) {
+    console.error("Chat error:", error);
+    res.status(500).json({
+      message: "Chat failed. Please try again in a moment.",
+    });
+  }
+};
+```
+
+### backend/controllers/tripController.js
+
 ```
 import Trip from "../models/Trip.js";
 import { generateItinerary } from "../services/geminiService.js";
@@ -432,15 +420,15 @@ export const generateTripItinerary = async (req, res) => {
     let provider = "gemini";
 
     try {
-      console.log("â†’ Attempting Gemini...");
+      console.log("→ Attempting Gemini...");
       itinerary = await generateItinerary(trip);
-      console.log("âœ“ Gemini succeeded");
+      console.log("✓ Gemini succeeded");
     } catch (geminiError) {
-      console.warn("âœ— Gemini failed:", geminiError.message);
-      console.log("â†’ Falling back to Groq...");
+      console.warn("✗ Gemini failed:", geminiError.message);
+      console.log("→ Falling back to Groq...");
       provider = "groq";
       itinerary = await generateItineraryWithGroq(trip);
-      console.log("âœ“ Groq succeeded");
+      console.log("✓ Groq succeeded");
     }
 
     trip.itinerary = itinerary.days;
@@ -586,10 +574,7 @@ export const searchPhotos = async (req, res) => {
   }
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// SHARE - POST /api/trips/:id/share  (protected)
-// Generates a random 8-char shareId if not already present
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// SHARE - POST /api/trips/:id/share
 export const shareTrip = async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
@@ -599,9 +584,7 @@ export const shareTrip = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    // Generate a new shareId if missing
     if (!trip.shareId) {
-      // 8-char random string using base36
       const id = Math.random().toString(36).substring(2, 10);
       trip.shareId = id;
       await trip.save();
@@ -614,10 +597,7 @@ export const shareTrip = async (req, res) => {
   }
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// PUBLIC - GET /api/trips/shared/:shareId  (no auth)
-// Returns a shared trip. Hides the owner's private info.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// PUBLIC - GET /api/trips/shared/:shareId
 export const getSharedTrip = async (req, res) => {
   try {
     const trip = await Trip.findOne({ shareId: req.params.shareId }).populate(
@@ -629,7 +609,6 @@ export const getSharedTrip = async (req, res) => {
       return res.status(404).json({ message: "Shared trip not found" });
     }
 
-    // Return only safe fields (no email, no userId)
     res.json({
       _id: trip._id,
       destination: trip.destination,
@@ -651,7 +630,8 @@ export const getSharedTrip = async (req, res) => {
 };
 ```
 
-### FILE: backend\middleware\authMiddleware.js
+### backend/middleware/authMiddleware.js
+
 ```
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
@@ -677,7 +657,8 @@ export const protect = async (req, res, next) => {
 };
 ```
 
-### FILE: backend\models\Trip.js
+### backend/models/Trip.js
+
 ```
 import mongoose from "mongoose";
 
@@ -736,12 +717,12 @@ const tripSchema = new mongoose.Schema(
       activities: { type: Number, default: 0 },
       total: { type: Number, default: 0 },
     },
-    // â”€â”€â”€ AI-generated cover art URL â”€â”€â”€
+    // ─── AI-generated cover art URL ───
     image: {
       type: String,
       default: "",
     },
-    // â”€â”€â”€ unique share identifier for public links â”€â”€â”€
+    // ─── unique share identifier for public links ───
     shareId: {
       type: String,
       unique: true,
@@ -756,7 +737,8 @@ const Trip = mongoose.model("Trip", tripSchema);
 export default Trip;
 ```
 
-### FILE: backend\models\User.js
+### backend/models/User.js
+
 ```
 import mongoose from "mongoose";
 
@@ -774,10 +756,20 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    // Not required — Google users won't have a password
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: false,
       minlength: 6,
+    },
+    // Added for Google OAuth
+    googleId: {
+      type: String,
+      default: null,
+    },
+    avatar: {
+      type: String,
+      default: null,
     },
   },
   { timestamps: true }
@@ -788,7 +780,41 @@ const User = mongoose.model("User", userSchema);
 export default User;
 ```
 
-### FILE: backend\routes\authRoutes.js
+### backend/package.json
+
+```
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^2.22.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "groq-sdk": "^1.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.1",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
+```
+
+### backend/routes/authRoutes.js
+
 ```
 import express from "express";
 import {
@@ -816,7 +842,23 @@ router.put("/password", protect, changePassword);
 export default router;
 ```
 
-### FILE: backend\routes\tripRoutes.js
+### backend/routes/chatRoutes.js
+
+```
+// backend/routes/chatRoutes.js
+import express from "express";
+import { sendChatMessage } from "../controllers/chatController.js";
+import { protect } from "../middleware/authMiddleware.js";
+
+const router = express.Router();
+
+router.post("/", protect, sendChatMessage);
+
+export default router;
+```
+
+### backend/routes/tripRoutes.js
+
 ```
 import express from "express";
 import {
@@ -837,15 +879,15 @@ import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// PUBLIC ROUTES â€” no authentication required
+// ══════════════════════════════════════════════════════════
+// PUBLIC ROUTES — no authentication required
 // These must come BEFORE router.use(protect)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════════════
 router.get("/shared/:shareId", getSharedTrip);
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// PROTECTED ROUTES â€” require valid JWT
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ══════════════════════════════════════════════════════════
+// PROTECTED ROUTES — require valid JWT
+// ══════════════════════════════════════════════════════════
 router.use(protect);
 
 router.get("/photo", searchPhotos);
@@ -861,7 +903,426 @@ router.route("/:id").get(getTripById).put(updateTrip).delete(deleteTrip);
 export default router;
 ```
 
-### FILE: backend\services\geminiService.js
+### backend/server.js
+
+```
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import connectDB from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import tripRoutes from "./routes/tripRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+
+connectDB();
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.json({ message: "API is running..." });
+});
+
+app.use("/api/auth", authRoutes);
+app.use("/api/trips", tripRoutes);
+app.use("/api/chat", chatRoutes);
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+```
+
+### backend/services/chatService.js
+
+```
+// backend/services/chatService.js
+
+import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
+
+let ai = null;
+let groq = null;
+
+const getAI = () => {
+  if (!ai) {
+    const key = process.env.GEMINI_API_KEY;
+
+    if (!key) {
+      throw new Error("GEMINI_API_KEY is not set");
+    }
+
+    ai = new GoogleGenAI({
+      apiKey: key,
+    });
+  }
+
+  return ai;
+};
+
+const getGroq = () => {
+  if (!groq) {
+    const key = process.env.GROQ_API_KEY;
+
+    if (!key) {
+      throw new Error("GROQ_API_KEY is not set");
+    }
+
+    groq = new Groq({
+      apiKey: key,
+    });
+  }
+
+  return groq;
+};
+
+
+/*
+==================================================
+3 AI MODELS
+==================================================
+
+1. Gemini 3.8 Flash
+2. Groq GPT-OSS 120B
+3. Groq GPT-OSS 20B
+==================================================
+*/
+
+const GEMINI_MODEL = "gemini-3.8-flash";
+
+const GROQ_MODELS = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+];
+
+
+const buildSystemPrompt = (trip) => {
+
+  let base = `
+You are "Sky", a warm and friendly AI travel assistant
+inside the AI Travel Planner application.
+
+Your job is to help users with:
+
+- Travel planning
+- Day plans
+- Destinations
+- Hotels
+- Budgets
+- Packing
+- Weather
+- Transportation
+- Local travel tips
+- Activities
+
+RULES:
+
+1. Keep answers short and useful.
+2. Prefer 2-4 short paragraphs.
+3. Use simple conversational language.
+4. Use emojis occasionally.
+5. Do not use markdown headers.
+6. Do not use code blocks.
+7. Prices should be in INR (₹) by default.
+8. Never invent facts when you are uncertain.
+9. Be helpful and specific.
+10. If something depends on current information, clearly say that it may change.
+`;
+
+  if (trip) {
+
+    const start = trip.startDate
+      ? new Date(trip.startDate).toDateString()
+      : "Not specified";
+
+    const end = trip.endDate
+      ? new Date(trip.endDate).toDateString()
+      : "Not specified";
+
+    base += `
+
+CURRENT TRIP:
+
+Destination: ${trip.destination || "Not specified"}
+Dates: ${start} → ${end}
+Budget: ₹${trip.budget || 0}
+Travellers: ${trip.travellers || 1}
+
+`;
+
+    if (Array.isArray(trip.itinerary) && trip.itinerary.length) {
+      base += `Itinerary days planned: ${trip.itinerary.length}\n`;
+    }
+
+    if (Array.isArray(trip.hotels) && trip.hotels.length) {
+
+      const hotelNames = trip.hotels
+        .map((h) => h?.name)
+        .filter(Boolean)
+        .slice(0, 5)
+        .join(", ");
+
+      if (hotelNames) {
+        base += `Hotels: ${hotelNames}\n`;
+      }
+    }
+  }
+
+  return base;
+};
+
+
+/*
+==================================================
+AI #1 — GEMINI
+==================================================
+*/
+
+const chatWithGemini = async (messages, systemPrompt) => {
+
+  const client = getAI();
+
+  try {
+
+    console.log(`[Chat] Trying Gemini: ${GEMINI_MODEL}`);
+
+    const contents = messages.map((message) => ({
+      role:
+        message.role === "assistant"
+          ? "model"
+          : "user",
+
+      parts: [
+        {
+          text: String(message.content || ""),
+        },
+      ],
+    }));
+
+    const response =
+      await client.models.generateContent({
+
+        model: GEMINI_MODEL,
+
+        contents,
+
+        config: {
+          systemInstruction: systemPrompt,
+
+          temperature: 0.7,
+
+          maxOutputTokens: 800,
+        },
+      });
+
+    const text = response?.text;
+
+    if (!text) {
+      throw new Error("Empty Gemini response");
+    }
+
+    console.log(
+      `[Chat] ✓ Gemini succeeded`
+    );
+
+    return text;
+
+  } catch (error) {
+
+    console.error(
+      `[Chat] ✗ Gemini failed:`,
+      error?.message
+    );
+
+    throw error;
+  }
+};
+
+
+/*
+==================================================
+AI #2 + AI #3 — GROQ
+==================================================
+*/
+
+const chatWithGroq = async (
+  messages,
+  systemPrompt
+) => {
+
+  const client = getGroq();
+
+  let lastError = null;
+
+  for (const model of GROQ_MODELS) {
+
+    try {
+
+      console.log(
+        `[Chat] Trying Groq: ${model}`
+      );
+
+      const completion =
+        await client.chat.completions.create({
+
+          model,
+
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt,
+            },
+
+            ...messages.map((message) => ({
+              role:
+                message.role === "assistant"
+                  ? "assistant"
+                  : "user",
+
+              content: String(
+                message.content || ""
+              ),
+            })),
+          ],
+
+          temperature: 0.7,
+
+          max_tokens: 800,
+
+          reasoning_effort: "low",
+        });
+
+      const text =
+        completion
+          ?.choices?.[0]
+          ?.message
+          ?.content;
+
+      if (!text) {
+        throw new Error(
+          "Empty Groq response"
+        );
+      }
+
+      console.log(
+        `[Chat] ✓ Groq succeeded: ${model}`
+      );
+
+      return {
+        text,
+        model,
+      };
+
+    } catch (error) {
+
+      lastError = error;
+
+      console.error(
+        `[Chat] ✗ Groq ${model}:`,
+        error?.message
+      );
+
+      continue;
+    }
+  }
+
+  throw new Error(
+    `All Groq chat models failed. Last error: ${
+      lastError?.message || "Unknown error"
+    }`
+  );
+};
+
+
+/*
+==================================================
+MAIN AI FUNCTION
+==================================================
+*/
+
+export const chatWithAI = async (
+  messages,
+  trip = null
+) => {
+
+  if (
+    !Array.isArray(messages) ||
+    messages.length === 0
+  ) {
+    throw new Error(
+      "Chat messages are required"
+    );
+  }
+
+  const systemPrompt =
+    buildSystemPrompt(trip);
+
+
+  /*
+  AI #1
+  Gemini
+  */
+
+  try {
+
+    const text =
+      await chatWithGemini(
+        messages,
+        systemPrompt
+      );
+
+    return {
+      text,
+      provider: "gemini",
+      model: GEMINI_MODEL,
+    };
+
+  } catch (geminiError) {
+
+    console.warn(
+      "[Chat] Gemini failed → Groq fallback"
+    );
+  }
+
+
+  /*
+  AI #2 / AI #3
+  Groq
+  */
+
+  try {
+
+    const result =
+      await chatWithGroq(
+        messages,
+        systemPrompt
+      );
+
+    return {
+      text: result.text,
+      provider: "groq",
+      model: result.model,
+    };
+
+  } catch (groqError) {
+
+    console.error(
+      "[Chat] All AI models failed:",
+      groqError
+    );
+
+    throw new Error(
+      "All AI services are temporarily unavailable. Please try again."
+    );
+  }
+};
+```
+
+### backend/services/geminiService.js
+
 ```
 // backend/services/geminiService.js
 import { GoogleGenAI } from "@google/genai";
@@ -879,13 +1340,11 @@ const getAI = () => {
   return ai;
 };
 
-// Try each model ONCE. Fail fast to Groq.
+// Current working Gemini models (2026)
 const MODELS = [
+  "gemini-3.6-flash",
+  "gemini-2.5-flash",
   "gemini-flash-latest",
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
 ];
 
 const generateWithRetry = async (prompt) => {
@@ -894,34 +1353,32 @@ const generateWithRetry = async (prompt) => {
 
   for (const model of MODELS) {
     try {
-      console.log(`â†’ ${model}`);
+      console.log(`→ Trying ${model}...`);
       const response = await client.models.generateContent({
         model,
         contents: prompt,
         config: { responseMimeType: "application/json" },
       });
-      console.log(`âœ“ ${model} succeeded`);
+      console.log(`✓ ${model} succeeded`);
       return response.text;
     } catch (err) {
       lastError = err;
       const status = err?.status;
       const msg = String(err?.message || "").toLowerCase();
 
-      const isNotFound = status === 404 || msg.includes("not found");
-      const isRateLimit = status === 429 || msg.includes("quota");
-      const isBusy =
-        status === 503 ||
-        msg.includes("unavailable") ||
-        msg.includes("high demand");
-
-      if (isNotFound || isRateLimit) {
-        console.log(`  skipped (${isNotFound ? "404" : "429"})`);
-      } else if (isBusy) {
-        console.log(`  busy (503) â€” next model`);
+      if (
+        status === 404 ||
+        msg.includes("not found") ||
+        msg.includes("no longer available")
+      ) {
+        console.log(`  ✗ ${model} not available — next`);
+      } else if (status === 429 || msg.includes("quota")) {
+        console.log(`  ✗ ${model} rate limited — next`);
+      } else if (status === 503 || msg.includes("high demand")) {
+        console.log(`  ✗ ${model} busy — next`);
       } else {
-        console.log(`  failed: ${err?.message?.slice(0, 80)}`);
+        console.log(`  ✗ ${model} failed: ${err?.message?.slice(0, 80)}`);
       }
-      // Move on immediately â€” no retries
     }
   }
 
@@ -948,7 +1405,7 @@ REQUIREMENTS:
 1. Plan one entry per day of the trip, including start and end dates.
 2. Suggest 3 to 5 activities per day, each with time, title, description, location, and cost in INR.
 3. Suggest 3 to 5 realistic hotels near the destination with name, rating (1-5), price per night in INR, and short address.
-4. Provide a budget breakdown: flights, hotels, food, activities, total â€” all in INR.
+4. Provide a budget breakdown: flights, hotels, food, activities, total — all in INR.
 5. Keep total within the user's stated budget.
 6. Cover exactly ${spotsCount} distinct places across the trip. Spread them evenly across the days. Do not repeat the same place on multiple days.
 7. Return ONLY valid JSON. No markdown. No explanations outside the JSON.
@@ -967,7 +1424,7 @@ RETURN THIS EXACT STRUCTURE:
     }
   ],
   "hotels": [
-    { "name": "string", "rating": 4.5, "price": "â‚¹3500/night", "address": "string" }
+    { "name": "string", "rating": 4.5, "price": "₹3500/night", "address": "string" }
   ],
   "budgetBreakdown": { "flights": 0, "hotels": 0, "food": 0, "activities": 0, "total": 0 }
 }`;
@@ -1002,11 +1459,10 @@ RETURN THIS EXACT STRUCTURE:
 };
 ```
 
-### FILE: backend\services\groqService.js
+### backend/services/groqService.js
+
 ```
 // backend/services/groqService.js
-// Fallback AI provider for when Gemini is overloaded.
-
 import Groq from "groq-sdk";
 
 let groq = null;
@@ -1014,174 +1470,388 @@ let groq = null;
 const getGroq = () => {
   if (!groq) {
     const key = process.env.GROQ_API_KEY;
+
     if (!key) {
       throw new Error("GROQ_API_KEY is not set in .env");
     }
-    groq = new Groq({ apiKey: key });
+
+    groq = new Groq({
+      apiKey: key,
+    });
   }
+
   return groq;
 };
 
 const GROQ_MODELS = [
-  "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
-  "mixtral-8x7b-32768",
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
 ];
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const itinerarySchema = {
+  type: "object",
+  additionalProperties: false,
+
+  properties: {
+    destination: {
+      type: "string",
+    },
+
+    summary: {
+      type: "string",
+    },
+
+    days: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+
+        properties: {
+          day: {
+            type: "integer",
+          },
+
+          date: {
+            type: "string",
+          },
+
+          activities: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+
+              properties: {
+                time: {
+                  type: "string",
+                },
+
+                title: {
+                  type: "string",
+                },
+
+                description: {
+                  type: "string",
+                },
+
+                location: {
+                  type: "string",
+                },
+
+                cost: {
+                  type: "number",
+                },
+              },
+
+              required: [
+                "time",
+                "title",
+                "description",
+                "location",
+                "cost",
+              ],
+            },
+          },
+        },
+
+        required: [
+          "day",
+          "date",
+          "activities",
+        ],
+      },
+    },
+
+    hotels: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+
+        properties: {
+          name: {
+            type: "string",
+          },
+
+          rating: {
+            type: "number",
+          },
+
+          price: {
+            type: "string",
+          },
+
+          address: {
+            type: "string",
+          },
+        },
+
+        required: [
+          "name",
+          "rating",
+          "price",
+          "address",
+        ],
+      },
+    },
+
+    budgetBreakdown: {
+      type: "object",
+      additionalProperties: false,
+
+      properties: {
+        flights: {
+          type: "number",
+        },
+
+        hotels: {
+          type: "number",
+        },
+
+        food: {
+          type: "number",
+        },
+
+        activities: {
+          type: "number",
+        },
+
+        total: {
+          type: "number",
+        },
+      },
+
+      required: [
+        "flights",
+        "hotels",
+        "food",
+        "activities",
+        "total",
+      ],
+    },
+  },
+
+  required: [
+    "destination",
+    "summary",
+    "days",
+    "hotels",
+    "budgetBreakdown",
+  ],
+};
 
 export const generateItineraryWithGroq = async (trip) => {
   const client = getGroq();
+
   const spotsCount = trip.spotsCount || 5;
 
-  const prompt = `You are an expert AI travel planner.
-Generate a complete travel plan based on these details:
+  const startDate = new Date(trip.startDate)
+    .toISOString()
+    .split("T")[0];
+
+  const endDate = new Date(trip.endDate)
+    .toISOString()
+    .split("T")[0];
+
+  const prompt = `
+You are an expert AI travel planner.
+
+Create a complete travel itinerary.
+
+TRIP DETAILS
 
 Destination: ${trip.destination}
-Start Date: ${trip.startDate.toISOString().split("T")[0]}
-End Date: ${trip.endDate.toISOString().split("T")[0]}
-Budget (INR): ${trip.budget}
-Number of Travellers: ${trip.travellers}
-Places to Cover: ${spotsCount} distinct spots
-Interests: ${trip.interests?.length ? trip.interests.join(", ") : "general sightseeing"}
-
-REQUIREMENTS:
-1. Plan one entry per day of the trip, including start and end dates.
-2. Suggest 3 to 5 activities per day, each with time, title, description, location, and cost in INR.
-3. Suggest 3 to 5 realistic hotels near the destination with name, rating (1-5), price per night in INR, and short address.
-4. Provide a budget breakdown: flights, hotels, food, activities, total â€” all in INR.
-5. Keep total within the user's stated budget.
-6. Cover exactly ${spotsCount} distinct places across the trip. Spread them evenly across the days. Do not repeat the same place on multiple days.
-7. Return ONLY valid JSON. No markdown. No explanations outside the JSON.
-
-RETURN THIS EXACT STRUCTURE:
-{
-  "destination": "string",
-  "summary": "short paragraph",
-  "days": [
-    {
-      "day": 1,
-      "date": "YYYY-MM-DD",
-      "activities": [
-        {
-          "time": "09:00 AM",
-          "title": "string",
-          "description": "string",
-          "location": "string",
-          "cost": 0
-        }
-      ]
-    }
-  ],
-  "hotels": [
-    {
-      "name": "string",
-      "rating": 4.5,
-      "price": "â‚¹3500/night",
-      "address": "string"
-    }
-  ],
-  "budgetBreakdown": {
-    "flights": 0,
-    "hotels": 0,
-    "food": 0,
-    "activities": 0,
-    "total": 0
+Start Date: ${startDate}
+End Date: ${endDate}
+Budget: ₹${trip.budget}
+Travellers: ${trip.travellers}
+Places to Cover: ${spotsCount}
+Interests: ${
+    trip.interests?.length
+      ? trip.interests.join(", ")
+      : "general sightseeing"
   }
-}`;
+
+IMPORTANT RULES
+
+1. Create one day for every day between the start and end date.
+2. Include the correct date for every day.
+3. Suggest 3 to 5 activities per day.
+4. Every activity must contain:
+   - time
+   - title
+   - description
+   - location
+   - cost
+5. Suggest 3 to 5 hotels.
+6. Hotel rating must be between 1 and 5.
+7. Hotel price must be in INR.
+8. Give a complete budget breakdown.
+9. Keep the estimated total close to or below the user's budget.
+10. Cover ${spotsCount} distinct places.
+11. Do not repeatedly use the same attraction.
+12. All prices are in INR.
+13. Do not add fields that are not defined by the requested structure.
+14. Return structured data only.
+`;
 
   let lastError = null;
 
   for (const model of GROQ_MODELS) {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        console.log(`[Groq] Trying ${model} (attempt ${attempt}/2)...`);
+    try {
+      console.log(`[Groq] Trying ${model}...`);
 
-        const completion = await client.chat.completions.create({
+      const completion =
+        await client.chat.completions.create({
           model,
+
           messages: [
             {
               role: "system",
               content:
-                "You are an AI travel planner. Always respond with valid JSON only. No markdown. No code fences.",
+                "You are a professional AI travel planner. Generate accurate structured travel itinerary data based on the user's trip details.",
             },
-            { role: "user", content: prompt },
+
+            {
+              role: "user",
+              content: prompt,
+            },
           ],
-          response_format: { type: "json_object" },
-          temperature: 0.7,
-          max_tokens: 4000,
+
+          response_format: {
+            type: "json_schema",
+
+            json_schema: {
+              name: "travel_itinerary",
+
+              strict: true,
+
+              schema: itinerarySchema,
+            },
+          },
+
+          temperature: 0.4,
+
+          max_tokens: 8000,
+
+          reasoning_effort: "low",
         });
 
-        const text = completion.choices[0]?.message?.content;
-        if (!text) throw new Error("Groq returned empty response");
+      const text =
+        completion.choices?.[0]?.message?.content;
 
-        console.log(`[Groq] âœ“ SUCCESS with ${model}`);
+      if (!text) {
+        throw new Error(
+          "Groq returned an empty response"
+        );
+      }
 
-        // Parse and validate â€” mirrors geminiService
-        let itinerary;
-        try {
-          itinerary = JSON.parse(text);
-        } catch (err) {
-          console.error(
-            "[Groq] Invalid JSON:",
-            text?.slice(0, 300)
-          );
-          throw new Error("Groq returned invalid JSON. Please try again.");
-        }
+      console.log(
+        `[Groq] ✓ SUCCESS with ${model}`
+      );
 
-        if (!itinerary.destination) itinerary.destination = trip.destination;
-        if (!itinerary.summary)
-          itinerary.summary = `Travel plan for ${trip.destination}`;
-        if (!Array.isArray(itinerary.days))
-          throw new Error("Itinerary missing 'days' array.");
-        if (!Array.isArray(itinerary.hotels)) itinerary.hotels = [];
-        if (!itinerary.budgetBreakdown) {
-          itinerary.budgetBreakdown = {
-            flights: 0,
-            hotels: 0,
-            food: 0,
-            activities: 0,
-            total: 0,
-          };
-        }
+      let itinerary;
 
-        return itinerary;
-      } catch (err) {
-        lastError = err;
-        const status = err?.status || err?.response?.status;
-        const msg = String(err?.message || "").toLowerCase();
-
-        console.log(
-          `[Groq] âœ— Error from ${model}:`,
-          status,
-          err?.message?.slice(0, 120)
+      try {
+        itinerary = JSON.parse(text);
+      } catch (error) {
+        console.error(
+          "[Groq] JSON parse error:",
+          error
         );
 
-        const isRateLimit =
-          status === 429 || msg.includes("rate") || msg.includes("quota");
-        const isBusy =
-          status === 503 ||
-          msg.includes("overloaded") ||
-          msg.includes("unavailable");
-
-        if (isBusy && attempt < 2) {
-          await sleep(3000);
-          continue;
-        }
-
-        // try next model
-        break;
+        throw new Error(
+          "Groq returned invalid JSON"
+        );
       }
+
+      // Additional validation
+
+      if (!itinerary.destination) {
+        itinerary.destination =
+          trip.destination;
+      }
+
+      if (!itinerary.summary) {
+        itinerary.summary =
+          `Travel plan for ${trip.destination}`;
+      }
+
+      if (!Array.isArray(itinerary.days)) {
+        throw new Error(
+          "Itinerary days are missing"
+        );
+      }
+
+      if (!Array.isArray(itinerary.hotels)) {
+        itinerary.hotels = [];
+      }
+
+      if (!itinerary.budgetBreakdown) {
+        itinerary.budgetBreakdown = {
+          flights: 0,
+          hotels: 0,
+          food: 0,
+          activities: 0,
+          total: 0,
+        };
+      }
+
+      return itinerary;
+
+    } catch (error) {
+      lastError = error;
+
+      const status =
+        error?.status ||
+        error?.response?.status;
+
+      const message =
+        error?.message || "Unknown error";
+
+      console.error(
+        `[Groq] ✗ ${model}`,
+        status,
+        message.substring(0, 300)
+      );
+
+      if (
+        message
+          .toLowerCase()
+          .includes("json_validate_failed")
+      ) {
+        console.log(
+          `[Groq] JSON validation failed for ${model}`
+        );
+      }
+
+      if (
+        status === 429 ||
+        message
+          .toLowerCase()
+          .includes("rate limit")
+      ) {
+        console.log(
+          `[Groq] Rate limit → trying next model`
+        );
+      }
+
+      continue;
     }
   }
 
   throw new Error(
-    `All Groq models failed. Last error: ${lastError?.message || "Unknown"}`
+    `All Groq models failed. Last error: ${
+      lastError?.message ||
+      "Unknown Groq error"
+    }`
   );
 };
 ```
 
-### FILE: backend\services\imageService.js
+### backend/services/imageService.js
+
 ```
 // backend/services/imageService.js
 // Uses Pexels API (free) to fetch real destination photos.
@@ -1263,7 +1933,8 @@ export const getPlaceImages = async (query, count = 1) => {
 };
 ```
 
-### FILE: backend\services\placesService.js
+### backend/services/placesService.js
+
 ```
 // backend/services/placesService.js
 // Finds tourist attractions near a location using Overpass API (OpenStreetMap).
@@ -1362,7 +2033,8 @@ export const getTouristPlaces = async (lat, lng, radiusMeters = 15000) => {
 };
 ```
 
-### FILE: backend\services\weatherService.js
+### backend/services/weatherService.js
+
 ```
 // backend/services/weatherService.js
 // Uses Open-Meteo + Nominatim (both free, no API key required).
@@ -1461,7 +2133,12 @@ export const getWeather = async (lat, lng) => {
 };
 ```
 
-### FILE: frontend\eslint.config.js
+---
+
+## Frontend
+
+### frontend/eslint.config.js
+
 ```
 import js from '@eslint/js'
 import globals from 'globals'
@@ -1486,7 +2163,8 @@ export default defineConfig([
 ])
 ```
 
-### FILE: frontend\index.html
+### frontend/index.html
+
 ```
 <!doctype html>
 <html lang="en">
@@ -1499,7 +2177,8 @@ export default defineConfig([
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Travel Planner</title>
 
-    <!-- Force light theme â€” never apply dark class -->
+    <!-- Force light theme — never apply dark class -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script>
       document.documentElement.classList.remove("dark");
       document.documentElement.style.colorScheme = "light";
@@ -1512,7 +2191,8 @@ export default defineConfig([
 </html>
 ```
 
-### FILE: frontend\package.json
+### frontend/package.json
+
 ```
 {
   "name": "frontend",
@@ -1554,7 +2234,8 @@ export default defineConfig([
 }
 ```
 
-### FILE: frontend\postcss.config.js
+### frontend/postcss.config.js
+
 ```
 export default {
   plugins: {
@@ -1564,237 +2245,56 @@ export default {
 };
 ```
 
-### FILE: frontend\tailwind.config.js
+### frontend/README.md
+
 ```
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: ["./index.html", "./src/**/*.{js,jsx}"],
-  theme: {
-    extend: {
-      colors: {
-        lime: {
-          DEFAULT: "#A8D84A",
-          light: "#E5F0C8",
-          dark: "#8FBF2E",
-        },
-        forest: "#1A2E1A",
-        ink: "#0A0A0A",
-      },
-      fontFamily: {
-        sans: ["Poppins", "system-ui", "sans-serif"],
-      },
-    },
-  },
-  plugins: [],
-};
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 ```
 
-### FILE: frontend\vite.config.js
+### frontend/src/api/axios.js
+
 ```
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import axios from "axios";
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})
-```
+const api = axios.create({
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
+});
 
-### FILE: frontend\src\App.css
-```
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
+api.interceptors.request.use((config) => {
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (user?.token) {
+    config.headers.Authorization = `Bearer ${user.token}`;
   }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-}
+  return config;
+});
 
-.hero {
-  position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
-}
-
-#center {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
-}
-
-#next-steps {
-  display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
-}
-
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-#next-steps ul {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
-}
-
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
-}
-
-.ticks {
-  position: relative;
-  width: 100%;
-
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
-  }
-
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
-  }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
-  }
-}
+export default api;
 ```
 
-### FILE: frontend\src\App.jsx
+### frontend/src/App.jsx
+
 ```
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
-import Register from "./pages/Register";
-import Login from "./pages/Login";
+import ChatAssistant from "./components/ChatAssistant";
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Trips from "./pages/Trips";
 import CreateTrip from "./pages/CreateTrip";
@@ -1807,7 +2307,6 @@ import WeatherAwareItinerary from "./pages/WeatherAwareItinerary";
 import WeatherTrips from "./pages/WeatherTrips";
 import TripJournal from "./pages/TripJournal";
 import JournalTrips from "./pages/JournalTrips";
-import TripComparison from "./pages/TripComparison";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./context/AuthContext";
 
@@ -1826,7 +2325,7 @@ const PrivateRoute = ({ children }) => {
 
 const App = () => {
   const location = useLocation();
-  const hideNavbar = location.pathname === "/";
+  const hideNavbar = ["/", "/login", "/register"].includes(location.pathname);
 
   return (
     <>
@@ -1835,8 +2334,8 @@ const App = () => {
       <Routes>
         {/* Public */}
         <Route path="/" element={<Landing />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<Auth initialMode="login" />} />
+        <Route path="/register" element={<Auth initialMode="signup" />} />
         <Route path="/share/:shareId" element={<SharedTrip />} />
 
         {/* Protected */}
@@ -1852,11 +2351,11 @@ const App = () => {
         <Route path="/trips/:id/weather-itinerary" element={<PrivateRoute><WeatherAwareItinerary /></PrivateRoute>} />
         <Route path="/journal" element={<PrivateRoute><JournalTrips /></PrivateRoute>} />
         <Route path="/journal/demo" element={<PrivateRoute><TripJournal /></PrivateRoute>} />
-        <Route path="/compare" element={<PrivateRoute><TripComparison /></PrivateRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <ChatAssistant />
     </>
   );
 };
@@ -1864,7 +2363,5417 @@ const App = () => {
 export default App;
 ```
 
-### FILE: frontend\src\index.css
+### frontend/src/components/ChatAssistant.css
+
+```
+/* frontend/src/components/ChatAssistant.css */
+
+/* ═════════════════════════════════════════════════════
+   FLOATING BUTTON
+   ═════════════════════════════════════════════════════ */
+
+.chat-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  color: #000;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+  box-shadow:
+    0 10px 30px -6px rgba(163, 230, 53, 0.6),
+    0 0 0 1px rgba(163, 230, 53, 0.3);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chat-fab:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow:
+    0 16px 40px -8px rgba(163, 230, 53, 0.85),
+    0 0 0 1px rgba(163, 230, 53, 0.5);
+}
+
+.chat-fab:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.chat-fab.open {
+  background: #111111;
+  color: #a3e635;
+  box-shadow:
+    0 10px 30px -6px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(163, 230, 53, 0.4);
+}
+
+.chat-fab-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  animation: chatSparkle 2.5s ease-in-out infinite;
+}
+
+@keyframes chatSparkle {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50%      { transform: rotate(15deg) scale(1.1); }
+}
+
+/* ═════════════════════════════════════════════════════
+   CHAT WINDOW
+   ═════════════════════════════════════════════════════ */
+
+.chat-window {
+  position: fixed;
+  bottom: 92px;
+  right: 24px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  height: 560px;
+  max-height: calc(100vh - 140px);
+  background: #0b0b0b;
+  border: 1px solid rgba(163, 230, 53, 0.3);
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  z-index: 901;
+  overflow: hidden;
+  box-shadow:
+    0 30px 70px -20px rgba(0, 0, 0, 0.95),
+    0 0 40px -12px rgba(163, 230, 53, 0.25);
+  animation: chatWindowIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+@keyframes chatWindowIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Header ── */
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(163, 230, 53, 0.08), transparent);
+  flex-shrink: 0;
+}
+
+.chat-header-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  box-shadow: 0 0 16px rgba(163, 230, 53, 0.4);
+}
+
+.chat-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-header-name {
+  font-size: 0.92rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.chat-header-sub {
+  font-size: 0.68rem;
+  color: #888888;
+  font-weight: 600;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-header-close {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #888888;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-family: inherit;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.chat-header-close:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Messages ── */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 5px;
+}
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(163, 230, 53, 0.3);
+  border-radius: 3px;
+}
+
+.chat-msg {
+  display: flex;
+  max-width: 100%;
+}
+
+.chat-msg.user {
+  justify-content: flex-end;
+}
+
+.chat-msg.assistant {
+  justify-content: flex-start;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 11px 15px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  font-weight: 500;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  animation: chatBubbleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes chatBubbleIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.chat-msg.user .chat-bubble {
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  color: #000;
+  border-bottom-right-radius: 6px;
+  font-weight: 600;
+}
+
+.chat-msg.assistant .chat-bubble {
+  background: #1a1a1a;
+  color: #e5e5e5;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom-left-radius: 6px;
+}
+
+/* Typing dots */
+.chat-typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 20px;
+}
+
+.chat-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a3e635;
+  animation: chatTypingDot 1.3s ease-in-out infinite;
+}
+
+.chat-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes chatTypingDot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30%           { opacity: 1;   transform: translateY(-4px); }
+}
+
+/* ── Suggestions ── */
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 12px;
+  flex-shrink: 0;
+}
+
+.chat-suggestion {
+  background: transparent;
+  border: 1px solid rgba(163, 230, 53, 0.35);
+  color: #a3e635;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.chat-suggestion:hover {
+  background: rgba(163, 230, 53, 0.12);
+  transform: translateY(-1px);
+}
+
+/* ── Input row ── */
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 11px 14px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.chat-input::placeholder {
+  color: #52525b;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: #a3e635;
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.15);
+}
+
+.chat-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-send {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  color: #000;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 6px 16px -4px rgba(163, 230, 53, 0.5);
+}
+
+.chat-send:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px -4px rgba(163, 230, 53, 0.75);
+}
+
+.chat-send:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
+}
+
+.chat-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .chat-fab {
+    bottom: 18px;
+    right: 18px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .chat-window {
+    bottom: 82px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    height: calc(100vh - 120px);
+    max-height: 600px;
+    border-radius: 20px;
+  }
+
+  .chat-bubble {
+    max-width: 90%;
+    font-size: 0.82rem;
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .chat-fab,
+  .chat-fab-icon,
+  .chat-window,
+  .chat-bubble,
+  .chat-typing span {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── Refresh button in header ── */
+.chat-header-refresh {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #888888;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.chat-header-refresh:hover:not(:disabled) {
+  color: #a3e635;
+  border-color: rgba(163, 230, 53, 0.5);
+  background: rgba(163, 230, 53, 0.08);
+  transform: rotate(-90deg);
+}
+
+.chat-header-refresh:active:not(:disabled) {
+  transform: rotate(-180deg) scale(0.95);
+}
+
+.chat-header-refresh:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Spinning animation while loading */
+.chat-header-refresh.spinning svg {
+  animation: chatRefreshSpin 0.9s linear infinite;
+}
+
+@keyframes chatRefreshSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-header-refresh,
+  .chat-header-refresh svg {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+```
+
+### frontend/src/components/ChatAssistant.jsx
+
+```
+import { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
+import { useTripActions } from "../context/TripActionsContext";
+import "./ChatAssistant.css";
+
+const SUGGESTIONS = [
+  "Best time to visit?",
+  "What should I pack?",
+  "Cheap food spots?",
+  "Local transport tips?",
+];
+
+const ChatAssistant = () => {
+  const { user } = useAuth();
+  const { actions } = useTripActions();
+  const location = useLocation();
+
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const tripContext = actions?.trip || null;
+
+  // Welcome message helper
+  const welcomeMessage = () => ({
+    role: "assistant",
+    content: tripContext
+      ? `Hi! 👋 I can help with your trip to ${tripContext.destination}. Ask me anything — packing, budget, local tips, day plans.`
+      : `Hi! 👋 I'm Sky, your travel assistant. Ask me anything — trip ideas, packing, budgets, local tips.`,
+  });
+
+  // Auto-scroll on new messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, loading]);
+
+  // Focus input when opened
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 100);
+  }, [open]);
+
+  // Welcome message on first open
+  useEffect(() => {
+    if (open && messages.length === 0) {
+      setMessages([welcomeMessage()]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Hide on landing page and when logged out
+  if (location.pathname === "/" || !user) return null;
+
+  const send = async (text) => {
+    const content = (text ?? input).trim();
+    if (!content || loading) return;
+
+    const next = [...messages, { role: "user", content }];
+    setMessages(next);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await api.post("/chat", {
+        messages: next,
+        tripId: tripContext?._id || null,
+      });
+      setMessages([...next, { role: "assistant", content: res.data.reply }]);
+    } catch (err) {
+      setMessages([
+        ...next,
+        {
+          role: "assistant",
+          content:
+            err.response?.data?.message ||
+            "Sorry, I couldn't reply just now. Please try again.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔄 Refresh — clears conversation and resets to welcome
+  const handleRefresh = () => {
+    if (loading) return;
+    setMessages([welcomeMessage()]);
+    setInput("");
+    setTimeout(() => inputRef.current?.focus(), 100);
+  };
+
+  return (
+    <>
+      {/* Floating button */}
+      <button
+        type="button"
+        className={`chat-fab ${open ? "open" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? "Close chat" : "Open AI assistant"}
+      >
+        {open ? (
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        ) : (
+          <span className="chat-fab-icon">✨</span>
+        )}
+      </button>
+
+      {/* Chat window */}
+      {open && (
+        <div className="chat-window">
+          <div className="chat-header">
+            <div className="chat-header-avatar">✨</div>
+            <div className="chat-header-info">
+              <div className="chat-header-name">Sky</div>
+              <div className="chat-header-sub">
+                {tripContext
+                  ? `Trip: ${tripContext.destination}`
+                  : "AI Travel Assistant"}
+              </div>
+            </div>
+
+            {/* 🔄 Refresh button */}
+            <button
+              type="button"
+              className="chat-header-refresh"
+              onClick={handleRefresh}
+              disabled={loading}
+              title="Start a new conversation"
+              aria-label="Refresh chat"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+              </svg>
+            </button>
+
+            <button
+              className="chat-header-close"
+              onClick={() => setOpen(false)}
+              aria-label="Close chat"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="chat-messages" ref={scrollRef}>
+            {messages.map((m, i) => (
+              <div key={i} className={`chat-msg ${m.role}`}>
+                <div className="chat-bubble">{m.content}</div>
+              </div>
+            ))}
+            {loading && (
+              <div className="chat-msg assistant">
+                <div className="chat-bubble chat-typing">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {messages.length <= 1 && !loading && (
+            <div className="chat-suggestions">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="chat-suggestion"
+                  onClick={() => send(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="chat-input-row">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+              placeholder="Ask anything..."
+              className="chat-input"
+              disabled={loading}
+            />
+            <button
+              type="button"
+              className="chat-send"
+              onClick={() => send()}
+              disabled={loading || !input.trim()}
+              aria-label="Send"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default ChatAssistant;
+```
+
+### frontend/src/components/DeleteButton.css
+
+```
+/* frontend/src/components/DeleteButton.css */
+
+/* ═════════════════════════════════════════════════════
+   DELETE-TRIP BUTTON — matches Edit Trip, red on hover
+   ═════════════════════════════════════════════════════ */
+
+.dtb-root {
+  --dtb-cycle: 2.6s;
+  --dtb-ltr-stagger: 0.09s;
+  --dtb-ltr-dur: 1.6s;
+  --dtb-ltr-start: 0.30s;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 11px 20px 11px 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: #111111;
+  color: #ffffff;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  transition:
+    background 0.28s ease,
+    color 0.28s ease,
+    border-color 0.28s ease,
+    box-shadow 0.28s ease,
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Hover: turns red ─── */
+.dtb-root:hover {
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
+  border-color: #ef4444;
+  box-shadow: 0 14px 30px -10px rgba(239, 68, 68, 0.45);
+  transform: translateY(-3px);
+}
+
+.dtb-root:active { transform: translateY(-1px); }
+
+.dtb-root:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.5);
+}
+
+/* ═══ Bin (stationary) ═══ */
+.dtb-bin {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  z-index: 3;
+  will-change: transform;
+  color: currentColor;
+}
+.dtb-bin svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.dtb-bin__body {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dtb-bin__lid {
+  transform-box: fill-box;
+  transform-origin: 8% 92%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  will-change: transform;
+}
+
+/* ═══ Sparks ═══ */
+.dtb-sparks {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.dtb-spark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+  will-change: transform, opacity;
+}
+.dtb-spark:nth-child(2n) {
+  background: #fecaca;
+  box-shadow: 0 0 6px rgba(254, 202, 202, 0.9);
+}
+.dtb-spark:nth-child(3n) {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.9);
+}
+
+/* ═══ Label ═══ */
+.dtb-label {
+  display: inline-flex;
+  align-items: center;
+  z-index: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.dtb-ltr {
+  display: inline-block;
+  will-change: transform, opacity;
+  transform-origin: 50% 60%;
+}
+
+/* ═════════════════════════════════════════════════════
+   ANIMATION TIMELINE
+   ═════════════════════════════════════════════════════ */
+
+/* Bin body squash */
+.dtb-root.eating .dtb-bin {
+  animation: dtbBinSquash var(--dtb-cycle) cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+@keyframes dtbBinSquash {
+  0%, 62% { transform: scale(1, 1); }
+  67%     { transform: scale(1.10, 0.86); }
+  73%     { transform: scale(0.97, 1.07); }
+  79%     { transform: scale(1, 1); }
+  100%    { transform: scale(1, 1); }
+}
+
+/* Lid open → hold → snap */
+.dtb-root.eating .dtb-bin__lid {
+  animation: dtbLidMouth var(--dtb-cycle) cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+@keyframes dtbLidMouth {
+  0%   { transform: rotate(0deg); }
+  12%  { transform: rotate(-74deg); }
+  58%  { transform: rotate(-74deg); }
+  65%  { transform: rotate(8deg);  }
+  71%  { transform: rotate(-4deg); }
+  78%  { transform: rotate(0deg);  }
+  100% { transform: rotate(0deg);  }
+}
+
+/* Letters fly into bin */
+.dtb-root.eating .dtb-ltr {
+  animation: dtbLetterEat var(--dtb-ltr-dur) cubic-bezier(0.55, 0, 0.25, 1) forwards;
+  animation-delay: calc(var(--dtb-ltr-start) + var(--i) * var(--dtb-ltr-stagger));
+}
+@keyframes dtbLetterEat {
+  0%   { opacity: 1; transform: translate(0, 0) scale(1); }
+  8%   { opacity: 1; transform: translate(0, 0) scale(1.06); }
+  30%  { opacity: 0; transform: translate(var(--eat-x), var(--eat-y)) scale(0.1); }
+  55%  { opacity: 0; transform: translate(var(--eat-x), var(--eat-y)) scale(0.1); }
+  72%  { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+
+/* Sparks fly out at the snap */
+.dtb-root.eating .dtb-spark {
+  animation: dtbSparkFly 0.6s cubic-bezier(0.22, 0.9, 0.3, 1) forwards;
+  animation-delay: calc(1.72s + var(--sd, 0s));
+}
+@keyframes dtbSparkFly {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--dx)),
+        calc(-50% + var(--dy))
+      )
+      scale(0.2);
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   CONFIRMATION MODAL — DARK
+   ═════════════════════════════════════════════════════ */
+
+.dtb-modal-back {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: dtbModalFade 0.22s ease-out;
+}
+@keyframes dtbModalFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.dtb-modal {
+  width: 100%;
+  max-width: 440px;
+  background: #0b0b0b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 36px 32px 28px;
+  text-align: center;
+  box-shadow:
+    0 30px 80px -30px rgba(0, 0, 0, 0.95),
+    0 0 40px -12px rgba(163, 230, 53, 0.15);
+  animation: dtbModalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+@keyframes dtbModalPop {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dtb-modal__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 18px;
+  border-radius: 20px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 2px solid rgba(248, 113, 113, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+}
+.dtb-modal__title {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+}
+.dtb-modal__text {
+  font-size: 0.88rem;
+  color: #888888;
+  line-height: 1.6;
+  margin: 0 0 28px;
+}
+.dtb-modal__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.dtb-modal__btn {
+  flex: 1;
+  padding: 13px 20px;
+  border-radius: 14px;
+  border: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.dtb-modal__btn--cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.dtb-modal__btn--cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+.dtb-modal__btn--danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  box-shadow: 0 8px 22px -6px rgba(239, 68, 68, 0.55);
+}
+.dtb-modal__btn--danger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -8px rgba(239, 68, 68, 0.7);
+}
+
+@media (max-width: 480px) {
+  .dtb-modal { padding: 28px 22px 22px; border-radius: 20px; }
+  .dtb-modal__title { font-size: 1.15rem; }
+  .dtb-modal__actions { flex-direction: column-reverse; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dtb-root.eating .dtb-bin,
+  .dtb-root.eating .dtb-bin__lid,
+  .dtb-root.eating .dtb-ltr,
+  .dtb-root.eating .dtb-spark,
+  .dtb-modal-back,
+  .dtb-modal {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+  }
+}
+```
+
+### frontend/src/components/DeleteButton.jsx
+
+```
+// frontend/src/components/DeleteButton.jsx
+import { useState, useRef, useEffect } from "react";
+import "./DeleteButton.css";
+
+const DeleteButton = ({ onClick, label = "Delete Trip" }) => {
+  const binRef = useRef(null);
+  const labelRef = useRef(null);
+  const [eating, setEating] = useState(false);
+  const busyRef = useRef(false);
+  const audioRef = useRef({ ac: null, noiseBuf: null });
+  const timeoutRef = useRef(null);
+
+  /* ═══════════ Audio ═══════════ */
+  const getAudio = () => {
+    const a = audioRef.current;
+    if (!a.ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      a.ac = new AC();
+      const len = a.ac.sampleRate * 0.5;
+      a.noiseBuf = a.ac.createBuffer(1, len, a.ac.sampleRate);
+      const d = a.noiseBuf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (a.ac.state === "suspended") a.ac.resume();
+    return a.ac;
+  };
+
+  useEffect(() => {
+    const unlock = () => {
+      getAudio();
+      window.removeEventListener("pointerdown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const noise = ({
+    type = "bandpass",
+    freq = 1200,
+    q = 1,
+    dur = 0.15,
+    vol = 0.15,
+    delay = 0,
+    sweepTo = null,
+  } = {}) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const a = audioRef.current;
+    const t0 = ctx.currentTime + delay;
+    const s = ctx.createBufferSource();
+    s.buffer = a.noiseBuf;
+    s.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.setValueAtTime(freq, t0);
+    f.Q.value = q;
+    if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t0 + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(f).connect(g).connect(ctx.destination);
+    s.start(t0);
+    s.stop(t0 + dur + 0.05);
+  };
+
+  const tone = ({
+    type = "sine",
+    from = 440,
+    to = 440,
+    dur = 0.12,
+    vol = 0.15,
+    delay = 0,
+  } = {}) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const t0 = ctx.currentTime + delay;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(from, t0);
+    o.frequency.exponentialRampToValueAtTime(Math.max(1, to), t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(ctx.destination);
+    o.start(t0);
+    o.stop(t0 + dur + 0.05);
+  };
+
+  const playSounds = (letterCount) => {
+    // Click
+    tone({ type: "square", from: 900, to: 200, dur: 0.03, vol: 0.06 });
+    noise({ type: "highpass", freq: 3000, q: 0.7, dur: 0.03, vol: 0.05 });
+
+    // Whoosh per letter
+    const n = Math.min(letterCount, 12);
+    for (let i = 0; i < n; i++) {
+      const d = 0.3 + i * 0.09;
+      noise({
+        type: "bandpass",
+        freq: 900 + i * 110,
+        sweepTo: 260,
+        q: 1.3,
+        dur: 0.3,
+        vol: 0.05,
+        delay: d,
+      });
+    }
+
+    // Lid snap
+    noise({ type: "highpass", freq: 2500, q: 0.9, dur: 0.06, vol: 0.14, delay: 1.69 });
+    tone({ type: "triangle", from: 260, to: 70, dur: 0.18, vol: 0.14, delay: 1.69 });
+    tone({ type: "sine", from: 140, to: 60, dur: 0.22, vol: 0.1, delay: 1.73 });
+
+    // Return chime
+    tone({ type: "triangle", from: 880, to: 1320, dur: 0.24, vol: 0.06, delay: 1.9 });
+    tone({ type: "sine", from: 1320, to: 1760, dur: 0.28, vol: 0.04, delay: 2.0 });
+  };
+
+  /* ═══════════ Measure letters → bin mouth ═══════════ */
+  const measureEatTargets = () => {
+    const bin = binRef.current;
+    const labelEl = labelRef.current;
+    if (!bin || !labelEl) return;
+
+    const binRect = bin.getBoundingClientRect();
+    const mouthX = binRect.left + binRect.width * 0.55;
+    const mouthY = binRect.top + binRect.height * 0.28;
+
+    const ltrs = labelEl.querySelectorAll(".dtb-ltr");
+    ltrs.forEach((ltr) => {
+      const r = ltr.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      ltr.style.setProperty("--eat-x", mouthX - cx + "px");
+      ltr.style.setProperty("--eat-y", mouthY - cy + "px");
+    });
+  };
+
+  useEffect(() => {
+    measureEatTargets();
+    const onResize = () => {
+      if (eating) return;
+      measureEatTargets();
+    };
+    window.addEventListener("resize", onResize);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(measureEatTargets);
+    }
+    return () => window.removeEventListener("resize", onResize);
+  }, [eating, label]);
+
+  /* ═══════════ Click — no confirm, just delete ═══════════ */
+  const handleClick = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+
+    // Start animation
+    setEating(false);
+    requestAnimationFrame(() => {
+      measureEatTargets();
+      setEating(true);
+    });
+
+    // Play sounds
+    playSounds(label.length);
+
+    // After animation (2.6s), call onClick to actually delete
+    timeoutRef.current = setTimeout(() => {
+      setEating(false);
+      busyRef.current = false;
+      if (onClick) onClick();
+    }, 2600);
+  };
+
+  const letters = label.split("");
+
+  return (
+    <button
+      type="button"
+      className={`dtb-root ${eating ? "eating" : ""}`}
+      onClick={handleClick}
+      aria-label={label}
+    >
+      {/* Bin + sparks */}
+      <span className="dtb-bin" aria-hidden="true" ref={binRef}>
+        <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+          <path
+            className="dtb-bin__body"
+            d="M9 12 L23 12 L21.5 27.5 Q21.4 29 20 29 L12 29 Q10.6 29 10.5 27.5 Z"
+          />
+          <line className="dtb-bin__body" x1="13" y1="16" x2="13.4" y2="25" />
+          <line className="dtb-bin__body" x1="16" y1="16" x2="16" y2="25" />
+          <line className="dtb-bin__body" x1="19" y1="16" x2="18.6" y2="25" />
+          <g className="dtb-bin__lid">
+            <path d="M6 9 L26 9 Q27.2 9 27.2 10.2 L27.2 11.6 L4.8 11.6 L4.8 10.2 Q4.8 9 6 9 Z" />
+            <path d="M13.5 5.6 L18.5 5.6 Q19.6 5.6 19.6 6.7 L19.6 9 L12.4 9 L12.4 6.7 Q12.4 5.6 13.5 5.6 Z" />
+          </g>
+        </svg>
+
+        <span className="dtb-sparks">
+          <span className="dtb-spark" style={{ "--dx": "-14px", "--dy": "-12px", "--sd": "0.00s" }} />
+          <span className="dtb-spark" style={{ "--dx": "-10px", "--dy": "-16px", "--sd": "0.02s" }} />
+          <span className="dtb-spark" style={{ "--dx": "-4px",  "--dy": "-18px", "--sd": "0.04s" }} />
+          <span className="dtb-spark" style={{ "--dx": "5px",   "--dy": "-18px", "--sd": "0.01s" }} />
+          <span className="dtb-spark" style={{ "--dx": "12px",  "--dy": "-14px", "--sd": "0.03s" }} />
+          <span className="dtb-spark" style={{ "--dx": "16px",  "--dy": "-6px",  "--sd": "0.05s" }} />
+          <span className="dtb-spark" style={{ "--dx": "-16px", "--dy": "-4px",  "--sd": "0.02s" }} />
+          <span className="dtb-spark" style={{ "--dx": "0px",   "--dy": "-20px", "--sd": "0.00s" }} />
+        </span>
+      </span>
+
+      {/* Label */}
+      <span className="dtb-label" aria-hidden="true" ref={labelRef}>
+        {letters.map((ch, i) => (
+          <span key={i} className="dtb-ltr" style={{ "--i": String(i) }}>
+            {ch === " " ? "\u00A0" : ch}
+          </span>
+        ))}
+      </span>
+    </button>
+  );
+};
+
+export default DeleteButton;
+```
+
+### frontend/src/components/ExportPDFButton.css
+
+```
+/* frontend/src/components/ExportPDFButton.css */
+
+/* ═════════════════════════════════════════════════════
+   BASE BUTTON
+   ═════════════════════════════════════════════════════ */
+.pdf-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #a3e635 0%, #bef264 100%);
+  color: #12200a;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  box-shadow:
+    0 10px 24px -8px rgba(163, 230, 53, 0.7),
+    0 2px 0 rgba(255, 255, 255, 0.4) inset;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.3s ease;
+  isolation: isolate;
+}
+
+.pdf-btn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow:
+    0 16px 36px -10px rgba(163, 230, 53, 0.9),
+    0 0 0 4px rgba(163, 230, 53, 0.2);
+}
+
+.pdf-btn:disabled {
+  cursor: wait;
+}
+
+.pdf-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(163, 230, 53, 0.5);
+}
+
+/* ═════════════════════════════════════════════════════
+   SKY BACKGROUND (appears during animation)
+   ═════════════════════════════════════════════════════ */
+.pdf-btn__sky {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #cde9ff 0%, #eaf6ff 60%, #f5faff 100%);
+  opacity: 0;
+  z-index: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.pdf-btn.running .pdf-btn__sky {
+  opacity: 1;
+}
+
+/* ═════════════════════════════════════════════════════
+   PARACHUTE PAYLOAD
+   ═════════════════════════════════════════════════════ */
+.pdf-btn__payload {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 34px;
+  height: 40px;
+  margin-left: -17px;
+  z-index: 3;
+  opacity: 0;
+  transform: translateY(-70px) scale(0.6);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.pdf-btn.running .pdf-btn__payload {
+  animation: pdfParachuteDrop 2.2s cubic-bezier(0.34, 0.94, 0.6, 1) forwards;
+}
+
+@keyframes pdfParachuteDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-70px) scale(0.5) rotate(-6deg);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-45px) scale(0.9) rotate(4deg);
+  }
+  40% {
+    transform: translateY(-20px) scale(1) rotate(-3deg);
+  }
+  65% {
+    transform: translateY(-2px) scale(1.05) rotate(2deg);
+  }
+  85% {
+    transform: translateY(6px) scale(0.95) rotate(-1deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.7) rotate(0deg);
+  }
+}
+
+/* Canopy sway */
+.pdf-btn.running .pdf-btn__para-svg .canopy-g {
+  transform-origin: 20px 16px;
+  animation: pdfCanopySway 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes pdfCanopySway {
+  from { transform: rotate(-4deg) scaleX(0.98); }
+  to   { transform: rotate(4deg) scaleX(1.02); }
+}
+
+/* Crate swing */
+.pdf-btn.running .pdf-btn__para-svg .crate-g {
+  transform-origin: 20px 26px;
+  animation: pdfCrateSwing 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes pdfCrateSwing {
+  from { transform: rotate(-8deg); }
+  to   { transform: rotate(8deg); }
+}
+
+/* Trail behind the payload */
+.pdf-btn__trail {
+  position: absolute;
+  left: 50%;
+  top: -30px;
+  width: 3px;
+  height: 30px;
+  margin-left: -1.5px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(163, 230, 53, 0.5) 40%,
+    rgba(163, 230, 53, 0.9) 100%
+  );
+  border-radius: 2px;
+  filter: blur(0.5px);
+  opacity: 0;
+}
+
+.pdf-btn.running .pdf-btn__trail {
+  animation: pdfTrailPulse 1.4s ease-out forwards;
+}
+
+@keyframes pdfTrailPulse {
+  0% { opacity: 0; transform: scaleY(0.4); }
+  20% { opacity: 1; transform: scaleY(1); }
+  70% { opacity: 0.7; transform: scaleY(1.15); }
+  100% { opacity: 0; transform: scaleY(1); }
+}
+
+/* ═════════════════════════════════════════════════════
+   SHOCKWAVE (when payload lands)
+   ═════════════════════════════════════════════════════ */
+.pdf-btn__shockwave {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  border: 2px solid rgba(163, 230, 53, 0.7);
+  opacity: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.pdf-btn.running .pdf-btn__shockwave {
+  animation: pdfShockwave 0.9s 1.5s ease-out forwards;
+}
+
+@keyframes pdfShockwave {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.4);
+    border-color: rgba(163, 230, 53, 0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3);
+    border-color: rgba(163, 230, 53, 0);
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   CHECKMARK BADGE (appears after drop)
+   ═════════════════════════════════════════════════════ */
+.pdf-btn__badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  z-index: 5;
+  opacity: 0;
+  transform: scale(0.4);
+  pointer-events: none;
+}
+
+.pdf-btn.win .pdf-btn__badge {
+  animation: pdfBadgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes pdfBadgePop {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-30deg); }
+  60%  { opacity: 1; transform: scale(1.25) rotate(8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+/* ═════════════════════════════════════════════════════
+   LABELS
+   ═════════════════════════════════════════════════════ */
+.pdf-btn__label-stack {
+  position: relative;
+  display: inline-block;
+  z-index: 4;
+  height: 1.2em;
+  overflow: hidden;
+  padding: 0 4px;
+  min-width: 160px;
+  text-align: left;
+}
+
+.pdf-btn__lbl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.28s ease;
+  white-space: nowrap;
+}
+
+.pdf-btn__lbl-default {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pdf-btn__lbl-drop,
+.pdf-btn__lbl-done {
+  opacity: 0;
+  transform: translateY(1.2em);
+}
+
+/* Running state — swap to "Dropping your PDF…" */
+.pdf-btn.running .pdf-btn__lbl-default {
+  opacity: 0;
+  transform: translateY(-1.2em);
+}
+.pdf-btn.running .pdf-btn__lbl-drop {
+  opacity: 1;
+  transform: translateY(0);
+  color: #1e40af;
+}
+
+/* Done state — swap to "PDF Downloaded!" */
+.pdf-btn.win .pdf-btn__lbl-default { opacity: 0; transform: translateY(-1.2em); }
+.pdf-btn.win .pdf-btn__lbl-drop    { opacity: 0; transform: translateY(-1.2em); }
+.pdf-btn.win .pdf-btn__lbl-done    { opacity: 1; transform: translateY(0); }
+
+/* ═════════════════════════════════════════════════════
+   SR-ONLY
+   ═════════════════════════════════════════════════════ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ═════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .pdf-btn__payload,
+  .pdf-btn__trail,
+  .pdf-btn__shockwave,
+  .pdf-btn__badge,
+  .pdf-btn__lbl {
+    animation: none !important;
+    transition: opacity 0.2s ease !important;
+  }
+  .pdf-btn.running .pdf-btn__payload {
+    opacity: 1;
+    transform: none;
+    position: relative;
+    margin-right: 8px;
+  }
+}
+```
+
+### frontend/src/components/ExportPDFButton.jsx
+
+```
+// frontend/src/components/ExportPDFButton.jsx
+import { useRef, useState, useEffect } from "react";
+import "./ExportPDFButton.css";
+
+const loadHtml2Pdf = () => {
+  if (window.html2pdf) return Promise.resolve(window.html2pdf);
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    s.onload = () => resolve(window.html2pdf);
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+};
+
+const ExportPDFButton = ({ targetId, filename, holderId }) => {
+  const [state, setState] = useState("idle"); // idle | running | done
+  const busyRef = useRef(false);
+  const audioRef = useRef({ ac: null, noiseBuf: null });
+
+  /* ─────────────────────────────────────────────
+     Audio setup — Web Audio API (no files needed)
+     ───────────────────────────────────────────── */
+  const getAudio = () => {
+    const a = audioRef.current;
+    if (!a.ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      a.ac = new AC();
+      const len = a.ac.sampleRate * 1.5;
+      a.noiseBuf = a.ac.createBuffer(1, len, a.ac.sampleRate);
+      const d = a.noiseBuf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (a.ac.state === "suspended") a.ac.resume();
+    return a.ac;
+  };
+
+  /* Unlock audio on first user gesture (browser autoplay policy) */
+  useEffect(() => {
+    const unlock = () => {
+      getAudio();
+      window.removeEventListener("pointerdown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    return () => window.removeEventListener("pointerdown", unlock);
+  }, []);
+
+  /* ─── Sound 1: Button press — square blip ─── */
+  const sPress = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    o.type = "square";
+    o.frequency.setValueAtTime(820, t);
+    o.frequency.exponentialRampToValueAtTime(230, t + 0.05);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.085, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.09);
+  };
+
+  /* ─── Sound 2: Parachute descent — filtered noise sweeping down ─── */
+  const sDescent = (t, dur) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const a = audioRef.current;
+    const n = ctx.createBufferSource();
+    n.buffer = a.noiseBuf;
+    n.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 1.7;
+    bp.frequency.setValueAtTime(3200, t);
+    bp.frequency.exponentialRampToValueAtTime(640, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.1, t + 0.1);
+    g.gain.linearRampToValueAtTime(0.085, t + dur * 0.68);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    n.connect(bp).connect(g).connect(ctx.destination);
+    n.start(t);
+    n.stop(t + dur + 0.06);
+  };
+
+  /* ─── Sound 3: Landing thud — sine sweep down ─── */
+  const sThud = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(160, t);
+    o.frequency.exponentialRampToValueAtTime(50, t + 0.22);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.38, t + 0.009);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.33);
+  };
+
+  /* ─── Sound 4: Success ping — triangle ding ─── */
+  const sPing = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(1200, t);
+    o.frequency.exponentialRampToValueAtTime(1188, t + 0.45);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.135, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.52);
+  };
+
+  /* ─── Sound 5: Victory chord — C-E-G-C ─── */
+  const sVictory = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      const st = t + i * 0.075;
+      const o = ctx.createOscillator();
+      o.type = "triangle";
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.095, st + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.72);
+      o.connect(g).connect(ctx.destination);
+      o.start(st);
+      o.stop(st + 0.78);
+    });
+  };
+
+  /* ─── Play the full sequence ─── */
+  const playFull = () => {
+    const ctx = getAudio();
+    if (!ctx) {
+      console.warn("[PDF Button] AudioContext unavailable");
+      return;
+    }
+    const t = ctx.currentTime + 0.02;
+
+    sPress(t);              // 0.00s — button click
+    sDescent(t + 0.1, 1.6); // 0.10s — parachute descends (1.6s whoosh)
+    sThud(t + 1.85);        // 1.85s — landing thud
+    sPing(t + 2.0);         // 2.00s — ping when badge pops
+    sVictory(t + 2.25);     // 2.25s — victory chord
+  };
+
+  /* ─────────────────────────────────────────────
+     PDF export
+     ───────────────────────────────────────────── */
+  const runExport = async () => {
+    const target = document.getElementById(targetId);
+    const holder = holderId ? document.getElementById(holderId) : null;
+
+    if (!target) {
+      console.warn("[Export] Target not found:", targetId);
+      return;
+    }
+
+    if (holder) holder.classList.add("is-exporting");
+
+    await new Promise((r) => setTimeout(r, 250));
+
+    try {
+      const html2pdf = await loadHtml2Pdf();
+
+      await html2pdf()
+        .set({
+          margin: [10, 10, 10, 10],
+          filename: filename || "itinerary.pdf",
+          image: { type: "jpeg", quality: 0.95 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: [".itn-day", ".itn-hotel", ".itn-table tr", ".itn-foot"],
+          },
+        })
+        .from(target)
+        .save();
+    } catch (err) {
+      console.warn("[Export] html2pdf failed, falling back to print:", err);
+      window.print();
+    } finally {
+      if (holder) holder.classList.remove("is-exporting");
+    }
+  };
+
+  /* ─────────────────────────────────────────────
+     Click handler
+     ───────────────────────────────────────────── */
+  const handleClick = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+
+    // 1) Start the parachute animation
+    setState("running");
+
+    // 2) Play the synced sound sequence
+    playFull();
+
+    // 3) At 2.0s, swap label to "PDF Downloaded!"
+    setTimeout(() => setState("done"), 2000);
+
+    // 4) At 2.3s, actually export the PDF
+    setTimeout(() => runExport(), 2300);
+
+    // 5) Reset at 4.8s
+    setTimeout(() => {
+      setState("idle");
+      busyRef.current = false;
+    }, 4800);
+  };
+
+  const cls = [
+    "pdf-btn",
+    state === "running" ? "running" : "",
+    state === "done" ? "win" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <button
+      type="button"
+      className={cls}
+      onClick={handleClick}
+      aria-label="Export PDF Itinerary"
+      disabled={state === "running"}
+    >
+      <span className="sr-only" role="status" aria-live="polite">
+        {state === "running" ? "Preparing PDF" : state === "done" ? "PDF ready" : ""}
+      </span>
+
+      <span className="pdf-btn__sky" aria-hidden="true" />
+      <span className="pdf-btn__shockwave" aria-hidden="true" />
+
+      <span className="pdf-btn__payload" aria-hidden="true">
+        <span className="pdf-btn__trail" />
+        <svg
+          className="pdf-btn__para-svg"
+          viewBox="0 0 40 46"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="cpGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#C4E570" />
+              <stop offset="1" stopColor="#8FBF2E" />
+            </linearGradient>
+            <linearGradient id="crateGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#ffe2a0" />
+              <stop offset="1" stopColor="#d99b2b" />
+            </linearGradient>
+            <linearGradient id="packGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#A8D84A" />
+              <stop offset="1" stopColor="#1A2E1A" />
+            </linearGradient>
+          </defs>
+
+          <g className="canopy-g">
+            <path
+              d="M20 1 C8 1 1 8 1 16 L39 16 C39 8 32 1 20 1 Z"
+              fill="url(#cpGrad)"
+            />
+            <circle cx="7" cy="16" r="6" fill="url(#cpGrad)" />
+            <circle cx="20" cy="16" r="6" fill="url(#cpGrad)" />
+            <circle cx="33" cy="16" r="6" fill="url(#cpGrad)" />
+            <path
+              d="M20 1 C8 1 1 8 1 16"
+              fill="none"
+              stroke="#DCF0A0"
+              strokeWidth=".9"
+              opacity=".55"
+            />
+            <path
+              d="M20 1 C32 1 39 8 39 16"
+              fill="none"
+              stroke="#DCF0A0"
+              strokeWidth=".9"
+              opacity=".55"
+            />
+            <path d="M20 1 L20 16" stroke="#DCF0A0" strokeWidth=".7" opacity=".4" />
+          </g>
+
+          <g stroke="#DCF0A0" strokeWidth=".9" opacity=".85" fill="none">
+            <line x1="7" y1="20" x2="17" y2="29" />
+            <line x1="20" y1="21" x2="20" y2="29" />
+            <line x1="33" y1="20" x2="23" y2="29" />
+          </g>
+
+          <g className="crate-g">
+            <rect x="15" y="24" width="10" height="6" rx="1.6" fill="url(#packGrad)" />
+            <rect
+              x="11"
+              y="28"
+              width="18"
+              height="15"
+              rx="2.2"
+              fill="url(#crateGrad)"
+              stroke="#8a5a10"
+              strokeWidth=".9"
+            />
+            <line x1="20" y1="28" x2="20" y2="43" stroke="#8a5a10" strokeWidth="1" />
+            <line
+              x1="11"
+              y1="35.5"
+              x2="29"
+              y2="35.5"
+              stroke="#8a5a10"
+              strokeWidth="1"
+            />
+            <rect
+              x="17.5"
+              y="31.5"
+              width="5"
+              height="4"
+              rx=".8"
+              fill="#1A2E1A"
+              opacity=".85"
+            />
+          </g>
+        </svg>
+      </span>
+
+      <span className="pdf-btn__badge" aria-hidden="true">
+        <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+          <circle
+            cx="11"
+            cy="11"
+            r="9.6"
+            fill="#1A2E1A"
+            stroke="#A8D84A"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M6.6 11.4 L9.6 14.3 L15.4 8.2"
+            fill="none"
+            stroke="#A8D84A"
+            strokeWidth="2.1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+
+      <span className="pdf-btn__label-stack">
+        <span className="pdf-btn__lbl pdf-btn__lbl-default">
+          📄 Export PDF Itinerary
+        </span>
+        <span className="pdf-btn__lbl pdf-btn__lbl-drop">
+          🪂 Dropping your PDF…
+        </span>
+        <span className="pdf-btn__lbl pdf-btn__lbl-done">
+          ✅ PDF Downloaded!
+        </span>
+      </span>
+    </button>
+  );
+};
+
+export default ExportPDFButton;
+```
+
+### frontend/src/components/ImageSlideshow.css
+
+```
+/* frontend/src/components/ImageSlideshow.css */
+
+.slideshow {
+  position: relative;
+  aspect-ratio: 21 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0b0b0b;
+  outline: none;
+}
+
+.slideshow:focus-visible {
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.5);
+}
+
+.slides-track {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  transition: transform 0.9s cubic-bezier(0.65, 0, 0.35, 1);
+  will-change: transform;
+}
+
+/* Silent snap — no animation when jumping from the duplicate back to slide 0 */
+.slides-track.no-transition {
+  transition: none !important;
+}
+
+.slide {
+  position: relative;
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0b0b;
+}
+
+.slide img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 1;
+  transform: scale(1.05);
+  transition: transform 5.5s ease-out;
+  background: #0b0b0b;
+}
+
+@keyframes kenBurns {
+  0%   { transform: scale(1.06) translate(0, 0); }
+  100% { transform: scale(1.16) translate(-1.5%, -1%); }
+}
+
+.slide.active img {
+  animation: kenBurns 7s ease-out forwards;
+}
+
+.slide-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0) 30%,
+    rgba(0, 0, 0, 0.15) 60%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
+  pointer-events: none;
+}
+
+.slide-content {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 18px;
+  z-index: 2;
+  transform: translateY(16px);
+  opacity: 0;
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s,
+              opacity 0.6s ease 0.15s;
+}
+
+.slide.active .slide-content {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.slide-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #a3e635;
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  letter-spacing: 0.01em;
+}
+
+.slide-title {
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+.slides-dots {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  z-index: 3;
+  display: flex;
+  gap: 5px;
+  padding: 5px 8px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 9999px;
+}
+
+.slides-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  padding: 0;
+}
+
+.slides-dot:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.slides-dot.active {
+  background: #a3e635;
+  width: 18px;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(163, 230, 53, 0.7);
+}
+
+@media (max-width: 768px) {
+  .slide-title { font-size: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slides-track,
+  .slide img,
+  .slide-content,
+  .slides-dot {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+```
+
+### frontend/src/components/ImageSlideshow.jsx
+
+```
+import { useEffect, useRef, useState } from "react";
+import "./ImageSlideshow.css";
+
+const fallbackUrl = (title) =>
+  `https://picsum.photos/seed/${encodeURIComponent(title || "travel")}/1600/686`;
+
+const ImageSlideshow = ({
+  slides = [],
+  interval = 3000,
+  className = "",
+  onChange,
+}) => {
+  const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [loaded, setLoaded] = useState({});
+  const [noTransition, setNoTransition] = useState(false);
+  const timerRef = useRef(null);
+  const touchStartX = useRef(0);
+
+  const total = slides.length;
+  const extended = total > 0 ? [...slides, slides[0]] : [];
+
+  useEffect(() => {
+    if (total <= 1 || paused) return;
+    timerRef.current = setInterval(() => {
+      setCurrent((c) => {
+        if (c >= total) return 0;
+        const next = c + 1;
+        const realIndex = next % total;
+        if (onChange) {
+          setTimeout(() => onChange(slides[realIndex], realIndex), 0);
+        }
+        return next;
+      });
+    }, interval);
+    return () => clearInterval(timerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total, paused, interval, slides]);
+
+  const handleTransitionEnd = () => {
+    if (current === total) {
+      setNoTransition(true);
+      setCurrent(0);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setNoTransition(false));
+      });
+    }
+  };
+
+  useEffect(() => {
+    const onVis = () => setPaused(document.hidden);
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.changedTouches[0].screenX;
+  };
+  const handleTouchEnd = (e) => {
+    const delta = e.changedTouches[0].screenX - touchStartX.current;
+    if (Math.abs(delta) > 50) {
+      setPaused(false);
+      setCurrent((c) => {
+        let next = c + (delta < 0 ? 1 : -1);
+        if (next < 0) next = 0;
+        if (next > total) next = total;
+        return next;
+      });
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "ArrowRight") {
+      setCurrent((c) => Math.min(c + 1, total));
+    }
+    if (e.key === "ArrowLeft") {
+      setCurrent((c) => Math.max(c - 1, 0));
+    }
+  };
+
+  if (!total) return null;
+
+  return (
+    <div
+      className={`slideshow ${className}`}
+      tabIndex={0}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onKeyDown={handleKeyDown}
+    >
+      <div
+        className={`slides-track ${noTransition ? "no-transition" : ""}`}
+        style={{ transform: `translateX(-${current * 100}%)` }}
+        onTransitionEnd={handleTransitionEnd}
+      >
+        {extended.map((s, i) => (
+          <div
+            key={i}
+            className={`slide ${i === current ? "active" : ""} ${
+              loaded[i % total] ? "loaded" : ""
+            }`}
+          >
+            <img
+              src={s.image}
+              alt={s.title}
+              loading="eager"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onLoad={() =>
+                setLoaded((prev) => ({ ...prev, [i % total]: true }))
+              }
+              onError={(e) => {
+                if (e.target.dataset.fallback === "1") return;
+                e.target.dataset.fallback = "1";
+                e.target.src = fallbackUrl(s.title);
+              }}
+            />
+            <div className="slide-overlay" />
+            <div className="slide-content">
+              {s.pill && <div className="slide-pill">{s.pill}</div>}
+              {s.title && <h3 className="slide-title">{s.title}</h3>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="slides-dots">
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            className={`slides-dot ${current % total === i ? "active" : ""}`}
+            onClick={() => {
+              setPaused(false);
+              setCurrent(i);
+            }}
+            aria-label={`Slide ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default ImageSlideshow;
+```
+
+### frontend/src/components/ItineraryPaper.jsx
+
+```
+const formatDate = (d) => {
+  if (!d) return "";
+  const dt = new Date(d);
+  return dt.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const ItineraryPaper = ({ trip, places = [] }) => {
+  if (!trip) return null;
+
+  const days = Math.max(
+    1,
+    Math.round(
+      (new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)
+    )
+  );
+  const budgetLabel =
+    trip.budget < 20000 ? "Cheap" : trip.budget < 50000 ? "Moderate" : "Luxury";
+
+  const startDate = formatDate(trip.startDate);
+  const endDate = formatDate(trip.endDate);
+
+  const totalSpent = (trip.itinerary || []).reduce((sum, day) => {
+    return (
+      sum +
+      (day.activities || []).reduce((s, act) => s + (Number(act.cost) || 0), 0)
+    );
+  }, 0);
+
+  return (
+    <main className="itn-paper" id="itineraryPaper">
+      {/* HEADER */}
+      <header className="itn-header">
+        <div className="itn-eyebrow">Official Travel Itinerary</div>
+        <h1 className="itn-title">{trip.destination}</h1>
+        <div className="itn-dest">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          <span>{trip.destination}</span>
+        </div>
+        <div className="itn-dates">
+          <span>
+            {days} Day{days > 1 ? "s" : ""}
+          </span>
+          <span className="dot"></span>
+          <span>
+            {startDate} — {endDate}
+          </span>
+        </div>
+      </header>
+
+      {/* SUMMARY */}
+      <section className="itn-summary">
+        <div className="itn-metric">
+          <div className="m-label">Travellers</div>
+          <div className="m-value">
+            {trip.travellers}
+            <small>{trip.travellers > 1 ? " guests" : " guest"}</small>
+          </div>
+        </div>
+        <div className="itn-metric m-budget">
+          <div className="m-label">Total Budget</div>
+          <div className="m-value">
+            ₹{trip.budget?.toLocaleString?.() || trip.budget}
+          </div>
+        </div>
+        <div className="itn-metric m-travellers">
+          <div className="m-label">Trip Style</div>
+          <div className="m-value">
+            {budgetLabel}
+            <small> tier</small>
+          </div>
+        </div>
+      </section>
+
+      {/* ITINERARY */}
+      {trip.itinerary?.length > 0 && (
+        <>
+          <div className="itn-section-head">
+            <h2>Day-by-Day Itinerary</h2>
+          </div>
+
+          {trip.itinerary.map((day) => (
+            <article className="itn-day" key={day.day}>
+              <header className="itn-day-head">
+                <div className="itn-day-num">
+                  {String(day.day).padStart(2, "0")}
+                </div>
+                <div className="itn-day-name">Day {day.day}</div>
+                <div className="itn-day-date">{day.date}</div>
+              </header>
+              <table className="itn-table">
+                <thead>
+                  <tr>
+                    <th className="itn-col-time">Time</th>
+                    <th>Activity</th>
+                    <th className="itn-col-cost">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(day.activities || []).map((act, i) => (
+                    <tr key={i}>
+                      <td className="itn-col-time">
+                        <span className="itn-time-chip">{act.time}</span>
+                      </td>
+                      <td>
+                        <div className="itn-act-title">{act.title}</div>
+                        {act.description && (
+                          <div className="itn-act-desc">{act.description}</div>
+                        )}
+                        {act.location && (
+                          <div className="itn-venue">
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                              <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            <span>{act.location}</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="itn-col-cost">
+                        <div
+                          className={`itn-cost-val ${
+                            !act.cost || act.cost === 0 ? "free" : ""
+                          }`}
+                        >
+                          {!act.cost || act.cost === 0 ? "Free" : `₹${act.cost}`}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </article>
+          ))}
+        </>
+      )}
+
+      {/* HOTELS */}
+      {trip.hotels?.length > 0 && (
+        <>
+          <div className="itn-section-head">
+            <h2>Recommended Hotels</h2>
+          </div>
+          <div className="itn-hotel-grid">
+            {trip.hotels.map((h, i) => (
+              <div className="itn-hotel" key={i}>
+                <div className="itn-hotel-name">{h.name}</div>
+                <div className="itn-hotel-row">📍 {h.address}</div>
+                <div className="itn-hotel-row">
+                  ⭐ {h.rating} · 💰 {h.price}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* PLACES */}
+      {places.length > 0 && (
+        <>
+          <div className="itn-section-head">
+            <h2>Nearby Attractions</h2>
+          </div>
+          <div className="itn-hotel-grid">
+            {places.slice(0, 6).map((p, i) => (
+              <div className="itn-hotel" key={i}>
+                <div className="itn-hotel-name">{p.name}</div>
+                <div className="itn-hotel-row">🏷 {p.type}</div>
+                {p.description && (
+                  <div className="itn-hotel-row">
+                    {String(p.description).slice(0, 120)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* BUDGET BREAKDOWN */}
+      {trip.budgetBreakdown && trip.budgetBreakdown.total > 0 && (
+        <>
+          <div className="itn-section-head">
+            <h2>Budget Breakdown</h2>
+          </div>
+          <table className="itn-table">
+            <tbody>
+              <tr>
+                <td>✈️ Flights</td>
+                <td className="itn-col-cost">
+                  <div className="itn-cost-val">
+                    ₹{trip.budgetBreakdown.flights}
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>🏨 Hotels</td>
+                <td className="itn-col-cost">
+                  <div className="itn-cost-val">
+                    ₹{trip.budgetBreakdown.hotels}
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>🍽 Food</td>
+                <td className="itn-col-cost">
+                  <div className="itn-cost-val">
+                    ₹{trip.budgetBreakdown.food}
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>🎟 Activities</td>
+                <td className="itn-col-cost">
+                  <div className="itn-cost-val">
+                    ₹{trip.budgetBreakdown.activities}
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Total</strong>
+                </td>
+                <td className="itn-col-cost">
+                  <div className="itn-cost-val">
+                    <strong>₹{trip.budgetBreakdown.total}</strong>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </>
+      )}
+
+      <footer className="itn-foot">
+        <div className="f-left">
+          Generated via <span>AI Travel Planner</span>
+        </div>
+        <div className="f-mid">
+          Planned activity cost: ₹{totalSpent.toLocaleString?.() || totalSpent}
+        </div>
+        <div className="f-right">Safe Travels!</div>
+      </footer>
+    </main>
+  );
+};
+
+export default ItineraryPaper;
+```
+
+### frontend/src/components/LiquidMetalButton.css
+
+```
+/* frontend/src/components/LiquidMetalButton.css */
+
+@property --flow {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ═════════════════════════════════════════════════════
+   LIQUID LIME BUTTON — matches site lime theme
+   ═════════════════════════════════════════════════════ */
+
+.liquid-metal-btn {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 28px 6px 6px;
+  background: rgba(10, 10, 12, 0.95);
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(163, 230, 53, 0.1);
+  transition:
+    transform 0.3s cubic-bezier(0.22, 0.9, 0.3, 1),
+    box-shadow 0.3s ease,
+    background 0.3s ease,
+    opacity 0.3s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+.liquid-metal-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ─── Liquid lime border — main layer ─── */
+.liquid-metal-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2.5px;
+  background: conic-gradient(
+    from var(--flow) at 50% 50%,
+    #bef264 0deg,
+    #a3e635 22deg,
+    #4d7c0f 52deg,
+    #ffffff 78deg,
+    #a3e635 104deg,
+    #365314 138deg,
+    #bef264 168deg,
+    #84cc16 196deg,
+    #1a2e1a 226deg,
+    #bef264 254deg,
+    #e5f0c8 286deg,
+    #65a30d 320deg,
+    #a3e635 360deg
+  );
+  filter: url(#liquidBorder);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+  animation: lm-rotate 6s linear infinite;
+  z-index: 1;
+}
+
+/* ─── Shimmer pass — brighter "wet" lime highlight ─── */
+.liquid-metal-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2.5px;
+  background: conic-gradient(
+    from var(--flow) at 50% 50%,
+    rgba(190, 242, 100, 0) 0deg,
+    rgba(190, 242, 100, 1) 20deg,
+    rgba(190, 242, 100, 0) 46deg,
+    rgba(190, 242, 100, 0) 180deg,
+    rgba(163, 230, 53, 0.9) 220deg,
+    rgba(163, 230, 53, 0) 260deg,
+    rgba(190, 242, 100, 0) 360deg
+  );
+  filter: url(#liquidBorder) blur(0.4px);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: lm-rotate 6s linear infinite reverse;
+  z-index: 2;
+}
+
+@keyframes lm-rotate {
+  to {
+    --flow: 360deg;
+  }
+}
+
+/* ─── Hover — lifts + lime glow ─── */
+.liquid-metal-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+  background: rgba(18, 20, 14, 0.98);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(163, 230, 53, 0.2),
+    0 0 34px rgba(163, 230, 53, 0.35);
+}
+
+.liquid-metal-btn:hover:not(:disabled)::before,
+.liquid-metal-btn:hover:not(:disabled)::after {
+  animation-duration: 3.2s;
+}
+
+/* ─── Active ─── */
+.liquid-metal-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(163, 230, 53, 0.15);
+}
+
+/* ─── Focus ─── */
+.liquid-metal-btn:focus-visible {
+  outline: 2px solid rgba(163, 230, 53, 0.85);
+  outline-offset: 6px;
+}
+
+/* ═════════════════════════════════════════════════════
+   ICON CONTAINER
+   ═════════════════════════════════════════════════════ */
+
+.lmb-icon-container {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: rgba(163, 230, 53, 0.12);
+  border-radius: 50%;
+  transition: background 0.3s ease;
+  box-shadow: inset 0 1px 1px rgba(190, 242, 100, 0.2);
+  flex-shrink: 0;
+}
+
+.liquid-metal-btn:hover:not(:disabled) .lmb-icon-container {
+  background: rgba(163, 230, 53, 0.22);
+}
+
+.lmb-plane {
+  width: 18px;
+  height: 18px;
+  color: #a3e635;
+  transition: transform 0.3s ease;
+}
+
+.liquid-metal-btn:hover:not(:disabled) .lmb-plane {
+  transform: scale(1.12) rotate(-8deg);
+}
+
+.lmb-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(163, 230, 53, 0.25);
+  border-top-color: #a3e635;
+  border-radius: 50%;
+  animation: lmb-spin 0.7s linear infinite;
+}
+
+@keyframes lmb-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ═════════════════════════════════════════════════════
+   LABEL
+   ═════════════════════════════════════════════════════ */
+
+.lmb-text {
+  position: relative;
+  z-index: 3;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding-right: 4px;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
+
+.liquid-metal-btn:hover:not(:disabled) .lmb-text {
+  color: #bef264;
+}
+
+/* ═════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-metal-btn::before,
+  .liquid-metal-btn::after {
+    animation: none;
+  }
+  .lmb-spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   RESPONSIVE
+   ═════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+  .liquid-metal-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 6px 20px 6px 6px;
+  }
+}
+```
+
+### frontend/src/components/LiquidMetalButton.jsx
+
+```
+import { useEffect, useRef, forwardRef } from "react";
+import "./LiquidMetalButton.css";
+
+const LiquidMetalButton = forwardRef(
+  (
+    {
+      children = "Generate Trip",
+      onClick,
+      disabled = false,
+      loading = false,
+      type = "button",
+    },
+    ref
+  ) => {
+    const turbRef = useRef(null);
+
+    // Animate the SVG turbulence filter for organic liquid flow
+    useEffect(() => {
+      const turb = turbRef.current;
+      if (!turb) return;
+
+      const reduce = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+      if (reduce) return;
+
+      let t = 0;
+      let prev = 0;
+      let rafId = null;
+
+      const loop = (now) => {
+        if (now - prev > 40) {
+          prev = now;
+          t += 0.04;
+
+          const fx =
+            0.012 + Math.sin(t * 0.7) * 0.004 + Math.sin(t * 1.9) * 0.0015;
+          const fy =
+            0.018 + Math.cos(t * 0.55) * 0.005 + Math.cos(t * 1.4) * 0.0018;
+
+          turb.setAttribute(
+            "baseFrequency",
+            fx.toFixed(5) + " " + fy.toFixed(5)
+          );
+        }
+        rafId = requestAnimationFrame(loop);
+      };
+
+      rafId = requestAnimationFrame(loop);
+      return () => {
+        if (rafId) cancelAnimationFrame(rafId);
+      };
+    }, []);
+
+    const isDisabled = disabled || loading;
+
+    return (
+      <>
+        {/* SVG filter host — only rendered once per page load */}
+        <svg
+          className="lm-defs"
+          aria-hidden="true"
+          focusable="false"
+          style={{
+            position: "absolute",
+            width: 0,
+            height: 0,
+            overflow: "hidden",
+            pointerEvents: "none",
+          }}
+        >
+          <filter
+            id="liquidBorder"
+            x="-20%"
+            y="-40%"
+            width="140%"
+            height="180%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feTurbulence
+              ref={turbRef}
+              type="fractalNoise"
+              baseFrequency="0.012 0.018"
+              numOctaves="2"
+              seed="4"
+              result="noise"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale="6"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        </svg>
+
+        <button
+          ref={ref}
+          type={type}
+          className="liquid-metal-btn"
+          onClick={onClick}
+          disabled={isDisabled}
+          aria-busy={loading}
+        >
+          <span className="lmb-icon-container">
+            {loading ? (
+              <span className="lmb-spinner" />
+            ) : (
+              <svg
+                className="lmb-plane"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M22 2L11 13" />
+                <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+              </svg>
+            )}
+          </span>
+          <span className="lmb-text">
+            {loading ? "Generating..." : children}
+          </span>
+        </button>
+      </>
+    );
+  }
+);
+
+LiquidMetalButton.displayName = "LiquidMetalButton";
+
+export default LiquidMetalButton;
+```
+
+### frontend/src/components/Navbar.css
+
+```
+/* frontend/src/components/Navbar.css */
+
+/* ═════════════════════════════════════════════════════
+   ROOT NAVBAR
+   ═════════════════════════════════════════════════════ */
+
+.nb-root {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: rgba(5, 5, 5, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.nb-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+/* ═════════════════════════════════════════════════════
+   BRAND
+   ═════════════════════════════════════════════════════ */
+
+.nb-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.nb-brand-text {
+  color: #fff;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.nb-brand-text .nb-brand-accent {
+  color: #a3e635;
+}
+
+/* ═════════════════════════════════════════════════════
+   DESKTOP NAV LINKS
+   ═════════════════════════════════════════════════════ */
+
+.nb-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
+.nb-link {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #888;
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  transition: color 0.2s, background 0.2s;
+  white-space: nowrap;
+}
+.nb-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+.nb-link.active {
+  color: #a3e635;
+  background: rgba(163, 230, 53, 0.12);
+  font-weight: 700;
+}
+
+/* ═════════════════════════════════════════════════════
+   AUTH ZONE (right side)
+   ═════════════════════════════════════════════════════ */
+
+.nb-auth {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.nb-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 14px rgba(163, 230, 53, 0.35);
+  transition: box-shadow 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+.nb-avatar:hover {
+  box-shadow: 0 0 22px rgba(163, 230, 53, 0.6);
+  transform: translateY(-1px);
+}
+.nb-logout {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #888;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 7px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  white-space: nowrap;
+}
+.nb-logout:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ═════════════════════════════════════════════════════
+   NOT-LOGGED-IN CTAs
+   ═════════════════════════════════════════════════════ */
+
+.nb-cta-login {
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #888;
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  transition: color 0.2s, background 0.2s;
+  white-space: nowrap;
+}
+.nb-cta-login:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+.nb-cta-get-started {
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #000;
+  text-decoration: none;
+  padding: 9px 18px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  box-shadow: 0 6px 20px -6px rgba(163, 230, 53, 0.55);
+  transition: transform 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+.nb-cta-get-started:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px -6px rgba(163, 230, 53, 0.75);
+}
+
+/* ═════════════════════════════════════════════════════
+   MOBILE TOGGLE
+   ═════════════════════════════════════════════════════ */
+
+.nb-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: border-color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+.nb-toggle:hover {
+  border-color: rgba(163, 230, 53, 0.5);
+  background: rgba(163, 230, 53, 0.06);
+}
+
+/* ═════════════════════════════════════════════════════
+   MOBILE PANEL
+   ═════════════════════════════════════════════════════ */
+
+.nb-mobile {
+  display: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(5, 5, 5, 0.95);
+  padding: 16px 24px 20px;
+  animation: nbSlideDown 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes nbSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.nb-mobile.open { display: block; }
+
+.nb-mobile-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.nb-mobile-link {
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #888;
+  text-decoration: none;
+  padding: 12px 14px;
+  border-radius: 12px;
+  transition: color 0.2s, background 0.2s;
+}
+.nb-mobile-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+.nb-mobile-link.active {
+  color: #a3e635;
+  background: rgba(163, 230, 53, 0.12);
+  font-weight: 700;
+}
+
+.nb-mobile-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 10px;
+  text-decoration: none;
+}
+.nb-mobile-user .nb-avatar {
+  width: 42px;
+  height: 42px;
+  font-size: 0.85rem;
+  border-radius: 50%;
+}
+.nb-mobile-user-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.nb-mobile-user-name {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nb-mobile-user-email {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 0.72rem;
+  color: #888;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nb-mobile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.nb-mobile-logout {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #888;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+.nb-mobile-logout:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.nb-mobile-cta {
+  display: block;
+  text-align: center;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #000;
+  text-decoration: none;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  box-shadow: 0 8px 24px -8px rgba(163, 230, 53, 0.6);
+  transition: transform 0.2s;
+}
+.nb-mobile-cta:hover { transform: translateY(-1px); }
+.nb-mobile-cta-ghost {
+  display: block;
+  text-align: center;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: border-color 0.2s;
+}
+.nb-mobile-cta-ghost:hover { border-color: rgba(255, 255, 255, 0.3); }
+
+/* ═════════════════════════════════════════════════════
+   THREE-DOT MENU
+   ═════════════════════════════════════════════════════ */
+
+.nb-menu-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.nb-menu-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #888;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+.nb-menu-btn:hover {
+  color: #fff;
+  border-color: rgba(163, 230, 53, 0.5);
+  background: rgba(163, 230, 53, 0.06);
+}
+.nb-menu-btn.open {
+  color: #a3e635;
+  border-color: #a3e635;
+  background: rgba(163, 230, 53, 0.12);
+}
+
+.nb-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 240px;
+  background: rgba(15, 15, 15, 0.98);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow:
+    0 20px 50px -12px rgba(0, 0, 0, 0.9),
+    0 0 24px -8px rgba(163, 230, 53, 0.15);
+  z-index: 200;
+  animation: nbMenuIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes nbMenuIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.nb-menu-label {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #52525b;
+  padding: 8px 12px 6px;
+}
+
+.nb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #e5e5e5;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+.nb-menu-item:hover:not(:disabled) {
+  background: rgba(163, 230, 53, 0.1);
+  color: #a3e635;
+}
+.nb-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.nb-menu-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.nb-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 6px 4px;
+}
+
+/* ═════════════════════════════════════════════════════
+   GENERIC TOAST (link copied, etc.)
+   ═════════════════════════════════════════════════════ */
+
+.nb-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #a3e635;
+  color: #000;
+  padding: 12px 22px;
+  border-radius: 14px;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  box-shadow: 0 12px 32px -8px rgba(163, 230, 53, 0.5);
+  z-index: 400;
+  animation: nbToastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+@keyframes nbToastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ═════════════════════════════════════════════════════
+   RESPONSIVE
+   ═════════════════════════════════════════════════════ */
+
+@media (max-width: 820px) {
+  .nb-links,
+  .nb-auth,
+  .nb-cta-login,
+  .nb-cta-get-started {
+    display: none;
+  }
+  .nb-toggle {
+    display: flex;
+  }
+  .nb-menu-wrap {
+    display: none;
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   SMALL PDF DOWNLOAD TOAST
+   ═════════════════════════════════════════════════════ */
+
+.pdf-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px 12px 14px;
+  background: #0b0b0b;
+  border: 1px solid rgba(163, 230, 53, 0.4);
+  border-radius: 14px;
+  box-shadow:
+    0 16px 40px -12px rgba(0, 0, 0, 0.9),
+    0 0 24px -6px rgba(163, 230, 53, 0.35);
+  z-index: 9999;
+  font-family: 'Poppins', system-ui, sans-serif;
+  min-width: 220px;
+  animation: pdfToastIn 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+@keyframes pdfToastIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.pdf-toast.done {
+  border-color: rgba(163, 230, 53, 0.85);
+  box-shadow:
+    0 16px 40px -12px rgba(0, 0, 0, 0.9),
+    0 0 32px -4px rgba(163, 230, 53, 0.55);
+}
+
+.pdf-toast__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(163, 230, 53, 0.12);
+  color: #a3e635;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.pdf-toast.done .pdf-toast__icon {
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  color: #000;
+  box-shadow: 0 0 16px rgba(163, 230, 53, 0.6);
+}
+
+.pdf-toast__spinner {
+  animation: pdfToastSpin 0.9s linear infinite;
+}
+
+@keyframes pdfToastSpin {
+  to { transform: rotate(360deg); }
+}
+
+.pdf-toast__check {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: pdfToastDraw 0.45s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+@keyframes pdfToastDraw {
+  to { stroke-dashoffset: 0; }
+}
+
+.pdf-toast__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.pdf-toast__title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.pdf-toast.done .pdf-toast__title {
+  color: #a3e635;
+}
+
+.pdf-toast__sub {
+  font-size: 0.72rem;
+  color: #888;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .pdf-toast {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    min-width: 0;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .pdf-toast,
+  .pdf-toast__spinner,
+  .pdf-toast__check {
+    animation: none !important;
+  }
+  .pdf-toast__check {
+    stroke-dashoffset: 0;
+  }
+}
+```
+
+### frontend/src/components/Navbar.jsx
+
+```
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useTripActions } from "../context/TripActionsContext";
+import "./Navbar.css";
+
+const NAV_LINKS = [
+  { to: "/", label: "Home" },
+  { to: "/trips/new", label: "Create" },
+  { to: "/trips", label: "My Trips" },
+  { to: "/weather", label: "Weather" },
+  { to: "/journal", label: "Journal" },
+];
+
+const loadHtml2Pdf = () => {
+  if (window.html2pdf) return Promise.resolve(window.html2pdf);
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    s.onload = () => resolve(window.html2pdf);
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+};
+
+const Navbar = () => {
+  const { user, logout } = useAuth();
+  const { actions } = useTripActions();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [toast, setToast] = useState("");
+  const [pdfState, setPdfState] = useState("idle");
+
+  const menuRef = useRef(null);
+  const audioRef = useRef({ ac: null, noiseBuf: null });
+  const path = location.pathname;
+
+  /* ─── Audio helpers ─── */
+  const getAudio = () => {
+    const a = audioRef.current;
+    if (!a.ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      a.ac = new AC();
+      const len = a.ac.sampleRate * 1.5;
+      a.noiseBuf = a.ac.createBuffer(1, len, a.ac.sampleRate);
+      const d = a.noiseBuf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (a.ac.state === "suspended") a.ac.resume();
+    return a.ac;
+  };
+
+  useEffect(() => {
+    const unlock = () => {
+      getAudio();
+      window.removeEventListener("pointerdown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    return () => window.removeEventListener("pointerdown", unlock);
+  }, []);
+
+  const sPress = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    o.type = "square";
+    o.frequency.setValueAtTime(820, t);
+    o.frequency.exponentialRampToValueAtTime(230, t + 0.05);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.08, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.09);
+  };
+
+  const sPing = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const o = ctx.createOscillator();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(1200, t);
+    o.frequency.exponentialRampToValueAtTime(1188, t + 0.4);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.12, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+    o.connect(g).connect(ctx.destination);
+    o.start(t);
+    o.stop(t + 0.46);
+  };
+
+  const sVictory = (t) => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const notes = [784, 988, 1174];
+    notes.forEach((freq, i) => {
+      const st = t + i * 0.06;
+      const o = ctx.createOscillator();
+      o.type = "triangle";
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.08, st + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.5);
+      o.connect(g).connect(ctx.destination);
+      o.start(st);
+      o.stop(st + 0.55);
+    });
+  };
+
+  const playPDFSounds = () => {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const t = ctx.currentTime + 0.02;
+    sPress(t);
+    sPing(t + 0.15);
+    sVictory(t + 0.35);
+  };
+
+  /* ─── PDF export ─── */
+  const runPDFExport = async () => {
+    const target = document.getElementById("itineraryPaper");
+    const holder = document.getElementById("itnHolder");
+    if (!target) {
+      console.warn("[Navbar PDF] target #itineraryPaper not found");
+      return;
+    }
+    if (holder) holder.classList.add("is-exporting");
+    await new Promise((r) => setTimeout(r, 250));
+
+    try {
+      const html2pdf = await loadHtml2Pdf();
+      const filename = actions?.trip?.destination
+        ? `${actions.trip.destination.replace(/\s+/g, "-")}-itinerary.pdf`
+        : "itinerary.pdf";
+
+      await html2pdf()
+        .set({
+          margin: [10, 10, 10, 10],
+          filename,
+          image: { type: "jpeg", quality: 0.95 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: [".itn-day", ".itn-hotel", ".itn-table tr", ".itn-foot"],
+          },
+        })
+        .from(target)
+        .save();
+    } catch (err) {
+      console.error("[Navbar PDF] failed:", err);
+      window.print();
+    } finally {
+      if (holder) holder.classList.remove("is-exporting");
+    }
+  };
+
+  const handleTripPDF = () => {
+    setMenuOpen(false);
+    if (pdfState !== "idle") return;
+
+    setPdfState("loading");
+    playPDFSounds();
+
+    setTimeout(() => {
+      setPdfState("done");
+      runPDFExport();
+    }, 900);
+
+    setTimeout(() => setPdfState("idle"), 3600);
+  };
+
+  /* ─── Nav helpers ─── */
+  const isLinkActive = (to) => {
+    if (to === "/") return path === "/";
+    if (to === "/trips/new") return path === "/trips/new";
+    if (to === "/weather")
+      return path.startsWith("/weather") || path.includes("/weather-itinerary");
+    if (to === "/journal")
+      return path.startsWith("/journal") || path.includes("/journal");
+    if (to === "/trips") {
+      if (path === "/trips/new") return false;
+      if (path.includes("/weather-itinerary")) return false;
+      if (path.includes("/journal")) return false;
+      return path === "/trips" || path.startsWith("/trips/");
+    }
+    return path.startsWith(to);
+  };
+
+  const handleLogout = () => {
+    setOpen(false);
+    setMenuOpen(false);
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const initials = (user?.name || "?")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const closeMobile = () => setOpen(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [path]);
+
+  const showToast = (text) => {
+    setToast(text);
+    setTimeout(() => setToast(""), 2000);
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = document.title || "AI Travel Planner";
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+        setMenuOpen(false);
+        return;
+      } catch (err) {
+        if (err.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied to clipboard");
+    } catch {
+      showToast("Could not copy link");
+    }
+    setMenuOpen(false);
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      showToast("Link copied");
+    } catch {
+      showToast("Could not copy");
+    }
+    setMenuOpen(false);
+  };
+
+  const handleProfile = () => {
+    setMenuOpen(false);
+    navigate("/profile");
+  };
+
+  const handleTripJournal = () => {
+    setMenuOpen(false);
+    if (actions?.trip?._id) navigate(`/trips/${actions.trip._id}/journal`);
+  };
+
+  const handleTripShare = () => {
+    setMenuOpen(false);
+    if (actions?.onShare) actions.onShare();
+  };
+
+  return (
+    <>
+      <nav className="nb-root">
+        <div className="nb-inner">
+          <Link to="/" className="nb-brand" onClick={closeMobile}>
+            <span className="nb-brand-text">
+              AI Travel <span className="nb-brand-accent">Planner</span>
+            </span>
+          </Link>
+
+          <div className="nb-links">
+            {NAV_LINKS.map((l) => (
+              <Link
+                key={l.label}
+                to={l.to}
+                className={`nb-link ${isLinkActive(l.to) ? "active" : ""}`}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
+
+          {user ? (
+            <div className="nb-auth">
+              <Link to="/profile" className="nb-avatar" title={user.name}>
+                {initials}
+              </Link>
+              <button type="button" className="nb-logout" onClick={handleLogout}>
+                Logout
+              </button>
+
+              <div className="nb-menu-wrap" ref={menuRef}>
+                <button
+                  type="button"
+                  className={`nb-menu-btn ${menuOpen ? "open" : ""}`}
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-label="More options"
+                  aria-expanded={menuOpen}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.8" />
+                    <circle cx="12" cy="12" r="1.8" />
+                    <circle cx="12" cy="19" r="1.8" />
+                  </svg>
+                </button>
+
+                {menuOpen && (
+                  <div className="nb-menu">
+                    {actions ? (
+                      <>
+                        <div className="nb-menu-label">Trip actions</div>
+
+                        <button
+                          type="button"
+                          className="nb-menu-item"
+                          onClick={handleTripPDF}
+                          disabled={pdfState !== "idle"}
+                        >
+                          <span className="nb-menu-icon">📄</span>
+                          <span>
+                            {pdfState === "loading"
+                              ? "Preparing PDF…"
+                              : pdfState === "done"
+                              ? "PDF Downloaded!"
+                              : "Export PDF"}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="nb-menu-item"
+                          onClick={handleTripJournal}
+                        >
+                          <span className="nb-menu-icon">📓</span>
+                          <span>View Journal</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="nb-menu-item"
+                          onClick={handleTripShare}
+                          disabled={actions.shareLoading}
+                        >
+                          <span className="nb-menu-icon">🔗</span>
+                          <span>
+                            {actions.shareLoading
+                              ? "Creating..."
+                              : "Share Trip"}
+                          </span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="nb-menu-item"
+                          onClick={handleShare}
+                        >
+                          <span className="nb-menu-icon">🔗</span>
+                          <span>Share this page</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="nb-menu-item"
+                          onClick={handleCopyLink}
+                        >
+                          <span className="nb-menu-icon">📋</span>
+                          <span>Copy link</span>
+                        </button>
+                        <div className="nb-menu-divider" />
+                        <button
+                          type="button"
+                          className="nb-menu-item"
+                          onClick={handleProfile}
+                        >
+                          <span className="nb-menu-icon">👤</span>
+                          <span>Profile</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="nb-auth">
+              <Link to="/login" className="nb-cta-login">
+                Login
+              </Link>
+              <Link to="/register" className="nb-cta-get-started">
+                Get Started
+              </Link>
+
+              <div className="nb-menu-wrap" ref={menuRef}>
+                <button
+                  type="button"
+                  className={`nb-menu-btn ${menuOpen ? "open" : ""}`}
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-label="More options"
+                  aria-expanded={menuOpen}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.8" />
+                    <circle cx="12" cy="12" r="1.8" />
+                    <circle cx="12" cy="19" r="1.8" />
+                  </svg>
+                </button>
+
+                {menuOpen && (
+                  <div className="nb-menu">
+                    <button
+                      type="button"
+                      className="nb-menu-item"
+                      onClick={handleShare}
+                    >
+                      <span className="nb-menu-icon">🔗</span>
+                      <span>Share this page</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="nb-menu-item"
+                      onClick={handleCopyLink}
+                    >
+                      <span className="nb-menu-icon">📋</span>
+                      <span>Copy link</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="nb-toggle"
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Toggle menu"
+            aria-expanded={open}
+          >
+            {open ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
+        </div>
+
+        <div className={`nb-mobile ${open ? "open" : ""}`}>
+          <div className="nb-mobile-links">
+            {NAV_LINKS.map((l) => (
+              <Link
+                key={l.label}
+                to={l.to}
+                onClick={closeMobile}
+                className={`nb-mobile-link ${isLinkActive(l.to) ? "active" : ""}`}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="nb-mobile-actions">
+            <button type="button" className="nb-mobile-logout" onClick={handleShare}>
+              🔗 Share this page
+            </button>
+            <button type="button" className="nb-mobile-logout" onClick={handleCopyLink}>
+              📋 Copy link
+            </button>
+          </div>
+
+          {user ? (
+            <>
+              <Link to="/profile" className="nb-mobile-user" onClick={closeMobile}>
+                <span className="nb-avatar">{initials}</span>
+                <span className="nb-mobile-user-info">
+                  <span className="nb-mobile-user-name">{user.name}</span>
+                  <span className="nb-mobile-user-email">{user.email}</span>
+                </span>
+              </Link>
+              <div className="nb-mobile-actions">
+                <button type="button" className="nb-mobile-logout" onClick={handleLogout}>
+                  Logout
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="nb-mobile-actions">
+              <Link to="/register" className="nb-mobile-cta" onClick={closeMobile}>
+                Get Started
+              </Link>
+              <Link to="/login" className="nb-mobile-cta-ghost" onClick={closeMobile}>
+                Login
+              </Link>
+            </div>
+          )}
+        </div>
+      </nav>
+
+      {toast && <div className="nb-toast">{toast}</div>}
+
+      {pdfState !== "idle" && (
+        <div className={`pdf-toast ${pdfState}`} role="status" aria-live="polite">
+          <div className="pdf-toast__icon">
+            {pdfState === "loading" ? (
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
+                strokeLinejoin="round" className="pdf-toast__spinner">
+                <path d="M21 12a9 9 0 1 1-6.2-8.5" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"
+                strokeLinejoin="round" className="pdf-toast__check">
+                <path d="M4 12.5l5 5L20 6.5" />
+              </svg>
+            )}
+          </div>
+          <div className="pdf-toast__text">
+            <div className="pdf-toast__title">
+              {pdfState === "loading" ? "Preparing PDF" : "PDF Downloaded"}
+            </div>
+            <div className="pdf-toast__sub">
+              {pdfState === "loading"
+                ? "Just a moment…"
+                : "Check your downloads folder"}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default Navbar;
+```
+
+### frontend/src/components/Skeleton.jsx
+
+```
+/**
+ * Reusable skeleton placeholder.
+ *
+ * Usage:
+ *   <Skeleton variant="text" width="60%" />
+ *   <Skeleton variant="circular" width={40} height={40} />
+ *   <Skeleton variant="rectangular" width="100%" height={200} />
+ *   <Skeleton variant="card" />           // image + title + lines
+ */
+const Skeleton = ({
+  variant = "rectangular",
+  width,
+  height,
+  className = "",
+  style = {},
+  count = 1,
+  rounded,
+}) => {
+  const baseClass = "skeleton";
+  const variantClass = {
+    text: "skeleton-text",
+    circular: "skeleton-circle",
+    rectangular: "skeleton-img",
+    card: "",
+  }[variant] || "";
+
+  const autoRounded =
+    rounded !== undefined
+      ? rounded
+      : variant === "text"
+      ? "6px"
+      : variant === "circular"
+      ? "50%"
+      : "12px";
+
+  const inlineStyle = {
+    width,
+    height,
+    borderRadius: autoRounded,
+    ...style,
+  };
+
+  // Count = render N stacked skeletons
+  if (count > 1) {
+    return (
+      <div className={`space-y-2 ${className}`}>
+        {[...Array(count)].map((_, i) => (
+          <div key={i} className={`${baseClass} ${variantClass}`} style={inlineStyle} />
+        ))}
+      </div>
+    );
+  }
+
+  // card = composite (image + title + 2 lines)
+  if (variant === "card") {
+    return (
+      <div className={`animate-fade-in ${className}`}>
+        <div className={`${baseClass} skeleton-img`} style={{ width: "100%", aspectRatio: "4 / 3" }} />
+        <div className={`${baseClass} skeleton-text`} style={{ width: "70%", height: 18, marginTop: 12 }} />
+        <div className={`${baseClass} skeleton-text`} style={{ width: "45%", height: 12, marginTop: 8 }} />
+      </div>
+    );
+  }
+
+  return <div className={`${baseClass} ${variantClass} ${className}`} style={inlineStyle} />;
+};
+
+export default Skeleton;
+```
+
+### frontend/src/components/SubmitButton.css
+
+```
+/* frontend/src/components/SubmitButton.css */
+
+.sb-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  min-width: 180px;
+  padding: 0 28px;
+  border-radius: 9999px;
+  background: transparent;
+  border: 2px solid #a3e635;
+  color: #a3e635;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  overflow: hidden;
+  outline: none;
+  transition:
+    width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    min-width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    transform 0.15s ease,
+    box-shadow 0.3s ease;
+}
+
+.sb-btn:hover:not(:disabled) {
+  background: #a3e635;
+  color: #000;
+  box-shadow: 0 10px 30px -8px rgba(163, 230, 53, 0.6);
+}
+
+.sb-btn:active:not(:disabled) {
+  transform: scale(0.97);
+  letter-spacing: 0.08em;
+}
+
+.sb-btn:focus-visible {
+  outline: 2px solid #a3e635;
+  outline-offset: 4px;
+}
+
+.sb-btn:disabled {
+  cursor: not-allowed;
+}
+
+.sb-btn.is-loading {
+  width: 46px;
+  min-width: 46px;
+  padding: 0;
+  background: transparent;
+  border-color: rgba(163, 230, 53, 0.18);
+  border-left-color: #a3e635;
+  border-width: 3px;
+  color: transparent;
+  animation: sb-rotate 1s linear infinite;
+  box-shadow: 0 0 24px -8px rgba(163, 230, 53, 0.6);
+  pointer-events: none;
+}
+
+.sb-btn.is-loading .sb-label {
+  display: none;
+}
+
+@keyframes sb-rotate {
+  to { transform: rotate(360deg); }
+}
+
+.sb-btn.is-success {
+  width: 46px;
+  min-width: 46px;
+  padding: 0;
+  background: #a3e635;
+  border-color: #a3e635;
+  color: #000;
+  animation: none;
+  box-shadow:
+    0 0 0 4px rgba(163, 230, 53, 0.2),
+    0 10px 30px -8px rgba(163, 230, 53, 0.7);
+}
+
+.sb-btn.is-success .sb-label {
+  display: none;
+}
+
+.sb-check {
+  width: 22px;
+  height: 22px;
+  color: #000;
+}
+
+.sb-check polyline {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: sb-draw 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.05s forwards;
+}
+
+@keyframes sb-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.sb-label {
+  display: inline-block;
+  white-space: nowrap;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-btn {
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .sb-btn.is-loading {
+    animation-duration: 3s;
+  }
+  .sb-check polyline {
+    animation-duration: 0.01ms;
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .sb-btn {
+    width: 100%;
+    min-width: 0;
+  }
+  .sb-btn.is-loading,
+  .sb-btn.is-success {
+    width: 46px;
+    min-width: 46px;
+    margin-left: auto;
+  }
+}
+```
+
+### frontend/src/components/SubmitButton.jsx
+
+```
+import "./SubmitButton.css";
+
+const SubmitButton = ({
+  children = "Generate Trip",
+  state = "idle",
+  type = "submit",
+  onClick,
+  disabled = false,
+}) => {
+  const isLoading = state === "loading";
+  const isSuccess = state === "success";
+  const isDisabled = disabled || isLoading;
+
+  return (
+    <button
+      type={type}
+      className={`sb-btn ${isLoading ? "is-loading" : ""} ${
+        isSuccess ? "is-success" : ""
+      }`}
+      onClick={onClick}
+      disabled={isDisabled}
+      aria-busy={isLoading}
+    >
+      {isSuccess ? (
+        <svg
+          className="sb-check"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <span className="sb-label">{children}</span>
+      )}
+    </button>
+  );
+};
+
+export default SubmitButton;
+```
+
+### frontend/src/components/TripMap.css
+
+```
+/* frontend/src/components/TripMap.css */
+
+/* Wrapper isolates the map into its own stacking context */
+.trip-map-wrap {
+  position: relative;
+  z-index: 0;            /* LOW — below navbar (100) and other UI */
+  isolation: isolate;    /* creates a new stacking context */
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #050505;
+  box-shadow:
+    0 16px 40px -20px rgba(0, 0, 0, 0.9),
+    0 0 30px -12px rgba(163, 230, 53, 0.15);
+}
+
+/* Force the Leaflet container to stay inside the wrapper */
+.trip-map-wrap .leaflet-container {
+  z-index: 0 !important;
+  border-radius: 20px;
+  font-family: 'Poppins', system-ui, sans-serif;
+  background: #0b0b0b;
+}
+
+/* Keep Leaflet's internal panes from escaping above the navbar */
+.trip-map-wrap .leaflet-pane,
+.trip-map-wrap .leaflet-top,
+.trip-map-wrap .leaflet-bottom {
+  z-index: auto !important;
+}
+
+.trip-map-wrap .leaflet-pane { z-index: 400 !important; }
+.trip-map-wrap .leaflet-tile-pane    { z-index: 200 !important; }
+.trip-map-wrap .leaflet-overlay-pane { z-index: 400 !important; }
+.trip-map-wrap .leaflet-shadow-pane  { z-index: 500 !important; }
+.trip-map-wrap .leaflet-marker-pane  { z-index: 600 !important; }
+.trip-map-wrap .leaflet-tooltip-pane { z-index: 650 !important; }
+.trip-map-wrap .leaflet-popup-pane   { z-index: 700 !important; }
+
+/* Leaflet controls (zoom +/-) */
+.trip-map-wrap .leaflet-top,
+.trip-map-wrap .leaflet-bottom {
+  z-index: 800 !important;
+}
+
+/* Zoom buttons — dark glass */
+.trip-map-wrap .leaflet-control-zoom {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.9);
+}
+.trip-map-wrap .leaflet-control-zoom a {
+  background: rgba(11, 11, 11, 0.95) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  font-weight: 700;
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  font-size: 18px !important;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.trip-map-wrap .leaflet-control-zoom a:hover {
+  background: #a3e635 !important;
+  color: #000000 !important;
+  border-color: #a3e635 !important;
+}
+.trip-map-wrap .leaflet-control-zoom a.leaflet-disabled {
+  background: rgba(11, 11, 11, 0.6) !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Attribution bar — dark glass */
+.trip-map-wrap .leaflet-control-attribution {
+  background: rgba(11, 11, 11, 0.85) !important;
+  color: #888888 !important;
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 10px 0 0 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+.trip-map-wrap .leaflet-control-attribution a {
+  color: #a3e635 !important;
+  text-decoration: none;
+  font-weight: 700;
+}
+.trip-map-wrap .leaflet-control-attribution a:hover {
+  color: #bef264 !important;
+  text-decoration: underline;
+}
+
+/* Popups — dark card */
+.trip-map-wrap .leaflet-popup-content-wrapper {
+  background: #0b0b0b;
+  color: #ffffff;
+  border: 1px solid rgba(163, 230, 53, 0.35);
+  border-radius: 14px;
+  box-shadow:
+    0 16px 32px -12px rgba(0, 0, 0, 0.95),
+    0 0 24px -8px rgba(163, 230, 53, 0.25);
+}
+.trip-map-wrap .leaflet-popup-content {
+  margin: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.trip-map-wrap .leaflet-popup-content strong {
+  color: #ffffff;
+  font-weight: 800;
+}
+.trip-map-wrap .leaflet-popup-tip {
+  background: #0b0b0b;
+  border: 1px solid rgba(163, 230, 53, 0.35);
+  box-shadow: none;
+}
+.trip-map-wrap .leaflet-popup-close-button {
+  color: #888888 !important;
+  font-size: 18px !important;
+  padding: 6px 8px !important;
+}
+.trip-map-wrap .leaflet-popup-close-button:hover {
+  color: #a3e635 !important;
+}
+```
+
+### frontend/src/components/TripMap.jsx
+
+```
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import "./TripMap.css";
+
+/* Fix default marker icons (known Leaflet+React quirk) */
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+/* Red marker icon for tourist attractions */
+const redIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
+  shadowUrl:
+    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const TripMap = ({ lat, lng, label, places = [] }) => {
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+
+  return (
+    <div className="trip-map-wrap">
+      <MapContainer
+        center={[lat, lng]}
+        zoom={11}
+        style={{ height: "360px", width: "100%" }}
+        scrollWheelZoom={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        <Marker position={[lat, lng]}>
+          <Popup>{label}</Popup>
+        </Marker>
+
+        {places.map((p) => (
+          <Marker key={p.id} position={[p.lat, p.lng]} icon={redIcon}>
+            <Popup>
+              <strong>{p.name}</strong>
+              <br />
+              <span style={{ fontSize: 12, color: "#666" }}>{p.type}</span>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
+  );
+};
+
+export default TripMap;
+```
+
+### frontend/src/components/WeatherIcon.jsx
+
+```
+// frontend/src/components/WeatherIcon.jsx — NEW FILE
+import { useMemo } from "react";
+
+/* WMO code → animation type */
+export function decodeWeatherCode(code) {
+  if (code === 0) return { type: "sun", label: "Clear Sky" };
+  if (code === 1) return { type: "partly", label: "Mainly Clear" };
+  if (code === 2) return { type: "partly", label: "Partly Cloudy" };
+  if (code === 3) return { type: "cloud", label: "Overcast" };
+  if (code === 45 || code === 48) return { type: "fog", label: "Foggy" };
+  if (code >= 51 && code <= 57) return { type: "drizzle", label: "Drizzle" };
+  if (code >= 61 && code <= 67) return { type: "rain", label: "Rain" };
+  if (code >= 71 && code <= 77) return { type: "snow", label: "Snow" };
+  if (code >= 80 && code <= 82) return { type: "rain", label: "Rain Showers" };
+  if (code >= 85 && code <= 86) return { type: "snow", label: "Snow Showers" };
+  if (code >= 95 && code <= 99) return { type: "thunder", label: "Thunderstorm" };
+  return { type: "cloud", label: "Mixed" };
+}
+
+let _uid = 0;
+
+function renderWxSvg(type) {
+  const uid = ++_uid;
+
+  const defs = `<defs>
+    <radialGradient id="wfSunCore-${uid}" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#fffbe6"/>
+      <stop offset="35%" stop-color="#fde047"/>
+      <stop offset="70%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </radialGradient>
+    <radialGradient id="wfSunGlow-${uid}" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fde047" stop-opacity="0.85"/>
+      <stop offset="55%" stop-color="#fbbf24" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wfRay-${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="wfCloud-${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+    <linearGradient id="wfCloudBack-${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="wfStorm-${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="wfDrop-${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="55%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="wfBolt-${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff7cc"/>
+      <stop offset="50%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="wfBlur-${uid}" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.4"/>
+    </filter>
+    <filter id="wfGlow-${uid}" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+  </defs>`;
+
+  const wrap = (inner) =>
+    `<svg class="wf-wx-icon" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">${defs}${inner}</svg>`;
+
+  const cloud = `<path d="M22 58 h38 c5 0 9 -4 9 -9 c0 -5 -4 -9 -9 -9 c-1 -8 -8 -14 -16 -14 c-7 0 -13 4 -15 11 c-1 -1 -3 -1 -4 -1 c-5 0 -9 4 -9 9 c0 5 4 9 9 9 z" fill="url(#wfCloud-${uid})" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" stroke-linejoin="round"/>`;
+  const cloudBack = `<path d="M22 56 h38 c5 0 9 -4 9 -9 c0 -5 -4 -9 -9 -9 c-1 -8 -8 -14 -16 -14 c-7 0 -13 4 -15 11 c-1 -1 -3 -1 -4 -1 c-5 0 -9 4 -9 9 c0 5 4 9 9 9 z" fill="url(#wfCloudBack-${uid})" stroke="rgba(255,255,255,0.35)" stroke-width="0.8" stroke-linejoin="round"/>`;
+  const storm = `<path d="M18 56 h44 c6 0 10 -4 10 -10 c0 -6 -4 -10 -10 -10 c-1 -9 -9 -16 -18 -16 c-8 0 -15 5 -17 13 c-1 -1 -3 -1 -4 -1 c-6 0 -11 5 -11 11 c0 6 5 13 6 13 z" fill="url(#wfStorm-${uid})" stroke="rgba(255,255,255,0.3)" stroke-width="0.8" stroke-linejoin="round"/>`;
+
+  if (type === "sun") {
+    const rays = Array.from({ length: 12 }, (_, i) => {
+      const a = (i * 360) / 12;
+      return `<rect x="38.6" y="6" width="2.8" height="10" rx="1.4" fill="url(#wfRay-${uid})" transform="rotate(${a} 40 40)"/>`;
+    }).join("");
+    return wrap(`
+      <circle class="wf-wx-sun-glow" cx="40" cy="40" r="28" fill="url(#wfSunGlow-${uid})"/>
+      <g class="wf-wx-sun-rays">${rays}</g>
+      <circle class="wf-wx-sun-core" cx="40" cy="40" r="15" fill="url(#wfSunCore-${uid})"/>
+      <ellipse cx="35" cy="33" rx="6" ry="4.5" fill="#ffffff" opacity="0.55" filter="url(#wfBlur-${uid})"/>
+      <circle cx="40" cy="40" r="15" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+    `);
+  }
+
+  if (type === "cloud") {
+    return wrap(`
+      <g class="wf-wx-cloud">${cloudBack}${cloud}
+        <ellipse cx="30" cy="38" rx="10" ry="5" fill="#ffffff" opacity="0.35" filter="url(#wfBlur-${uid})"/>
+      </g>
+    `);
+  }
+
+  if (type === "partly") {
+    const rays = Array.from({ length: 8 }, (_, i) => {
+      const a = (i * 360) / 8;
+      return `<rect x="54.6" y="6" width="2.8" height="8" rx="1.4" fill="url(#wfRay-${uid})" transform="rotate(${a} 56 10)"/>`;
+    }).join("");
+    return wrap(`
+      <circle class="wf-wx-sun-glow" cx="56" cy="20" r="18" fill="url(#wfSunGlow-${uid})"/>
+      <g class="wf-wx-sun-rays" style="transform-origin:56px 20px">${rays}</g>
+      <circle class="wf-wx-sun-core" cx="56" cy="20" r="9" fill="url(#wfSunCore-${uid})"/>
+      <ellipse cx="53" cy="17" rx="3.5" ry="2.8" fill="#fff" opacity="0.6" filter="url(#wfBlur-${uid})"/>
+      <g class="wf-wx-cloud" style="transform-origin:40px 50px">${cloudBack}${cloud}
+        <ellipse cx="30" cy="38" rx="10" ry="5" fill="#ffffff" opacity="0.4" filter="url(#wfBlur-${uid})"/>
+      </g>
+    `);
+  }
+
+  if (type === "rain") {
+    const drops = [
+      [22, 68, 0], [32, 68, 0.28], [42, 68, 0.55], [52, 68, 0.83], [62, 68, 1.1],
+    ].map(([x, y, d]) => `
+      <g class="wf-wx-raindrop" style="animation-delay:${d}s">
+        <path d="M${x} ${y-6} c -3 4 -3 8 0 10 c 3 -2 3 -6 0 -10 z" fill="url(#wfDrop-${uid})" stroke="rgba(255,255,255,0.5)" stroke-width="0.5"/>
+        <circle cx="${x}" cy="${y+2}" r="0.9" fill="#ffffff" opacity="0.85"/>
+      </g>`).join("");
+    return wrap(`<g class="wf-wx-cloud-back" style="transform-origin:40px 40px">${storm}</g><g class="wf-wx-cloud">${cloud}</g>${drops}`);
+  }
+
+  if (type === "drizzle") {
+    const drops = [[26, 68, 0], [40, 68, 0.35], [54, 68, 0.7]]
+      .map(([x, y, d]) => `
+      <g class="wf-wx-raindrop" style="animation-delay:${d}s">
+        <path d="M${x} ${y-4} c -2 3 -2 6 0 8 c 2 -2 2 -5 0 -8 z" fill="url(#wfDrop-${uid})" stroke="rgba(255,255,255,0.5)" stroke-width="0.4"/>
+      </g>`).join("");
+    return wrap(`<g class="wf-wx-cloud">${cloud}</g>${drops}`);
+  }
+
+  if (type === "thunder") {
+    return wrap(`
+      <g class="wf-wx-cloud-back" style="transform-origin:40px 40px">${storm}</g>
+      <g class="wf-wx-cloud">${cloud}</g>
+      <path class="wf-wx-bolt-glow" d="M42 52 L32 64 L40 64 L34 76 L50 60 L42 60 L46 52 Z" fill="#fde047" filter="url(#wfGlow-${uid})"/>
+      <path class="wf-wx-bolt" d="M42 52 L32 64 L40 64 L34 76 L50 60 L42 60 L46 52 Z" fill="url(#wfBolt-${uid})" stroke="#fffbe6" stroke-width="1" stroke-linejoin="round"/>
+    `);
+  }
+
+  if (type === "snow") {
+    const flake = (cx, cy, i) => `
+      <g class="wf-wx-snowflake" style="animation-delay:${i * 0.75}s;transform-origin:${cx}px ${cy}px">
+        <g transform="translate(${cx} ${cy})">
+          <line x1="0" y1="-4" x2="0" y2="4" stroke="#f0f9ff" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="-3.5" y1="-2" x2="3.5" y2="2" stroke="#f0f9ff" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="-3.5" y1="2" x2="3.5" y2="-2" stroke="#f0f9ff" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="0" cy="0" r="1.2" fill="#ffffff"/>
+        </g>
+      </g>`;
+    return wrap(`<g class="wf-wx-cloud">${cloud}</g>${flake(24, 70, 0)}${flake(40, 70, 1)}${flake(56, 70, 2)}`);
+  }
+
+  if (type === "fog") {
+    return wrap(`
+      <g class="wf-wx-cloud">${cloud}</g>
+      <g class="wf-wx-fog-wave"><path d="M14 66 q6 -3 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/></g>
+      <g class="wf-wx-fog-wave"><path d="M10 72 q6 -3 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/></g>
+      <g class="wf-wx-fog-wave"><path d="M14 78 q6 -3 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/></g>
+    `);
+  }
+
+  return wrap(`<circle cx="40" cy="40" r="14" fill="none" stroke="#cbd5e1" stroke-width="2"/>`);
+}
+
+export default function WeatherIcon({ type, size = 72 }) {
+  const svg = useMemo(() => renderWxSvg(type), [type]);
+  return (
+    <span
+      style={{ display: "inline-block", width: size, height: size }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+```
+
+### frontend/src/components/WeatherSlider.jsx
+
+```
+import { useEffect, useMemo, useRef, useState } from "react";
+
+/* ============================================================
+   WMO CODE TABLE
+   ============================================================ */
+const WMO = {
+  0: { icon: "☀️", label: "Clear" },
+  1: { icon: "🌤️", label: "Mainly clear" },
+  2: { icon: "⛅", label: "Partly cloudy" },
+  3: { icon: "☁️", label: "Overcast" },
+  45: { icon: "🌫️", label: "Fog" },
+  48: { icon: "🌫️", label: "Rime fog" },
+  51: { icon: "🌦️", label: "Light drizzle" },
+  53: { icon: "🌦️", label: "Drizzle" },
+  55: { icon: "🌧️", label: "Dense drizzle" },
+  61: { icon: "🌦️", label: "Light rain" },
+  63: { icon: "🌧️", label: "Rain" },
+  65: { icon: "🌧️", label: "Heavy rain" },
+  71: { icon: "🌨️", label: "Light snow" },
+  73: { icon: "🌨️", label: "Snow" },
+  75: { icon: "❄️", label: "Heavy snow" },
+  77: { icon: "❄️", label: "Snow grains" },
+  80: { icon: "🌦️", label: "Showers" },
+  81: { icon: "🌧️", label: "Showers" },
+  82: { icon: "⛈️", label: "Violent showers" },
+  85: { icon: "🌨️", label: "Snow showers" },
+  86: { icon: "❄️", label: "Heavy snow" },
+  95: { icon: "⛈️", label: "Thunderstorm" },
+  96: { icon: "⛈️", label: "Storm + hail" },
+  99: { icon: "⛈️", label: "Storm + hail" },
+};
+const describe = (c) => WMO[c] || { icon: "🌡️", label: "Unsettled" };
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const pad = (n) => String(n).padStart(2, "0");
+const toISO = (d) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromISO = (s) => {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const fmtShort = (iso) =>
+  fromISO(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const mean = (arr) =>
+  arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+
+/* ============================================================
+   AI-STYLE TIP GENERATOR (based on weather)
+   ============================================================ */
+function generateTip(day) {
+  const label = describe(day.code).label.toLowerCase();
+  if (day.pop >= 60) {
+    return "⚠️ High rain chance — best for indoor museums, cafés, and shopping districts.";
+  }
+  if (day.pop >= 40) {
+    return "Carry an umbrella — mix indoor and outdoor stops today.";
+  }
+  if (day.max >= 32) {
+    return "☀️ Hot day — plan outdoor activities early morning, stay hydrated.";
+  }
+  if (day.max <= 5) {
+    return "❄️ Cold day — dress warm, ideal for scenic walks and hot drinks.";
+  }
+  if (label.includes("clear") || label.includes("sunny")) {
+    return "Perfect weather for outdoor sightseeing, photography, and walking tours.";
+  }
+  return "Comfortable weather — a great day to explore the destination.";
+}
+
+/* ============================================================
+   COMPONENT
+   ============================================================ */
+const WeatherSlider = ({ lat, lng, startDate, endDate }) => {
+  const [series, setSeries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [unit, setUnit] = useState("C");
+  const [filter, setFilter] = useState("all");
+  const [activeDay, setActiveDay] = useState(1);
+  const [motionOn, setMotionOn] = useState(false);
+  const [progress, setProgress] = useState(6);
+
+  const trackRef = useRef(null);
+  const motionRef = useRef(null);
+  const dragRef = useRef({ dragging: false, startX: 0, startLeft: 0 });
+
+  /* ---------- Fetch data ---------- */
+  useEffect(() => {
+    if (!lat || !lng || !startDate || !endDate) return;
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const sISO = toISO(new Date(startDate));
+        const eISO = toISO(new Date(endDate));
+        const days =
+          Math.round((fromISO(eISO) - fromISO(sISO)) / 86400000) + 1;
+
+        // Cap at 30 days for the slider
+        const totalDays = Math.min(days, 30);
+
+        // ── Live 16-day fetch ──
+        const url = new URL("https://api.open-meteo.com/v1/forecast");
+        url.searchParams.set("latitude", lat);
+        url.searchParams.set("longitude", lng);
+        url.searchParams.set(
+          "daily",
+          "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+        );
+        url.searchParams.set("timezone", "auto");
+        url.searchParams.set("forecast_days", "16");
+
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error("Forecast failed");
+        const daily = (await res.json())?.daily;
+        if (!daily?.time?.length) throw new Error("No forecast data");
+
+        const liveRows = daily.time.map((date, i) => ({
+          date,
+          code: daily.weather_code?.[i] ?? 0,
+          max: daily.temperature_2m_max?.[i] ?? null,
+          min: daily.temperature_2m_min?.[i] ?? null,
+          pop: daily.precipitation_probability_max?.[i] ?? 0,
+          source: "live",
+        }));
+
+        // ── Climate tail (days 17–30) ──
+        // Fetch same calendar window from 3 prior years
+        const climateRows = [];
+        if (totalDays > 16) {
+          const climateStart = new Date(sISO);
+          climateStart.setDate(climateStart.getDate() + 16);
+          const climateEnd = new Date(sISO);
+          climateEnd.setDate(climateEnd.getDate() + totalDays - 1);
+
+          const thisYear = new Date().getFullYear();
+          const years = [thisYear - 1, thisYear - 2, thisYear - 3];
+
+          const perYear = await Promise.all(
+            years.map(async (y) => {
+              const cs = new Date(
+                y,
+                climateStart.getMonth(),
+                climateStart.getDate()
+              );
+              const ce = new Date(
+                y,
+                climateEnd.getMonth(),
+                climateEnd.getDate()
+              );
+              const cu = new URL(
+                "https://archive-api.open-meteo.com/v1/archive"
+              );
+              cu.searchParams.set("latitude", lat);
+              cu.searchParams.set("longitude", lng);
+              cu.searchParams.set("start_date", toISO(cs));
+              cu.searchParams.set("end_date", toISO(ce));
+              cu.searchParams.set(
+                "daily",
+                "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"
+              );
+              cu.searchParams.set("timezone", "auto");
+              try {
+                const r = await fetch(cu.toString());
+                if (!r.ok) return null;
+                const j = await r.json();
+                const d = j?.daily;
+                if (!d?.time?.length) return null;
+                return d.time.map((date, i) => ({
+                  code: d.weather_code?.[i] ?? 0,
+                  max: d.temperature_2m_max?.[i] ?? null,
+                  min: d.temperature_2m_min?.[i] ?? null,
+                  precip: d.precipitation_sum?.[i] ?? null,
+                }));
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          const validYears = perYear.filter(Boolean);
+          if (validYears.length) {
+            const spine = validYears[0];
+            spine.forEach((_, i) => {
+              const maxes = validYears.map((y) => y[i]?.max).filter((v) => v != null);
+              const mins = validYears.map((y) => y[i]?.min).filter((v) => v != null);
+              const codes = validYears.map((y) => y[i]?.code).filter((v) => v != null);
+              const precips = validYears.map((y) => y[i]?.precip).filter((v) => v != null);
+
+              // mode for weather code
+              const freq = new Map();
+              codes.forEach((c) => freq.set(c, (freq.get(c) || 0) + 1));
+              let dom = codes[0] ?? 0;
+              let best = -1;
+              for (const [c, n] of freq) if (n > best) { best = n; dom = c; }
+
+              const rainy = precips.filter((p) => p > 1).length;
+              const pop = precips.length ? Math.round((rainy / precips.length) * 100) : 0;
+
+              const dateObj = new Date(sISO);
+              dateObj.setDate(dateObj.getDate() + 16 + i);
+
+              climateRows.push({
+                date: toISO(dateObj),
+                code: dom,
+                max: mean(maxes),
+                min: mean(mins),
+                pop,
+                source: "climate",
+              });
+            });
+          }
+        }
+
+        const combined = [...liveRows.slice(0, 16), ...climateRows].slice(0, totalDays);
+        if (!cancelled) setSeries(combined);
+      } catch (err) {
+        console.error("[WeatherSlider]", err);
+        if (!cancelled) setError("Couldn't load the weather forecast.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [lat, lng, startDate, endDate]);
+
+  /* ---------- Temperature conversion ---------- */
+  const temp = (c) => {
+    if (c === null || c === undefined) return "–";
+    if (unit === "F") return `${Math.round((c * 9) / 5 + 32)}°F`;
+    return `${c}°C`;
+  };
+  const tempShort = (c) => {
+    if (c === null || c === undefined) return "–";
+    if (unit === "F") return `${Math.round((c * 9) / 5 + 32)}°`;
+    return `${c}°`;
+  };
+
+  /* ---------- Filtered series ---------- */
+  const visible = useMemo(() => {
+    if (filter === "clear") return series.filter((d) => d.pop < 20);
+    if (filter === "rain") return series.filter((d) => d.pop >= 50);
+    return series;
+  }, [series, filter]);
+
+  /* ---------- Auto-scroll ---------- */
+  useEffect(() => {
+    if (motionOn) {
+      motionRef.current = setInterval(() => {
+        const track = trackRef.current;
+        if (!track) return;
+        if (track.scrollLeft + track.clientWidth >= track.scrollWidth - 10) {
+          track.scrollTo({ left: 0, behavior: "smooth" });
+        } else {
+          track.scrollBy({ left: 165, behavior: "smooth" });
+        }
+      }, 1800);
+    } else if (motionRef.current) {
+      clearInterval(motionRef.current);
+      motionRef.current = null;
+    }
+    return () => {
+      if (motionRef.current) clearInterval(motionRef.current);
+    };
+  }, [motionOn]);
+
+  /* ---------- Progress bar on scroll ---------- */
+  const updateProgress = () => {
+    const track = trackRef.current;
+    if (!track) return;
+    const max = track.scrollWidth - track.clientWidth;
+    if (max <= 0) return setProgress(100);
+    const pct = (track.scrollLeft / max) * 100;
+    setProgress(Math.max(6, Math.min(100, pct)));
+  };
+
+  /* ---------- Drag to scroll ---------- */
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    const onDown = (e) => {
+      dragRef.current.dragging = true;
+      dragRef.current.startX = e.pageX - track.offsetLeft;
+      dragRef.current.startLeft = track.scrollLeft;
+    };
+    const onLeave = () => (dragRef.current.dragging = false);
+    const onUp = () => (dragRef.current.dragging = false);
+    const onMove = (e) => {
+      if (!dragRef.current.dragging) return;
+      e.preventDefault();
+      const x = e.pageX - track.offsetLeft;
+      const walk = (x - dragRef.current.startX) * 1.5;
+      track.scrollLeft = dragRef.current.startLeft - walk;
+    };
+
+    track.addEventListener("mousedown", onDown);
+    track.addEventListener("mouseleave", onLeave);
+    track.addEventListener("mouseup", onUp);
+    track.addEventListener("mousemove", onMove);
+    track.addEventListener("scroll", updateProgress);
+
+    return () => {
+      track.removeEventListener("mousedown", onDown);
+      track.removeEventListener("mouseleave", onLeave);
+      track.removeEventListener("mouseup", onUp);
+      track.removeEventListener("mousemove", onMove);
+      track.removeEventListener("scroll", updateProgress);
+    };
+  }, [visible]);
+
+  /* ---------- Card 3D tilt ---------- */
+  const handleMove = (e, el) => {
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    el.style.transform = `perspective(600px) rotateX(${-y * 0.1}deg) rotateY(${x * 0.1}deg) translateY(-8px) scale(1.04)`;
+  };
+  const handleLeave = (el) => {
+    el.style.transform = "";
+  };
+
+  /* ---------- Arrows ---------- */
+  const slide = (dir) => {
+    const track = trackRef.current;
+    if (track) track.scrollBy({ left: dir * 320, behavior: "smooth" });
+  };
+
+  /* ---------- Active day data ---------- */
+  const activeData = series.find(
+    (d, i) => i + 1 === activeDay
+  ) || series[0] || null;
+
+  /* ---------- Loading ---------- */
+  if (loading) {
+    return (
+      <section className="mt-16">
+        <h2 className="text-2xl font-extrabold text-ink mb-6">
+          Trip Weather Outlook
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="skeleton h-44 rounded-2xl" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="mt-16">
+        <h2 className="text-2xl font-extrabold text-ink mb-6">
+          Trip Weather Outlook
+        </h2>
+        <p className="text-sm text-gray-500">{error}</p>
+      </section>
+    );
+  }
+
+  if (!series.length) return null;
+
+  return (
+    <section className="mt-16 ws-wrapper">
+      {/* ═══════════ HEADER ═══════════ */}
+      <div className="ws-header">
+        <div>
+          <div className="ws-brand-tag">
+            <span className="ws-pulse-dot"></span>
+            AI Live Weather Engine
+          </div>
+          <h2 className="ws-title">
+            {series.length}-Day <span>Forecast Motion</span>
+          </h2>
+          <p className="ws-subtitle">
+            Horizontal scroll with live Open-Meteo + seasonal climate fallback.
+          </p>
+        </div>
+
+        <div className="ws-controls">
+          <button
+            className="ws-btn"
+            onClick={() => setUnit(unit === "C" ? "F" : "C")}
+          >
+            Unit: °{unit}
+          </button>
+          <button
+            className={`ws-btn ${motionOn ? "active" : ""}`}
+            onClick={() => setMotionOn((v) => !v)}
+          >
+            <span>{motionOn ? "⏸" : "▶"}</span>
+            <span>{motionOn ? "Pause" : "Auto-Scroll"}</span>
+          </button>
+          <div className="ws-nav-arrows">
+            <button
+              className="ws-arrow-btn"
+              onClick={() => slide(-1)}
+              aria-label="Previous"
+            >
+              ◀
+            </button>
+            <button
+              className="ws-arrow-btn"
+              onClick={() => slide(1)}
+              aria-label="Next"
+            >
+              ▶
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════ FILTERS ═══════════ */}
+      <div className="ws-filters">
+        <button
+          className={`ws-chip ${filter === "all" ? "active" : ""}`}
+          onClick={() => setFilter("all")}
+        >
+          All {series.length} Days
+        </button>
+        <button
+          className={`ws-chip ${filter === "clear" ? "active" : ""}`}
+          onClick={() => setFilter("clear")}
+        >
+          ☀️ Clear Skies (&lt;20% Rain)
+        </button>
+        <button
+          className={`ws-chip ${filter === "rain" ? "active" : ""}`}
+          onClick={() => setFilter("rain")}
+        >
+          🌧️ Plan B Days (≥50% Rain)
+        </button>
+      </div>
+
+      {/* ═══════════ TRACK ═══════════ */}
+      <div className="ws-track-wrapper">
+        <div className="ws-edge-left" />
+        <div className="ws-edge-right" />
+        <div className="ws-track" ref={trackRef}>
+          {visible.map((d, idx) => {
+            const dayNum = series.indexOf(d) + 1;
+            const w = describe(d.code);
+            const isLive = d.source === "live";
+            const isRainy = d.pop >= 50;
+            const isActive = dayNum === activeDay;
+
+            return (
+              <div
+                key={d.date}
+                className={`ws-card ${isActive ? "active" : ""}`}
+                onClick={() => setActiveDay(dayNum)}
+                onMouseMove={(e) => handleMove(e, e.currentTarget)}
+                onMouseLeave={(e) => handleLeave(e.currentTarget)}
+              >
+                <div className="ws-card-header">
+                  <span className="ws-card-day">Day {dayNum}</span>
+                  <span
+                    className={`ws-card-badge ${
+                      isLive ? "ws-badge-live" : "ws-badge-climate"
+                    }`}
+                  >
+                    {isLive ? "Live" : "Climate"}
+                  </span>
+                </div>
+
+                <div className="ws-card-icon-area">
+                  <span className="ws-card-icon">{w.icon}</span>
+                  <div className="ws-card-date">{fmtShort(d.date)}</div>
+                </div>
+
+                <div className="ws-card-stats">
+                  <div>
+                    <span className="ws-temp-high">{tempShort(d.max)}</span>
+                    <span className="ws-temp-low">{tempShort(d.min)}</span>
+                  </div>
+                  <span
+                    className={`ws-rain-stat ${
+                      isRainy ? "ws-rain-warning" : "ws-rain-safe"
+                    }`}
+                  >
+                    {d.pop}%
+                  </span>
+                </div>
+
+                {isRainy && <div className="ws-plan-b">⚡ Plan B</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ═══════════ PROGRESS ═══════════ */}
+      <div className="ws-progress">
+        <div
+          className="ws-progress-fill"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* ═══════════ INSPECTOR ═══════════ */}
+      {activeData && (
+        <div className="ws-inspector">
+          <div className="ws-inspector-left">
+            <div className="ws-inspector-icon">
+              {describe(activeData.code).icon}
+            </div>
+            <div className="ws-inspector-info">
+              <div className="ws-inspector-title">
+                <span>
+                  Day {activeDay}: {fmtShort(activeData.date)} —{" "}
+                  {describe(activeData.code).label}
+                </span>
+                <span
+                  className={`ws-inspector-risk ${
+                    activeData.pop >= 50 ? "rainy" : ""
+                  }`}
+                >
+                  {activeData.pop >= 50 ? "🌧️" : "☀️"} {activeData.pop}% Rain
+                  Risk
+                </span>
+              </div>
+              <div className="ws-inspector-sub">
+                High: {temp(activeData.max)} • Low: {temp(activeData.min)} •
+                Source:{" "}
+                {activeData.source === "live"
+                  ? "Open-Meteo 16-Day Forecast"
+                  : "Historical Climate Model"}
+              </div>
+            </div>
+          </div>
+
+          <div className="ws-inspector-ai">
+            <span className="ws-ai-badge">AI Plan</span>
+            <span>{generateTip(activeData)}</span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+export default WeatherSlider;
+```
+
+### frontend/src/context/AuthContext.jsx
+
+```
+import { createContext, useContext, useState } from "react";
+import api from "../api/axios";
+
+const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem("user")) || null
+  );
+
+  const register = async (name, email, password) => {
+    const res = await api.post("/auth/register", { name, email, password });
+    localStorage.setItem("user", JSON.stringify(res.data));
+    setUser(res.data);
+  };
+
+  const login = async (email, password) => {
+    const res = await api.post("/auth/login", { email, password });
+    localStorage.setItem("user", JSON.stringify(res.data));
+    setUser(res.data);
+  };
+
+  const googleLogin = async ({ email, name, googleId, avatar }) => {
+    const res = await api.post("/auth/google", {
+      email,
+      name,
+      googleId,
+      avatar,
+    });
+    localStorage.setItem("user", JSON.stringify(res.data));
+    setUser(res.data);
+    return res.data;
+  };
+
+  const logout = () => {
+    localStorage.removeItem("user");
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{ user, register, login, googleLogin, logout }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);
+```
+
+### frontend/src/context/ThemeContext.jsx
+
+```
+import { createContext, useContext, useMemo } from "react";
+
+const ThemeContext = createContext(null);
+
+export function ThemeProvider({ children }) {
+  // Theme is permanently locked to light mode.
+  // The toggle and dark logic have been removed.
+  const value = useMemo(
+    () => ({
+      theme: "light",
+      isDark: false,
+      dark: false,
+      toggleTheme: () => {},
+      setDark: () => {},
+    }),
+    []
+  );
+
+  return (
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) throw new Error("useTheme must be used within <ThemeProvider>");
+  return ctx;
+};
+
+export default ThemeContext;
+```
+
+### frontend/src/context/TripActionsContext.jsx
+
+```
+import { createContext, useContext, useState } from "react";
+
+const TripActionsContext = createContext({
+  actions: null,
+  setActions: () => {},
+});
+
+export function TripActionsProvider({ children }) {
+  const [actions, setActions] = useState(null);
+
+  return (
+    <TripActionsContext.Provider value={{ actions, setActions }}>
+      {children}
+    </TripActionsContext.Provider>
+  );
+}
+
+export function useTripActions() {
+  return useContext(TripActionsContext);
+}
+```
+
+### frontend/src/index.css
+
 ```
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap");
 @tailwind base;
@@ -1872,7 +7781,7 @@ export default App;
 @tailwind utilities;
 
 /* ============================================================
-   ROOT â€” Lime + White + Black only
+   ROOT
    ============================================================ */
 :root {
   color-scheme: light;
@@ -1889,10 +7798,10 @@ html, body, #root {
    ============================================================ */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in-up { animation: fadeInUp 0.5s ease-out both; }
-.animate-fade-in { animation: fadeInUp 0.4s ease-out both; }
+.animate-fade-in    { animation: fadeInUp 0.4s ease-out both; }
 
 .delay-100 { animation-delay: 0.1s; }
 .delay-200 { animation-delay: 0.2s; }
@@ -2039,7 +7948,7 @@ html, body, #root {
 }
 
 /* ============================================================
-   PARACHUTE EXPORT PDF BUTTON â€” Lime Theme
+   PARACHUTE EXPORT PDF BUTTON — Lime Theme
    ============================================================ */
 @layer components {
   .pdf-btn {
@@ -2277,7 +8186,7 @@ html, body, #root {
 }
 
 /* ============================================================
-   LIQUID CHAMBER RISE BUTTON â€” Lime Theme, No Sound
+   LIQUID CHAMBER RISE BUTTON — Lime Theme, No Sound
    ============================================================ */
 @layer components {
   .liquid-btn {
@@ -2624,8 +8533,8 @@ html, body, #root {
 }
 .skeleton {
   display: block;
-  background-color: #e5e5e5;
-  background-image: linear-gradient(90deg, #e5e5e5 0%, #f5f5f5 40%, #e5e5e5 80%);
+  background-color: #1a1a1a;
+  background-image: linear-gradient(90deg, #1a1a1a 0%, #262626 40%, #1a1a1a 80%);
   background-size: 500px 100%;
   background-repeat: no-repeat;
   animation: skeleton-shimmer 1.6s infinite linear;
@@ -2636,7 +8545,7 @@ html, body, #root {
 .skeleton-circle { border-radius: 50%; }
 
 /* ============================================================
-   ITINERARY PAPER (for PDF export) â€” html2canvas safe
+   ITINERARY PAPER (for PDF export) — html2canvas safe
    ============================================================ */
 @layer components {
   .itn-paper {
@@ -2828,7 +8737,7 @@ html, body, #root {
     vertical-align: middle;
   }
 
-    .itn-day-date {
+  .itn-day-date {
     float: right;
     margin: 15px 16px 0 0;
     padding: 4px 10px;
@@ -2994,7 +8903,6 @@ html, body, #root {
 
 /* ============================================================
    HOLDER for the printable itinerary
-   (keeps the paper rendered off-screen so html2pdf can capture it)
    ============================================================ */
 .itn-paper-holder {
   position: fixed;
@@ -3022,324 +8930,12 @@ html, body, #root {
     z-index: auto;
   }
 }
-/* ============================================================
-   404 PAGE â€” Full-Screen Castaway Island
-   ============================================================ */
-
-.notfound-wrapper {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 24px;
-  font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: #1f2d3d;
-  background:
-    radial-gradient(1100px 620px at 6% -12%, #ccfbf1 0%, transparent 58%),
-    radial-gradient(1000px 640px at 100% 110%, #fef3c7 0%, transparent 60%),
-    linear-gradient(160deg, #f7fdfc 0%, #fdf6ec 100%);
-  background-attachment: fixed;
-}
-
-.notfound-card {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  text-align: center;
-  position: relative;
-}
-
-.notfound-card::before {
-  display: none;
-}
-
-.notfound-scene {
-  width: 100%;
-  height: auto;
-  max-height: 60vh;
-  display: block;
-  margin: 0 auto 24px;
-  overflow: visible;
-}
-
-.notfound-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: "Baloo 2", sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #0d9488;
-  background: #eafaf7;
-  border: 1px solid #c3ece6;
-  padding: 8px 18px;
-  border-radius: 999px;
-  margin-bottom: 24px;
-}
-
-.notfound-eyebrow .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #fb7185;
-  box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.22);
-  animation: notfoundPulse 2.4s ease-in-out infinite;
-}
-
-.notfound-title {
-  font-family: "Baloo 2", sans-serif;
-  font-weight: 800;
-  font-size: clamp(40px, 7vw, 80px);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  margin: 0 0 20px;
-  color: #1f2d3d;
-  max-width: 1000px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.notfound-title .accent {
-  background: linear-gradient(100deg, #14b8a6 0%, #22d3ee 45%, #fbbf24 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.notfound-subtext {
-  font-size: clamp(17px, 2.2vw, 20px);
-  line-height: 1.65;
-  color: #55677a;
-  max-width: 60ch;
-  margin: 0 auto 36px;
-}
-
-.notfound-ai-box {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  text-align: left;
-  background: linear-gradient(135deg, #f4fdfb 0%, #fffaf0 100%);
-  border: 1.5px dashed #9fe6dc;
-  border-radius: 22px;
-  padding: 18px 22px;
-  margin: 0 auto 36px;
-  max-width: 680px;
-  width: 100%;
-}
-
-.notfound-ai-icon {
-  flex: 0 0 auto;
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: #ffffff;
-  border: 1px solid #d6f2ec;
-  box-shadow: 0 4px 10px -4px rgba(13, 148, 136, 0.18);
-  font-size: 24px;
-}
-
-.notfound-ai-content {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.notfound-ai-label {
-  font-family: "Baloo 2", sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #0d9488;
-  margin-bottom: 4px;
-}
-
-.notfound-ai-prompt {
-  font-size: 15px;
-  font-style: italic;
-  color: #34495a;
-  line-height: 1.5;
-  margin: 0;
-  word-wrap: break-word;
-}
-
-.notfound-copy-btn {
-  flex: 0 0 auto;
-  font-family: "Baloo 2", sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1f2d3d;
-  background: #ffffff;
-  border: 1.5px solid #ece3d4;
-  border-radius: 12px;
-  padding: 10px 16px;
-  cursor: pointer;
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
-  white-space: nowrap;
-}
-
-.notfound-copy-btn:hover {
-  border-color: #14b8a6;
-  color: #0d9488;
-  transform: translateY(-1px);
-}
-
-.notfound-copy-btn:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.notfound-copy-btn.copied {
-  background: #eafaf7;
-  border-color: #14b8a6;
-  color: #0d9488;
-}
-
-.notfound-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 14px;
-  margin-bottom: 30px;
-}
-
-.notfound-btn {
-  font-family: "Baloo 2", sans-serif;
-  font-size: 17px;
-  font-weight: 700;
-  text-decoration: none;
-  padding: 16px 36px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
-  border: 0;
-  cursor: pointer;
-}
-
-.notfound-btn-primary {
-  color: #1a2e1a;
-  background: linear-gradient(135deg, #b8e85a 0%, #a8d84a 50%, #8fbf2e 100%);
-  box-shadow: 0 12px 26px -10px rgba(168, 216, 74, 0.85);
-}
-
-.notfound-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 18px 32px -12px rgba(168, 216, 74, 0.95);
-}
-
-.notfound-btn-ghost {
-  color: #1f2d3d;
-  background: #ffffff;
-  border: 1.5px solid #ece3d4;
-}
-
-.notfound-btn-ghost:hover {
-  transform: translateY(-2px);
-  border-color: #fb7185;
-  color: #e11d48;
-}
-
-.notfound-footnote {
-  margin: 0;
-  font-size: 14px;
-  color: #9aa8b6;
-  letter-spacing: 0.01em;
-}
-
-.notfound-footnote code {
-  font-family: "Roboto Mono", ui-monospace, monospace;
-  font-size: 13px;
-  background: #f4f7f9;
-  border: 1px solid #e6edf2;
-  border-radius: 6px;
-  padding: 3px 8px;
-  color: #6b7c8c;
-}
-
-/* â”€â”€â”€ Animations â”€â”€â”€ */
-@keyframes notfoundFloat {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-10px); }
-}
-@keyframes notfoundBob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50%      { transform: translateY(-5px) rotate(1.5deg); }
-}
-@keyframes notfoundPulse {
-  0%, 100% { opacity: 0.4; transform: scale(0.94); }
-  50%      { opacity: 0.85; transform: scale(1.06); }
-}
-@keyframes notfoundSway {
-  0%, 100% { transform: rotate(-2.6deg); }
-  50%      { transform: rotate(2.6deg); }
-}
-@keyframes notfoundDrift {
-  0%, 100% { transform: translateX(0); }
-  50%      { transform: translateX(14px); }
-}
-
-.notfound-float-slow { animation: notfoundFloat 7.5s ease-in-out infinite; }
-.notfound-float-mid  { animation: notfoundFloat 5.6s ease-in-out infinite; }
-.notfound-float-fast { animation: notfoundFloat 4.3s ease-in-out infinite; }
-.notfound-bob        { animation: notfoundBob 3.6s ease-in-out infinite; }
-.notfound-pulse      { animation: notfoundPulse 3.6s ease-in-out infinite; }
-.notfound-drift      { animation: notfoundDrift 9s ease-in-out infinite; }
-
-.notfound-sway {
-  animation: notfoundSway 5.5s ease-in-out infinite;
-  transform-box: view-box;
-  transform-origin: 304px 162px;
-}
-
-.notfound-float-slow,
-.notfound-float-mid,
-.notfound-float-fast,
-.notfound-bob,
-.notfound-pulse,
-.notfound-drift {
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-/* â”€â”€â”€ Responsive â”€â”€â”€ */
-@media (max-width: 640px) {
-  .notfound-wrapper { padding: 24px 16px; }
-  .notfound-scene { max-height: 45vh; }
-  .notfound-ai-box { flex-wrap: wrap; }
-  .notfound-copy-btn { width: 100%; }
-  .notfound-btn { flex: 1 1 100%; justify-content: center; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .notfound-float-slow,
-  .notfound-float-mid,
-  .notfound-float-fast,
-  .notfound-bob,
-  .notfound-pulse,
-  .notfound-sway,
-  .notfound-drift,
-  .notfound-eyebrow .dot { animation: none; }
-  .notfound-btn,
-  .notfound-copy-btn { transition: none; }
-}
 
 /* ============================================================
-   WEATHER SLIDER â€” Lime & Light Theme
+   WEATHER SLIDER — DARK
    ============================================================ */
 
-.ws-wrapper {
-  position: relative;
-}
+.ws-wrapper { position: relative; }
 
 .ws-header {
   display: flex;
@@ -3349,7 +8945,7 @@ html, body, #root {
   gap: 14px;
   padding-bottom: 20px;
   margin-bottom: 20px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .ws-brand-tag {
@@ -3360,9 +8956,9 @@ html, body, #root {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #1A2E1A;
-  background: #E5F0C8;
-  border: 1px solid #A8D84A;
+  color: #a3e635;
+  background: rgba(163, 230, 53, 0.12);
+  border: 1px solid rgba(163, 230, 53, 0.3);
   padding: 4px 12px;
   border-radius: 9999px;
   width: fit-content;
@@ -3372,32 +8968,25 @@ html, body, #root {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #A8D84A;
-  box-shadow: 0 0 10px #A8D84A;
+  background: #a3e635;
+  box-shadow: 0 0 10px #a3e635;
   animation: wsPulseDot 1.5s infinite;
 }
-
 @keyframes wsPulseDot {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.8); }
+  50%      { opacity: 0.4; transform: scale(0.8); }
 }
 
 .ws-title {
   font-size: 22px;
   font-weight: 900;
   letter-spacing: -0.02em;
-  color: #0a0a0a;
+  color: #ffffff;
   margin: 6px 0 2px;
 }
+.ws-title span { color: #a3e635; }
 
-.ws-title span {
-  color: #8FBF2E;
-}
-
-.ws-subtitle {
-  font-size: 13px;
-  color: #6b7280;
-}
+.ws-subtitle { font-size: 13px; color: #888888; }
 
 .ws-controls {
   display: flex;
@@ -3407,9 +8996,9 @@ html, body, #root {
 }
 
 .ws-btn {
-  background: #ffffff;
-  color: #0a0a0a;
-  border: 1px solid #e5e7eb;
+  background: #111111;
+  color: #888888;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 8px 14px;
   border-radius: 14px;
   font-size: 12.5px;
@@ -3418,52 +9007,49 @@ html, body, #root {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-family: inherit;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
 .ws-btn:hover {
-  background: #A8D84A;
-  color: #1A2E1A;
-  border-color: #A8D84A;
-  box-shadow: 0 0 20px rgba(168, 216, 74, 0.5);
+  background: rgba(163, 230, 53, 0.12);
+  color: #a3e635;
+  border-color: rgba(163, 230, 53, 0.4);
   transform: translateY(-2px);
 }
-
 .ws-btn.active {
-  background: #A8D84A;
-  color: #1A2E1A;
-  border-color: #A8D84A;
-  box-shadow: 0 0 15px rgba(168, 216, 74, 0.5);
+  background: #a3e635;
+  color: #000000;
+  border-color: #a3e635;
+  box-shadow: 0 0 15px rgba(163, 230, 53, 0.5);
 }
 
 .ws-nav-arrows {
   display: flex;
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
   padding: 3px;
   gap: 3px;
 }
-
 .ws-arrow-btn {
   width: 32px;
   height: 32px;
   border-radius: 10px;
   border: none;
   background: transparent;
-  color: #0a0a0a;
+  color: #888888;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
+  font-family: inherit;
   transition: all 0.15s;
 }
-
 .ws-arrow-btn:hover {
-  background: #A8D84A;
-  color: #1A2E1A;
+  background: #a3e635;
+  color: #000000;
 }
 
 .ws-filters {
@@ -3473,36 +9059,30 @@ html, body, #root {
   margin-bottom: 18px;
   flex-wrap: wrap;
 }
-
 .ws-chip {
-  background: #ffffff;
-  color: #6b7280;
-  border: 1px solid #e5e7eb;
+  background: #111111;
+  color: #888888;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 6px 14px;
   border-radius: 9999px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  font-family: inherit;
   transition: all 0.2s;
 }
-
 .ws-chip:hover {
-  color: #0a0a0a;
-  border-color: #A8D84A;
+  color: #ffffff;
+  border-color: rgba(163, 230, 53, 0.4);
 }
-
 .ws-chip.active {
-  background: #A8D84A;
-  color: #1A2E1A;
-  border-color: #A8D84A;
-  box-shadow: 0 0 15px rgba(168, 216, 74, 0.4);
+  background: #a3e635;
+  color: #000000;
+  border-color: #a3e635;
+  box-shadow: 0 0 15px rgba(163, 230, 53, 0.4);
 }
 
-.ws-track-wrapper {
-  position: relative;
-  margin-bottom: 16px;
-}
-
+.ws-track-wrapper { position: relative; margin-bottom: 16px; }
 .ws-edge-left,
 .ws-edge-right {
   position: absolute;
@@ -3512,16 +9092,8 @@ html, body, #root {
   pointer-events: none;
   z-index: 5;
 }
-
-.ws-edge-left {
-  left: 0;
-  background: linear-gradient(to right, rgba(255, 255, 255, 0.95), transparent);
-}
-
-.ws-edge-right {
-  right: 0;
-  background: linear-gradient(to left, rgba(255, 255, 255, 0.95), transparent);
-}
+.ws-edge-left  { left: 0;  background: linear-gradient(to right, rgba(5, 5, 5, 0.95), transparent); }
+.ws-edge-right { right: 0; background: linear-gradient(to left,  rgba(5, 5, 5, 0.95), transparent); }
 
 .ws-track {
   display: flex;
@@ -3533,18 +9105,15 @@ html, body, #root {
   cursor: grab;
   user-select: none;
 }
-
 .ws-track:active { cursor: grabbing; }
 .ws-track::-webkit-scrollbar { display: none; }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   CARDS
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ═══════════════ CARDS ═══════════════ */
 .ws-card {
   flex: 0 0 148px;
   scroll-snap-align: start;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 22px;
   padding: 14px 12px;
   display: flex;
@@ -3559,22 +9128,20 @@ html, body, #root {
     background 0.25s;
   will-change: transform;
 }
-
 .ws-card:hover {
-  background: #f9fdf0;
-  border-color: #A8D84A;
+  background: #181818;
+  border-color: rgba(163, 230, 53, 0.5);
   transform: translateY(-8px) scale(1.03);
-  box-shadow: 0 16px 30px -10px rgba(0, 0, 0, 0.15), 0 0 25px rgba(168, 216, 74, 0.3);
+  box-shadow: 0 16px 30px -10px rgba(0, 0, 0, 0.9), 0 0 25px rgba(163, 230, 53, 0.3);
 }
-
 .ws-card.active {
-  background: #ffffff;
-  border-color: #A8D84A;
+  background: #000000;
+  border-color: #a3e635;
   border-width: 2px;
   transform: translateY(-10px) scale(1.05);
   box-shadow:
-    0 20px 40px -10px rgba(0, 0, 0, 0.15),
-    0 0 35px rgba(168, 216, 74, 0.5);
+    0 20px 40px -10px rgba(0, 0, 0, 0.9),
+    0 0 35px rgba(163, 230, 53, 0.5);
 }
 
 .ws-card-header {
@@ -3583,13 +9150,11 @@ html, body, #root {
   justify-content: space-between;
   margin-bottom: 6px;
 }
-
 .ws-card-day {
   font-size: 12px;
   font-weight: 800;
-  color: #0a0a0a;
+  color: #ffffff;
 }
-
 .ws-card-badge {
   font-size: 9.5px;
   font-weight: 800;
@@ -3598,60 +9163,41 @@ html, body, #root {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-
 .ws-badge-live {
-  background: #A8D84A;
+  background: #a3e635;
   color: #1A2E1A;
-  box-shadow: 0 0 10px rgba(168, 216, 74, 0.5);
+  box-shadow: 0 0 10px rgba(163, 230, 53, 0.5);
 }
-
 .ws-badge-climate {
-  background: #f3f4f6;
-  color: #6b7280;
-  border: 1px solid #e5e7eb;
+  background: rgba(255, 255, 255, 0.08);
+  color: #888888;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.ws-card-icon-area {
-  text-align: center;
-  margin: 8px 0;
-}
-
+.ws-card-icon-area { text-align: center; margin: 8px 0; }
 .ws-card-icon {
   font-size: 34px;
   display: inline-block;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
-.ws-card:hover .ws-card-icon {
-  transform: scale(1.2) rotate(6deg);
-}
+.ws-card:hover .ws-card-icon { transform: scale(1.2) rotate(6deg); }
 
 .ws-card-date {
   font-size: 11px;
-  color: #6b7280;
+  color: #888888;
   margin-top: 3px;
   font-weight: 600;
 }
 
 .ws-card-stats {
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 9px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-
-.ws-temp-high {
-  font-size: 13px;
-  font-weight: 900;
-  color: #0a0a0a;
-}
-
-.ws-temp-low {
-  font-size: 11px;
-  color: #9ca3af;
-  margin-left: 3px;
-}
+.ws-temp-high { font-size: 13px; font-weight: 900; color: #ffffff; }
+.ws-temp-low  { font-size: 11px; color: #52525b; margin-left: 3px; }
 
 .ws-rain-stat {
   font-size: 11px;
@@ -3659,56 +9205,42 @@ html, body, #root {
   padding: 2px 6px;
   border-radius: 6px;
 }
-
-.ws-rain-safe {
-  color: #1A2E1A;
-  background: #E5F0C8;
-}
-
-.ws-rain-warning {
-  color: #0a0a0a;
-  background: #e5e7eb;
-  border: 1px solid #9ca3af;
-}
+.ws-rain-safe    { color: #a3e635; background: rgba(163, 230, 53, 0.12); }
+.ws-rain-warning { color: #60a5fa; background: rgba(96, 165, 250, 0.12); }
 
 .ws-plan-b {
   margin-top: 8px;
-  background: #0a0a0a;
-  color: #A8D84A;
+  background: #000000;
+  color: #a3e635;
   font-size: 10px;
   font-weight: 800;
   padding: 4px 6px;
   border-radius: 8px;
   text-align: center;
-  box-shadow: 0 0 10px rgba(168, 216, 74, 0.2);
+  box-shadow: 0 0 10px rgba(163, 230, 53, 0.2);
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   PROGRESS BAR
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ═══════════════ PROGRESS BAR ═══════════════ */
 .ws-progress {
   width: 100%;
   height: 4px;
-  background: #f3f4f6;
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 9999px;
   overflow: hidden;
   margin-bottom: 22px;
 }
-
 .ws-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #A8D84A, #C4E570);
-  box-shadow: 0 0 15px #A8D84A;
+  background: linear-gradient(90deg, #a3e635, #bef264);
+  box-shadow: 0 0 15px #a3e635;
   border-radius: 9999px;
   transition: width 0.15s ease-out;
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   INSPECTOR PANEL
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ═══════════════ INSPECTOR PANEL ═══════════════ */
 .ws-inspector {
-  background: #0a0a0a;
-  border: 1px solid #1f2d1f;
+  background: #0b0b0b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 22px;
   padding: 20px 24px;
   display: flex;
@@ -3716,9 +9248,8 @@ html, body, #root {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.9);
 }
-
 .ws-inspector-left {
   display: flex;
   align-items: center;
@@ -3726,25 +9257,20 @@ html, body, #root {
   flex: 1 1 auto;
   min-width: 0;
 }
-
 .ws-inspector-icon {
   width: 54px;
   height: 54px;
   border-radius: 16px;
-  background: #111111;
-  border: 1px solid #A8D84A;
+  background: #000000;
+  border: 1px solid #a3e635;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 28px;
-  box-shadow: 0 0 20px rgba(168, 216, 74, 0.25);
+  box-shadow: 0 0 20px rgba(163, 230, 53, 0.25);
   flex-shrink: 0;
 }
-
-.ws-inspector-info {
-  min-width: 0;
-}
-
+.ws-inspector-info { min-width: 0; }
 .ws-inspector-title {
   font-size: 17px;
   font-weight: 900;
@@ -3754,32 +9280,28 @@ html, body, #root {
   gap: 10px;
   flex-wrap: wrap;
 }
-
 .ws-inspector-risk {
   font-size: 11px;
   font-weight: 800;
   padding: 3px 10px;
   border-radius: 9999px;
-  background: #A8D84A;
+  background: #a3e635;
   color: #1A2E1A;
-  box-shadow: 0 0 12px rgba(168, 216, 74, 0.5);
+  box-shadow: 0 0 12px rgba(163, 230, 53, 0.5);
 }
-
 .ws-inspector-risk.rainy {
-  background: #ffffff;
-  color: #0a0a0a;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+  background: #60a5fa;
+  color: #000000;
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.5);
 }
-
 .ws-inspector-sub {
   font-size: 12.5px;
-  color: #9ca3af;
+  color: #888888;
   margin-top: 4px;
 }
-
 .ws-inspector-ai {
-  background: #111111;
-  border: 1px solid #2a2a2a;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 12px 16px;
   border-radius: 14px;
   font-size: 12.5px;
@@ -3791,10 +9313,9 @@ html, body, #root {
   line-height: 1.5;
   flex: 1 1 340px;
 }
-
 .ws-ai-badge {
   color: #1A2E1A;
-  background: #A8D84A;
+  background: #a3e635;
   font-size: 10px;
   font-weight: 900;
   padding: 2px 7px;
@@ -3804,9 +9325,7 @@ html, body, #root {
   flex-shrink: 0;
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   RESPONSIVE
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ═══════════════ RESPONSIVE ═══════════════ */
 @media (max-width: 768px) {
   .ws-card { flex: 0 0 132px; }
   .ws-inspector { flex-direction: column; align-items: flex-start; }
@@ -3814,17 +9333,13 @@ html, body, #root {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ws-card,
-  .ws-btn,
-  .ws-chip,
-  .ws-card-icon { transition: none; }
-  .ws-card:hover,
-  .ws-card.active { transform: none; }
+  .ws-card, .ws-btn, .ws-chip, .ws-card-icon { transition: none; }
+  .ws-card:hover, .ws-card.active { transform: none; }
   .ws-pulse-dot { animation: none; }
 }
 
 /* ============================================================
-   SKY FLIGHT BUTTON â€” Lime Theme, No Sound, Compact
+   SKY FLIGHT BUTTON — Lime Theme, No Sound, Compact
    ============================================================ */
 .sky-btn {
   position: relative;
@@ -3854,7 +9369,6 @@ html, body, #root {
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
   transition: transform 0.18s ease, box-shadow 0.35s ease, border-color 0.35s ease;
 }
-
 .sky-btn:hover:not(:disabled) {
   border-color: rgba(196, 229, 112, 0.9);
   transform: translateY(-1px);
@@ -3864,13 +9378,11 @@ html, body, #root {
     0 18px 34px -16px rgba(26, 46, 26, 1),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
-
 .sky-btn:active:not(:disabled) { transform: translateY(0) scale(0.985); }
 .sky-btn:focus-visible { outline: 2px solid #A8D84A; outline-offset: 3px; }
 .sky-btn:disabled { cursor: not-allowed; }
 .sky-btn.is-complete { border-color: rgba(196, 229, 112, 0.85); }
 
-/* â”€â”€â”€ SKY LAYER â”€â”€â”€ */
 .sky-btn__sky {
   position: absolute;
   inset: 0;
@@ -3879,7 +9391,6 @@ html, body, #root {
   background: linear-gradient(160deg, #1f3a1f 0%, #14261a 55%, #0a1208 100%);
   transition: filter 0.9s ease;
 }
-
 .sky-btn.is-loading .sky-btn__sky { filter: brightness(1.35) saturate(1.2); }
 
 .sky-btn__tint {
@@ -3889,10 +9400,8 @@ html, body, #root {
   opacity: 0;
   transition: opacity 0.7s ease;
 }
-
 .sky-btn.is-complete .sky-btn__tint { opacity: 1; }
 
-/* â”€â”€â”€ STARS â”€â”€â”€ */
 .sky-btn__stars {
   position: absolute;
   inset: 0;
@@ -3910,13 +9419,11 @@ html, body, #root {
     radial-gradient(1px 1px at 94% 76%, rgba(229, 240, 200, 0.55), transparent),
     radial-gradient(1px 1px at 13% 90%, rgba(229, 240, 200, 0.7), transparent);
 }
-
 @keyframes skyBtnTwinkle {
   0%, 100% { opacity: 0.4; }
   50%      { opacity: 0.9; }
 }
 
-/* â”€â”€â”€ DRIFTING CLOUDS â”€â”€â”€ */
 .sky-btn__cloud {
   position: absolute;
   left: 0;
@@ -3934,17 +9441,14 @@ html, body, #root {
   animation-iteration-count: infinite;
   will-change: transform;
 }
-
 .sky-btn__cloud.c1 { top: 10%; width: 64px; height: 14px; animation-duration: 15s; animation-delay: -2s;  opacity: 0.7; }
 .sky-btn__cloud.c2 { top: 58%; width: 84px; height: 16px; animation-duration: 19s; animation-delay: -8s;  opacity: 0.6; }
 .sky-btn__cloud.c3 { top: 32%; width: 48px; height: 10px; animation-duration: 24s; animation-delay: -14s; opacity: 0.5; }
-
 @keyframes skyBtnCloudDrift {
   from { transform: translateX(-140px); }
   to   { transform: translateX(340px); }
 }
 
-/* â”€â”€â”€ FLYING PLANE â”€â”€â”€ */
 .sky-btn__flyer {
   position: absolute;
   top: 50%;
@@ -3957,11 +9461,9 @@ html, body, #root {
   pointer-events: none;
   color: #E5F0C8;
 }
-
 .sky-btn.is-loading .sky-btn__flyer {
   animation: skyBtnFly 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
-
 @keyframes skyBtnFly {
   0%   { left: -48px;              opacity: 0; }
   12%  { opacity: 1; }
@@ -3976,7 +9478,6 @@ html, body, #root {
   filter: drop-shadow(0 0 8px rgba(168, 216, 74, 0.95));
 }
 
-/* â”€â”€â”€ CONTRAIL â”€â”€â”€ */
 .sky-btn__trail {
   position: absolute;
   right: 100%;
@@ -3995,14 +9496,12 @@ html, body, #root {
   );
   animation: skyBtnTrailPuff 1s ease-out infinite;
 }
-
 @keyframes skyBtnTrailPuff {
   0%   { transform: scaleX(0);   opacity: 0; }
   25%  { opacity: 1; }
   100% { transform: scaleX(1);   opacity: 0; }
 }
 
-/* â”€â”€â”€ SPEED STREAKS â”€â”€â”€ */
 .sky-btn__streak {
   position: absolute;
   right: 100%;
@@ -4011,18 +9510,15 @@ html, body, #root {
   background: linear-gradient(90deg, rgba(229, 240, 200, 0), rgba(229, 240, 200, 0.85));
   animation: skyBtnStreak 0.9s linear infinite;
 }
-
 .sky-btn__streak.s1 { top: 30%; width: 22px; margin-right: 8px;  animation-delay: 0s;    }
 .sky-btn__streak.s2 { top: 50%; width: 30px; margin-right: 5px;  animation-delay: 0.25s; }
 .sky-btn__streak.s3 { top: 70%; width: 18px; margin-right: 10px; animation-delay: 0.5s;  }
-
 @keyframes skyBtnStreak {
   0%   { transform: translateX(0)     scaleX(0.2); opacity: 0; }
   35%  { opacity: 1; }
   100% { transform: translateX(-32px) scaleX(1);   opacity: 0; }
 }
 
-/* â”€â”€â”€ COMPLETION RIPPLE â”€â”€â”€ */
 .sky-btn__ripple {
   position: absolute;
   inset: -20%;
@@ -4036,14 +9532,12 @@ html, body, #root {
   );
   animation: skyBtnRipple 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
-
 @keyframes skyBtnRipple {
   0%   { opacity: 0.95; transform: scale(0.25); }
   55%  { opacity: 0.55; }
   100% { opacity: 0;    transform: scale(1.35); }
 }
 
-/* â”€â”€â”€ FOREGROUND â”€â”€â”€ */
 .sky-btn__content {
   position: relative;
   z-index: 3;
@@ -4060,7 +9554,6 @@ html, body, #root {
   width: 18px;
   height: 18px;
 }
-
 .sky-btn__icon svg {
   position: absolute;
   inset: 0;
@@ -4069,34 +9562,28 @@ html, body, #root {
   transform-origin: 50% 50%;
   transition: opacity 0.32s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
-
 .sky-btn__icon-plane {
   color: #C4E570;
   opacity: 1;
   transform: rotate(90deg);
   filter: drop-shadow(0 0 6px rgba(168, 216, 74, 0.8));
 }
-
 .sky-btn__icon-check {
   color: #E5F0C8;
   opacity: 0;
   transform: scale(0.4) rotate(-30deg);
 }
-
 .sky-btn.is-complete .sky-btn__icon-plane { opacity: 0; transform: rotate(90deg) scale(0.4); }
 .sky-btn.is-complete .sky-btn__icon-check { opacity: 1; transform: none; }
 
 .sky-btn.is-idle .sky-btn__icon-plane { animation: skyBtnIconBob 2.8s ease-in-out infinite; }
-
 @keyframes skyBtnIconBob {
   0%, 100% { transform: rotate(90deg) translateY(0); }
   50%      { transform: rotate(90deg) translateY(-2px); }
 }
-
 .sky-btn.is-loading .sky-btn__icon-plane {
   animation: skyBtnIconFly 0.8s ease-in-out infinite;
 }
-
 @keyframes skyBtnIconFly {
   0%, 100% { transform: rotate(90deg) translateY(0)    scale(1); }
   50%      { transform: rotate(90deg) translateY(-2.5px) scale(1.08); }
@@ -4106,14 +9593,11 @@ html, body, #root {
   stroke-dasharray: 24;
   stroke-dashoffset: 24;
 }
-
 .sky-btn.is-complete .sky-btn__icon-check path {
   animation: skyBtnDraw 0.5s cubic-bezier(0.65, 0, 0.35, 1) 0.1s forwards;
 }
-
 @keyframes skyBtnDraw { to { stroke-dashoffset: 0; } }
 
-/* â”€â”€â”€ LABEL CROSS-FADE â”€â”€â”€ */
 .sky-btn__swap { display: grid; place-items: center; }
 .sky-btn__swap > * { grid-area: 1 / 1; }
 
@@ -4130,7 +9614,6 @@ html, body, #root {
     transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
     visibility 0s linear 0.3s;
 }
-
 .sky-btn__label.is-active {
   opacity: 1;
   visibility: visible;
@@ -4141,9 +9624,7 @@ html, body, #root {
     visibility 0s;
 }
 
-/* â”€â”€â”€ LOADER DOTS â”€â”€â”€ */
 .sky-btn__dots { display: inline-flex; gap: 3px; margin-left: 2px; }
-
 .sky-btn__dots i {
   width: 3px;
   height: 3px;
@@ -4152,10 +9633,8 @@ html, body, #root {
   opacity: 0.3;
   animation: skyBtnDot 1.2s ease-in-out infinite;
 }
-
 .sky-btn__dots i:nth-child(2) { animation-delay: 0.15s; }
 .sky-btn__dots i:nth-child(3) { animation-delay: 0.3s; }
-
 @keyframes skyBtnDot {
   0%, 100% { opacity: 0.25; transform: translateY(0); }
   50%      { opacity: 1;    transform: translateY(-2px); }
@@ -4190,4554 +9669,8 @@ html, body, #root {
 }
 ```
 
-### FILE: frontend\src\main.jsx
-```
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
-import App from "./App.jsx";
-import "./index.css";
-import { AuthProvider } from "./context/AuthContext.jsx";
-import { ThemeProvider } from "./context/ThemeContext.jsx";
-import { CurrencyProvider } from "./context/CurrencyContext.jsx";
-import { TripActionsProvider } from "./context/TripActionsContext.jsx";
+### frontend/src/lib/utils.js
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <CurrencyProvider>
-            <TripActionsProvider>
-              <App />
-            </TripActionsProvider>
-          </CurrencyProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </BrowserRouter>
-  </React.StrictMode>
-);
-```
-
-### FILE: frontend\src\api\axios.js
-```
-import axios from "axios";
-
-const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
-});
-
-api.interceptors.request.use((config) => {
-  const user = JSON.parse(localStorage.getItem("user"));
-  if (user?.token) {
-    config.headers.Authorization = `Bearer ${user.token}`;
-  }
-  return config;
-});
-
-export default api;
-```
-
-### FILE: frontend\src\components\CurrencyToggle.css
-```
-/* frontend/src/components/CurrencyToggle.css */
-
-.ct-wrap {
-  position: relative;
-  display: inline-block;
-}
-
-.ct-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #888;
-  padding: 7px 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  transition: color 0.2s, border-color 0.2s, background 0.2s;
-  white-space: nowrap;
-}
-.ct-btn:hover {
-  color: #fff;
-  border-color: rgba(163, 230, 53, 0.5);
-  background: rgba(163, 230, 53, 0.06);
-}
-.ct-btn.open {
-  color: #a3e635;
-  border-color: #a3e635;
-  background: rgba(163, 230, 53, 0.12);
-}
-.ct-symbol {
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-.ct-code {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-.ct-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 220px;
-  background: rgba(15, 15, 15, 0.98);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  padding: 6px;
-  box-shadow:
-    0 20px 50px -12px rgba(0, 0, 0, 0.9),
-    0 0 24px -8px rgba(163, 230, 53, 0.15);
-  z-index: 200;
-  animation: ctMenuIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes ctMenuIn {
-  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.ct-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  background: transparent;
-  border: none;
-  color: #e5e5e5;
-  font-family: 'Poppins', system-ui, sans-serif;
-  padding: 10px 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.15s, color 0.15s;
-}
-.ct-item:hover {
-  background: rgba(163, 230, 53, 0.1);
-}
-.ct-item.active {
-  background: rgba(163, 230, 53, 0.12);
-  color: #a3e635;
-}
-.ct-item-sym {
-  font-size: 1.05rem;
-  font-weight: 700;
-  width: 20px;
-  text-align: center;
-  color: #a3e635;
-}
-.ct-item-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.ct-item-code {
-  font-size: 0.85rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-.ct-item-name {
-  font-size: 0.68rem;
-  color: #888;
-  font-weight: 500;
-}
-.ct-item.active .ct-item-name {
-  color: rgba(163, 230, 53, 0.7);
-}
-.ct-item-check {
-  color: #a3e635;
-  font-size: 0.9rem;
-  font-weight: 900;
-}
-
-@media (max-width: 820px) {
-  .ct-wrap {
-    display: none;
-  }
-}
-```
-
-### FILE: frontend\src\components\CurrencyToggle.jsx
-```
-import { useState, useRef, useEffect } from "react";
-import { useCurrency } from "../context/CurrencyContext";
-import "./CurrencyToggle.css";
-
-const CurrencyToggle = () => {
-  const { currency, setCurrency, currencies } = useCurrency();
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  return (
-    <div className="ct-wrap" ref={ref}>
-      <button
-        type="button"
-        className={`ct-btn ${open ? "open" : ""}`}
-        onClick={() => setOpen((v) => !v)}
-        aria-label="Change currency"
-        aria-expanded={open}
-      >
-        <span className="ct-symbol">{currencies[currency].symbol}</span>
-        <span className="ct-code">{currency}</span>
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeLinecap="round"
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="ct-menu">
-          {Object.entries(currencies).map(([code, info]) => (
-            <button
-              key={code}
-              type="button"
-              className={`ct-item ${currency === code ? "active" : ""}`}
-              onClick={() => {
-                setCurrency(code);
-                setOpen(false);
-              }}
-            >
-              <span className="ct-item-sym">{info.symbol}</span>
-              <span className="ct-item-info">
-                <span className="ct-item-code">{code}</span>
-                <span className="ct-item-name">{info.name}</span>
-              </span>
-              {currency === code && <span className="ct-item-check">âœ“</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default CurrencyToggle;
-```
-
-### FILE: frontend\src\components\DeleteButton.css
-```
-/* frontend/src/components/DeleteButton.css */
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   DELETE-TRIP BUTTON â€” "Bin eats the label"
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.dtb-root {
-  --dtb-cycle: 2.6s;
-  --dtb-ltr-stagger: 0.09s;
-  --dtb-ltr-dur: 1.6s;
-  --dtb-ltr-start: 0.30s;
-
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 12px 22px 12px 18px;
-  border: 0;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #a3e635 0%, #84cc16 100%);
-  color: #12200a;
-  font-family: 'Poppins', system-ui, sans-serif;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  overflow: hidden;
-  isolation: isolate;
-  box-shadow:
-    0 6px 20px rgba(163, 230, 53, 0.42),
-    0 1px 0 rgba(255, 255, 255, 0.35) inset;
-  -webkit-tap-highlight-color: transparent;
-  outline: none;
-  transition: box-shadow 0.25s ease, transform 0.15s ease;
-}
-.dtb-root:hover {
-  box-shadow:
-    0 10px 28px rgba(163, 230, 53, 0.6),
-    0 1px 0 rgba(255, 255, 255, 0.5) inset;
-  transform: translateY(-2px);
-}
-.dtb-root:active {
-  transform: translateY(0);
-}
-.dtb-root:focus-visible {
-  outline: 2px solid #a3e635;
-  outline-offset: 4px;
-}
-
-/* â•â•â• Bin (stationary) â•â•â• */
-.dtb-bin {
-  position: relative;
-  width: 24px;
-  height: 24px;
-  flex: 0 0 auto;
-  z-index: 3;
-  will-change: transform;
-  color: #12200a;
-}
-.dtb-bin svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.dtb-bin__body {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.dtb-bin__lid {
-  transform-box: fill-box;
-  transform-origin: 8% 92%;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  will-change: transform;
-}
-
-/* â•â•â• Sparks â•â•â• */
-.dtb-sparks {
-  position: absolute;
-  left: 50%;
-  top: 40%;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-  z-index: 4;
-}
-.dtb-spark {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #ffffff;
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0);
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
-  will-change: transform, opacity;
-}
-.dtb-spark:nth-child(2n) {
-  background: #fef9c3;
-  box-shadow: 0 0 6px rgba(254, 249, 195, 0.9);
-}
-.dtb-spark:nth-child(3n) {
-  background: #bef264;
-  box-shadow: 0 0 6px rgba(190, 242, 100, 0.9);
-}
-
-/* â•â•â• Label â•â•â• */
-.dtb-label {
-  display: inline-flex;
-  align-items: center;
-  z-index: 1;
-  white-space: nowrap;
-  pointer-events: none;
-}
-.dtb-ltr {
-  display: inline-block;
-  will-change: transform, opacity;
-  transform-origin: 50% 60%;
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   ANIMATION TIMELINE
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-/* Bin body squash */
-.dtb-root.eating .dtb-bin {
-  animation: dtbBinSquash var(--dtb-cycle) cubic-bezier(0.65, 0, 0.35, 1) forwards;
-}
-@keyframes dtbBinSquash {
-  0%, 62% { transform: scale(1, 1); }
-  67%     { transform: scale(1.10, 0.86); }
-  73%     { transform: scale(0.97, 1.07); }
-  79%     { transform: scale(1, 1); }
-  100%    { transform: scale(1, 1); }
-}
-
-/* Lid open â†’ hold â†’ snap */
-.dtb-root.eating .dtb-bin__lid {
-  animation: dtbLidMouth var(--dtb-cycle) cubic-bezier(0.65, 0, 0.35, 1) forwards;
-}
-@keyframes dtbLidMouth {
-  0%   { transform: rotate(0deg); }
-  12%  { transform: rotate(-74deg); }
-  58%  { transform: rotate(-74deg); }
-  65%  { transform: rotate(8deg);  }
-  71%  { transform: rotate(-4deg); }
-  78%  { transform: rotate(0deg);  }
-  100% { transform: rotate(0deg);  }
-}
-
-/* Letters fly into bin */
-.dtb-root.eating .dtb-ltr {
-  animation: dtbLetterEat var(--dtb-ltr-dur) cubic-bezier(0.55, 0, 0.25, 1) forwards;
-  animation-delay: calc(var(--dtb-ltr-start) + var(--i) * var(--dtb-ltr-stagger));
-}
-@keyframes dtbLetterEat {
-  0%   { opacity: 1; transform: translate(0, 0) scale(1); }
-  8%   { opacity: 1; transform: translate(0, 0) scale(1.06); }
-  30%  { opacity: 0; transform: translate(var(--eat-x), var(--eat-y)) scale(0.1); }
-  55%  { opacity: 0; transform: translate(var(--eat-x), var(--eat-y)) scale(0.1); }
-  72%  { opacity: 1; transform: translate(0, 0) scale(1); }
-  100% { opacity: 1; transform: translate(0, 0) scale(1); }
-}
-
-/* Sparks fly out at the snap */
-.dtb-root.eating .dtb-spark {
-  animation: dtbSparkFly 0.6s cubic-bezier(0.22, 0.9, 0.3, 1) forwards;
-  animation-delay: calc(1.72s + var(--sd, 0s));
-}
-@keyframes dtbSparkFly {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(
-        calc(-50% + var(--dx)),
-        calc(-50% + var(--dy))
-      )
-      scale(0.2);
-  }
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   CONFIRMATION MODAL
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.dtb-modal-back {
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  animation: dtbModalFade 0.22s ease-out;
-}
-@keyframes dtbModalFade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-.dtb-modal {
-  width: 100%;
-  max-width: 440px;
-  background: #ffffff;
-  border-radius: 24px;
-  padding: 36px 32px 28px;
-  text-align: center;
-  box-shadow:
-    0 30px 80px -30px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
-  animation: dtbModalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  font-family: 'Poppins', system-ui, sans-serif;
-}
-@keyframes dtbModalPop {
-  from { opacity: 0; transform: translateY(20px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.dtb-modal__icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 18px;
-  border-radius: 20px;
-  background: #fef2f2;
-  border: 2px solid #fecaca;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.8rem;
-}
-.dtb-modal__title {
-  font-size: 1.35rem;
-  font-weight: 900;
-  color: #111;
-  letter-spacing: -0.02em;
-  margin: 0 0 10px;
-}
-.dtb-modal__text {
-  font-size: 0.88rem;
-  color: #6b7280;
-  line-height: 1.6;
-  margin: 0 0 28px;
-}
-.dtb-modal__actions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-}
-.dtb-modal__btn {
-  flex: 1;
-  padding: 13px 20px;
-  border-radius: 14px;
-  border: none;
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 800;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-}
-.dtb-modal__btn--cancel {
-  background: #f3f4f6;
-  color: #374151;
-}
-.dtb-modal__btn--cancel:hover {
-  background: #e5e7eb;
-  transform: translateY(-2px);
-}
-.dtb-modal__btn--danger {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: #fff;
-  box-shadow: 0 8px 22px -6px rgba(239, 68, 68, 0.55);
-}
-.dtb-modal__btn--danger:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 30px -8px rgba(239, 68, 68, 0.7);
-}
-
-@media (max-width: 480px) {
-  .dtb-modal { padding: 28px 22px 22px; border-radius: 20px; }
-  .dtb-modal__title { font-size: 1.15rem; }
-  .dtb-modal__actions { flex-direction: column-reverse; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dtb-root.eating .dtb-bin,
-  .dtb-root.eating .dtb-bin__lid,
-  .dtb-root.eating .dtb-ltr,
-  .dtb-root.eating .dtb-spark,
-  .dtb-modal-back,
-  .dtb-modal {
-    animation-duration: 0.001ms !important;
-    animation-delay: 0ms !important;
-  }
-}
-```
-
-### FILE: frontend\src\components\DeleteButton.jsx
-```
-// frontend/src/components/DeleteButton.jsx
-import { useState, useRef, useEffect } from "react";
-import "./DeleteButton.css";
-
-const DeleteButton = ({ onClick, label = "Delete Trip" }) => {
-  const binRef = useRef(null);
-  const labelRef = useRef(null);
-  const [eating, setEating] = useState(false);
-  const busyRef = useRef(false);
-  const audioRef = useRef({ ac: null, noiseBuf: null });
-  const timeoutRef = useRef(null);
-
-  /* â•â•â•â•â•â•â•â•â•â•â• Audio â•â•â•â•â•â•â•â•â•â•â• */
-  const getAudio = () => {
-    const a = audioRef.current;
-    if (!a.ac) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return null;
-      a.ac = new AC();
-      const len = a.ac.sampleRate * 0.5;
-      a.noiseBuf = a.ac.createBuffer(1, len, a.ac.sampleRate);
-      const d = a.noiseBuf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    }
-    if (a.ac.state === "suspended") a.ac.resume();
-    return a.ac;
-  };
-
-  useEffect(() => {
-    const unlock = () => {
-      getAudio();
-      window.removeEventListener("pointerdown", unlock);
-    };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  const noise = ({
-    type = "bandpass",
-    freq = 1200,
-    q = 1,
-    dur = 0.15,
-    vol = 0.15,
-    delay = 0,
-    sweepTo = null,
-  } = {}) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const a = audioRef.current;
-    const t0 = ctx.currentTime + delay;
-    const s = ctx.createBufferSource();
-    s.buffer = a.noiseBuf;
-    s.loop = true;
-    const f = ctx.createBiquadFilter();
-    f.type = type;
-    f.frequency.setValueAtTime(freq, t0);
-    f.Q.value = q;
-    if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t0 + dur);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    s.connect(f).connect(g).connect(ctx.destination);
-    s.start(t0);
-    s.stop(t0 + dur + 0.05);
-  };
-
-  const tone = ({
-    type = "sine",
-    from = 440,
-    to = 440,
-    dur = 0.12,
-    vol = 0.15,
-    delay = 0,
-  } = {}) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const t0 = ctx.currentTime + delay;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(from, t0);
-    o.frequency.exponentialRampToValueAtTime(Math.max(1, to), t0 + dur);
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(g).connect(ctx.destination);
-    o.start(t0);
-    o.stop(t0 + dur + 0.05);
-  };
-
-  const playSounds = (letterCount) => {
-    // Click
-    tone({ type: "square", from: 900, to: 200, dur: 0.03, vol: 0.06 });
-    noise({ type: "highpass", freq: 3000, q: 0.7, dur: 0.03, vol: 0.05 });
-
-    // Whoosh per letter
-    const n = Math.min(letterCount, 12);
-    for (let i = 0; i < n; i++) {
-      const d = 0.3 + i * 0.09;
-      noise({
-        type: "bandpass",
-        freq: 900 + i * 110,
-        sweepTo: 260,
-        q: 1.3,
-        dur: 0.3,
-        vol: 0.05,
-        delay: d,
-      });
-    }
-
-    // Lid snap
-    noise({ type: "highpass", freq: 2500, q: 0.9, dur: 0.06, vol: 0.14, delay: 1.69 });
-    tone({ type: "triangle", from: 260, to: 70, dur: 0.18, vol: 0.14, delay: 1.69 });
-    tone({ type: "sine", from: 140, to: 60, dur: 0.22, vol: 0.1, delay: 1.73 });
-
-    // Return chime
-    tone({ type: "triangle", from: 880, to: 1320, dur: 0.24, vol: 0.06, delay: 1.9 });
-    tone({ type: "sine", from: 1320, to: 1760, dur: 0.28, vol: 0.04, delay: 2.0 });
-  };
-
-  /* â•â•â•â•â•â•â•â•â•â•â• Measure letters â†’ bin mouth â•â•â•â•â•â•â•â•â•â•â• */
-  const measureEatTargets = () => {
-    const bin = binRef.current;
-    const labelEl = labelRef.current;
-    if (!bin || !labelEl) return;
-
-    const binRect = bin.getBoundingClientRect();
-    const mouthX = binRect.left + binRect.width * 0.55;
-    const mouthY = binRect.top + binRect.height * 0.28;
-
-    const ltrs = labelEl.querySelectorAll(".dtb-ltr");
-    ltrs.forEach((ltr) => {
-      const r = ltr.getBoundingClientRect();
-      const cx = r.left + r.width / 2;
-      const cy = r.top + r.height / 2;
-      ltr.style.setProperty("--eat-x", mouthX - cx + "px");
-      ltr.style.setProperty("--eat-y", mouthY - cy + "px");
-    });
-  };
-
-  useEffect(() => {
-    measureEatTargets();
-    const onResize = () => {
-      if (eating) return;
-      measureEatTargets();
-    };
-    window.addEventListener("resize", onResize);
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(measureEatTargets);
-    }
-    return () => window.removeEventListener("resize", onResize);
-  }, [eating, label]);
-
-  /* â•â•â•â•â•â•â•â•â•â•â• Click â€” no confirm, just delete â•â•â•â•â•â•â•â•â•â•â• */
-  const handleClick = () => {
-    if (busyRef.current) return;
-    busyRef.current = true;
-
-    // Start animation
-    setEating(false);
-    requestAnimationFrame(() => {
-      measureEatTargets();
-      setEating(true);
-    });
-
-    // Play sounds
-    playSounds(label.length);
-
-    // After animation (2.6s), call onClick to actually delete
-    timeoutRef.current = setTimeout(() => {
-      setEating(false);
-      busyRef.current = false;
-      if (onClick) onClick();
-    }, 2600);
-  };
-
-  const letters = label.split("");
-
-  return (
-    <button
-      type="button"
-      className={`dtb-root ${eating ? "eating" : ""}`}
-      onClick={handleClick}
-      aria-label={label}
-    >
-      {/* Bin + sparks */}
-      <span className="dtb-bin" aria-hidden="true" ref={binRef}>
-        <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-          <path
-            className="dtb-bin__body"
-            d="M9 12 L23 12 L21.5 27.5 Q21.4 29 20 29 L12 29 Q10.6 29 10.5 27.5 Z"
-          />
-          <line className="dtb-bin__body" x1="13" y1="16" x2="13.4" y2="25" />
-          <line className="dtb-bin__body" x1="16" y1="16" x2="16" y2="25" />
-          <line className="dtb-bin__body" x1="19" y1="16" x2="18.6" y2="25" />
-          <g className="dtb-bin__lid">
-            <path d="M6 9 L26 9 Q27.2 9 27.2 10.2 L27.2 11.6 L4.8 11.6 L4.8 10.2 Q4.8 9 6 9 Z" />
-            <path d="M13.5 5.6 L18.5 5.6 Q19.6 5.6 19.6 6.7 L19.6 9 L12.4 9 L12.4 6.7 Q12.4 5.6 13.5 5.6 Z" />
-          </g>
-        </svg>
-
-        <span className="dtb-sparks">
-          <span className="dtb-spark" style={{ "--dx": "-14px", "--dy": "-12px", "--sd": "0.00s" }} />
-          <span className="dtb-spark" style={{ "--dx": "-10px", "--dy": "-16px", "--sd": "0.02s" }} />
-          <span className="dtb-spark" style={{ "--dx": "-4px",  "--dy": "-18px", "--sd": "0.04s" }} />
-          <span className="dtb-spark" style={{ "--dx": "5px",   "--dy": "-18px", "--sd": "0.01s" }} />
-          <span className="dtb-spark" style={{ "--dx": "12px",  "--dy": "-14px", "--sd": "0.03s" }} />
-          <span className="dtb-spark" style={{ "--dx": "16px",  "--dy": "-6px",  "--sd": "0.05s" }} />
-          <span className="dtb-spark" style={{ "--dx": "-16px", "--dy": "-4px",  "--sd": "0.02s" }} />
-          <span className="dtb-spark" style={{ "--dx": "0px",   "--dy": "-20px", "--sd": "0.00s" }} />
-        </span>
-      </span>
-
-      {/* Label */}
-      <span className="dtb-label" aria-hidden="true" ref={labelRef}>
-        {letters.map((ch, i) => (
-          <span key={i} className="dtb-ltr" style={{ "--i": String(i) }}>
-            {ch === " " ? "\u00A0" : ch}
-          </span>
-        ))}
-      </span>
-    </button>
-  );
-};
-
-export default DeleteButton;
-```
-
-### FILE: frontend\src\components\ExportPDFButton.css
-```
-/* frontend/src/components/ExportPDFButton.css */
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   BASE BUTTON
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-.pdf-btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 22px;
-  border-radius: 999px;
-  border: none;
-  background: linear-gradient(135deg, #a3e635 0%, #bef264 100%);
-  color: #12200a;
-  font-family: 'Poppins', system-ui, sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-  overflow: hidden;
-  white-space: nowrap;
-  box-shadow:
-    0 10px 24px -8px rgba(163, 230, 53, 0.7),
-    0 2px 0 rgba(255, 255, 255, 0.4) inset;
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-              background 0.3s ease;
-  isolation: isolate;
-}
-
-.pdf-btn:hover:not(:disabled) {
-  transform: translateY(-3px);
-  box-shadow:
-    0 16px 36px -10px rgba(163, 230, 53, 0.9),
-    0 0 0 4px rgba(163, 230, 53, 0.2);
-}
-
-.pdf-btn:disabled {
-  cursor: wait;
-}
-
-.pdf-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(163, 230, 53, 0.5);
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   SKY BACKGROUND (appears during animation)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-.pdf-btn__sky {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(180deg, #cde9ff 0%, #eaf6ff 60%, #f5faff 100%);
-  opacity: 0;
-  z-index: 0;
-  transition: opacity 0.35s ease;
-  pointer-events: none;
-}
-
-.pdf-btn.running .pdf-btn__sky {
-  opacity: 1;
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   PARACHUTE PAYLOAD
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-.pdf-btn__payload {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 34px;
-  height: 40px;
-  margin-left: -17px;
-  z-index: 3;
-  opacity: 0;
-  transform: translateY(-70px) scale(0.6);
-  pointer-events: none;
-  will-change: transform, opacity;
-}
-
-.pdf-btn.running .pdf-btn__payload {
-  animation: pdfParachuteDrop 2.2s cubic-bezier(0.34, 0.94, 0.6, 1) forwards;
-}
-
-@keyframes pdfParachuteDrop {
-  0% {
-    opacity: 0;
-    transform: translateY(-70px) scale(0.5) rotate(-6deg);
-  }
-  15% {
-    opacity: 1;
-    transform: translateY(-45px) scale(0.9) rotate(4deg);
-  }
-  40% {
-    transform: translateY(-20px) scale(1) rotate(-3deg);
-  }
-  65% {
-    transform: translateY(-2px) scale(1.05) rotate(2deg);
-  }
-  85% {
-    transform: translateY(6px) scale(0.95) rotate(-1deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(18px) scale(0.7) rotate(0deg);
-  }
-}
-
-/* Canopy sway */
-.pdf-btn.running .pdf-btn__para-svg .canopy-g {
-  transform-origin: 20px 16px;
-  animation: pdfCanopySway 1.2s ease-in-out infinite alternate;
-}
-
-@keyframes pdfCanopySway {
-  from { transform: rotate(-4deg) scaleX(0.98); }
-  to   { transform: rotate(4deg) scaleX(1.02); }
-}
-
-/* Crate swing */
-.pdf-btn.running .pdf-btn__para-svg .crate-g {
-  transform-origin: 20px 26px;
-  animation: pdfCrateSwing 0.9s ease-in-out infinite alternate;
-}
-
-@keyframes pdfCrateSwing {
-  from { transform: rotate(-8deg); }
-  to   { transform: rotate(8deg); }
-}
-
-/* Trail behind the payload */
-.pdf-btn__trail {
-  position: absolute;
-  left: 50%;
-  top: -30px;
-  width: 3px;
-  height: 30px;
-  margin-left: -1.5px;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(163, 230, 53, 0.5) 40%,
-    rgba(163, 230, 53, 0.9) 100%
-  );
-  border-radius: 2px;
-  filter: blur(0.5px);
-  opacity: 0;
-}
-
-.pdf-btn.running .pdf-btn__trail {
-  animation: pdfTrailPulse 1.4s ease-out forwards;
-}
-
-@keyframes pdfTrailPulse {
-  0% { opacity: 0; transform: scaleY(0.4); }
-  20% { opacity: 1; transform: scaleY(1); }
-  70% { opacity: 0.7; transform: scaleY(1.15); }
-  100% { opacity: 0; transform: scaleY(1); }
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   SHOCKWAVE (when payload lands)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-.pdf-btn__shockwave {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 40px;
-  height: 40px;
-  margin: -20px 0 0 -20px;
-  border-radius: 50%;
-  border: 2px solid rgba(163, 230, 53, 0.7);
-  opacity: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.pdf-btn.running .pdf-btn__shockwave {
-  animation: pdfShockwave 0.9s 1.5s ease-out forwards;
-}
-
-@keyframes pdfShockwave {
-  0% {
-    opacity: 0.9;
-    transform: scale(0.4);
-    border-color: rgba(163, 230, 53, 0.9);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(3);
-    border-color: rgba(163, 230, 53, 0);
-  }
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   CHECKMARK BADGE (appears after drop)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-.pdf-btn__badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 22px;
-  height: 22px;
-  z-index: 5;
-  opacity: 0;
-  transform: scale(0.4);
-  pointer-events: none;
-}
-
-.pdf-btn.win .pdf-btn__badge {
-  animation: pdfBadgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-@keyframes pdfBadgePop {
-  0%   { opacity: 0; transform: scale(0.4) rotate(-30deg); }
-  60%  { opacity: 1; transform: scale(1.25) rotate(8deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   LABELS
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-.pdf-btn__label-stack {
-  position: relative;
-  display: inline-block;
-  z-index: 4;
-  height: 1.2em;
-  overflow: hidden;
-  padding: 0 4px;
-  min-width: 160px;
-  text-align: left;
-}
-
-.pdf-btn__lbl {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.28s ease;
-  white-space: nowrap;
-}
-
-.pdf-btn__lbl-default {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.pdf-btn__lbl-drop,
-.pdf-btn__lbl-done {
-  opacity: 0;
-  transform: translateY(1.2em);
-}
-
-/* Running state â€” swap to "Dropping your PDFâ€¦" */
-.pdf-btn.running .pdf-btn__lbl-default {
-  opacity: 0;
-  transform: translateY(-1.2em);
-}
-.pdf-btn.running .pdf-btn__lbl-drop {
-  opacity: 1;
-  transform: translateY(0);
-  color: #1e40af;
-}
-
-/* Done state â€” swap to "PDF Downloaded!" */
-.pdf-btn.win .pdf-btn__lbl-default { opacity: 0; transform: translateY(-1.2em); }
-.pdf-btn.win .pdf-btn__lbl-drop    { opacity: 0; transform: translateY(-1.2em); }
-.pdf-btn.win .pdf-btn__lbl-done    { opacity: 1; transform: translateY(0); }
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   SR-ONLY
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   REDUCED MOTION
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-@media (prefers-reduced-motion: reduce) {
-  .pdf-btn__payload,
-  .pdf-btn__trail,
-  .pdf-btn__shockwave,
-  .pdf-btn__badge,
-  .pdf-btn__lbl {
-    animation: none !important;
-    transition: opacity 0.2s ease !important;
-  }
-  .pdf-btn.running .pdf-btn__payload {
-    opacity: 1;
-    transform: none;
-    position: relative;
-    margin-right: 8px;
-  }
-}
-```
-
-### FILE: frontend\src\components\ExportPDFButton.jsx
-```
-// frontend/src/components/ExportPDFButton.jsx
-import { useRef, useState, useEffect } from "react";
-import "./ExportPDFButton.css";
-
-const loadHtml2Pdf = () => {
-  if (window.html2pdf) return Promise.resolve(window.html2pdf);
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-    s.onload = () => resolve(window.html2pdf);
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-};
-
-const ExportPDFButton = ({ targetId, filename, holderId }) => {
-  const [state, setState] = useState("idle"); // idle | running | done
-  const busyRef = useRef(false);
-  const audioRef = useRef({ ac: null, noiseBuf: null });
-
-  /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-     Audio setup â€” Web Audio API (no files needed)
-     â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  const getAudio = () => {
-    const a = audioRef.current;
-    if (!a.ac) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return null;
-      a.ac = new AC();
-      const len = a.ac.sampleRate * 1.5;
-      a.noiseBuf = a.ac.createBuffer(1, len, a.ac.sampleRate);
-      const d = a.noiseBuf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    }
-    if (a.ac.state === "suspended") a.ac.resume();
-    return a.ac;
-  };
-
-  /* Unlock audio on first user gesture (browser autoplay policy) */
-  useEffect(() => {
-    const unlock = () => {
-      getAudio();
-      window.removeEventListener("pointerdown", unlock);
-    };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    return () => window.removeEventListener("pointerdown", unlock);
-  }, []);
-
-  /* â”€â”€â”€ Sound 1: Button press â€” square blip â”€â”€â”€ */
-  const sPress = (t) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const o = ctx.createOscillator();
-    o.type = "square";
-    o.frequency.setValueAtTime(820, t);
-    o.frequency.exponentialRampToValueAtTime(230, t + 0.05);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.085, t + 0.004);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-    o.connect(g).connect(ctx.destination);
-    o.start(t);
-    o.stop(t + 0.09);
-  };
-
-  /* â”€â”€â”€ Sound 2: Parachute descent â€” filtered noise sweeping down â”€â”€â”€ */
-  const sDescent = (t, dur) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const a = audioRef.current;
-    const n = ctx.createBufferSource();
-    n.buffer = a.noiseBuf;
-    n.loop = true;
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.Q.value = 1.7;
-    bp.frequency.setValueAtTime(3200, t);
-    bp.frequency.exponentialRampToValueAtTime(640, t + dur);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.1, t + 0.1);
-    g.gain.linearRampToValueAtTime(0.085, t + dur * 0.68);
-    g.gain.linearRampToValueAtTime(0.0001, t + dur);
-    n.connect(bp).connect(g).connect(ctx.destination);
-    n.start(t);
-    n.stop(t + dur + 0.06);
-  };
-
-  /* â”€â”€â”€ Sound 3: Landing thud â€” sine sweep down â”€â”€â”€ */
-  const sThud = (t) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const o = ctx.createOscillator();
-    o.type = "sine";
-    o.frequency.setValueAtTime(160, t);
-    o.frequency.exponentialRampToValueAtTime(50, t + 0.22);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.38, t + 0.009);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
-    o.connect(g).connect(ctx.destination);
-    o.start(t);
-    o.stop(t + 0.33);
-  };
-
-  /* â”€â”€â”€ Sound 4: Success ping â€” triangle ding â”€â”€â”€ */
-  const sPing = (t) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const o = ctx.createOscillator();
-    o.type = "triangle";
-    o.frequency.setValueAtTime(1200, t);
-    o.frequency.exponentialRampToValueAtTime(1188, t + 0.45);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.135, t + 0.006);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
-    o.connect(g).connect(ctx.destination);
-    o.start(t);
-    o.stop(t + 0.52);
-  };
-
-  /* â”€â”€â”€ Sound 5: Victory chord â€” C-E-G-C â”€â”€â”€ */
-  const sVictory = (t) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, i) => {
-      const st = t + i * 0.075;
-      const o = ctx.createOscillator();
-      o.type = "triangle";
-      o.frequency.value = freq;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, st);
-      g.gain.exponentialRampToValueAtTime(0.095, st + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.72);
-      o.connect(g).connect(ctx.destination);
-      o.start(st);
-      o.stop(st + 0.78);
-    });
-  };
-
-  /* â”€â”€â”€ Play the full sequence â”€â”€â”€ */
-  const playFull = () => {
-    const ctx = getAudio();
-    if (!ctx) {
-      console.warn("[PDF Button] AudioContext unavailable");
-      return;
-    }
-    const t = ctx.currentTime + 0.02;
-
-    sPress(t);              // 0.00s â€” button click
-    sDescent(t + 0.1, 1.6); // 0.10s â€” parachute descends (1.6s whoosh)
-    sThud(t + 1.85);        // 1.85s â€” landing thud
-    sPing(t + 2.0);         // 2.00s â€” ping when badge pops
-    sVictory(t + 2.25);     // 2.25s â€” victory chord
-  };
-
-  /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-     PDF export
-     â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  const runExport = async () => {
-    const target = document.getElementById(targetId);
-    const holder = holderId ? document.getElementById(holderId) : null;
-
-    if (!target) {
-      console.warn("[Export] Target not found:", targetId);
-      return;
-    }
-
-    if (holder) holder.classList.add("is-exporting");
-
-    await new Promise((r) => setTimeout(r, 250));
-
-    try {
-      const html2pdf = await loadHtml2Pdf();
-
-      await html2pdf()
-        .set({
-          margin: [10, 10, 10, 10],
-          filename: filename || "itinerary.pdf",
-          image: { type: "jpeg", quality: 0.95 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            logging: false,
-            scrollX: 0,
-            scrollY: 0,
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: {
-            mode: ["css", "legacy"],
-            avoid: [".itn-day", ".itn-hotel", ".itn-table tr", ".itn-foot"],
-          },
-        })
-        .from(target)
-        .save();
-    } catch (err) {
-      console.warn("[Export] html2pdf failed, falling back to print:", err);
-      window.print();
-    } finally {
-      if (holder) holder.classList.remove("is-exporting");
-    }
-  };
-
-  /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-     Click handler
-     â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  const handleClick = () => {
-    if (busyRef.current) return;
-    busyRef.current = true;
-
-    // 1) Start the parachute animation
-    setState("running");
-
-    // 2) Play the synced sound sequence
-    playFull();
-
-    // 3) At 2.0s, swap label to "PDF Downloaded!"
-    setTimeout(() => setState("done"), 2000);
-
-    // 4) At 2.3s, actually export the PDF
-    setTimeout(() => runExport(), 2300);
-
-    // 5) Reset at 4.8s
-    setTimeout(() => {
-      setState("idle");
-      busyRef.current = false;
-    }, 4800);
-  };
-
-  const cls = [
-    "pdf-btn",
-    state === "running" ? "running" : "",
-    state === "done" ? "win" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <button
-      type="button"
-      className={cls}
-      onClick={handleClick}
-      aria-label="Export PDF Itinerary"
-      disabled={state === "running"}
-    >
-      <span className="sr-only" role="status" aria-live="polite">
-        {state === "running" ? "Preparing PDF" : state === "done" ? "PDF ready" : ""}
-      </span>
-
-      <span className="pdf-btn__sky" aria-hidden="true" />
-      <span className="pdf-btn__shockwave" aria-hidden="true" />
-
-      <span className="pdf-btn__payload" aria-hidden="true">
-        <span className="pdf-btn__trail" />
-        <svg
-          className="pdf-btn__para-svg"
-          viewBox="0 0 40 46"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <linearGradient id="cpGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#C4E570" />
-              <stop offset="1" stopColor="#8FBF2E" />
-            </linearGradient>
-            <linearGradient id="crateGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#ffe2a0" />
-              <stop offset="1" stopColor="#d99b2b" />
-            </linearGradient>
-            <linearGradient id="packGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#A8D84A" />
-              <stop offset="1" stopColor="#1A2E1A" />
-            </linearGradient>
-          </defs>
-
-          <g className="canopy-g">
-            <path
-              d="M20 1 C8 1 1 8 1 16 L39 16 C39 8 32 1 20 1 Z"
-              fill="url(#cpGrad)"
-            />
-            <circle cx="7" cy="16" r="6" fill="url(#cpGrad)" />
-            <circle cx="20" cy="16" r="6" fill="url(#cpGrad)" />
-            <circle cx="33" cy="16" r="6" fill="url(#cpGrad)" />
-            <path
-              d="M20 1 C8 1 1 8 1 16"
-              fill="none"
-              stroke="#DCF0A0"
-              strokeWidth=".9"
-              opacity=".55"
-            />
-            <path
-              d="M20 1 C32 1 39 8 39 16"
-              fill="none"
-              stroke="#DCF0A0"
-              strokeWidth=".9"
-              opacity=".55"
-            />
-            <path d="M20 1 L20 16" stroke="#DCF0A0" strokeWidth=".7" opacity=".4" />
-          </g>
-
-          <g stroke="#DCF0A0" strokeWidth=".9" opacity=".85" fill="none">
-            <line x1="7" y1="20" x2="17" y2="29" />
-            <line x1="20" y1="21" x2="20" y2="29" />
-            <line x1="33" y1="20" x2="23" y2="29" />
-          </g>
-
-          <g className="crate-g">
-            <rect x="15" y="24" width="10" height="6" rx="1.6" fill="url(#packGrad)" />
-            <rect
-              x="11"
-              y="28"
-              width="18"
-              height="15"
-              rx="2.2"
-              fill="url(#crateGrad)"
-              stroke="#8a5a10"
-              strokeWidth=".9"
-            />
-            <line x1="20" y1="28" x2="20" y2="43" stroke="#8a5a10" strokeWidth="1" />
-            <line
-              x1="11"
-              y1="35.5"
-              x2="29"
-              y2="35.5"
-              stroke="#8a5a10"
-              strokeWidth="1"
-            />
-            <rect
-              x="17.5"
-              y="31.5"
-              width="5"
-              height="4"
-              rx=".8"
-              fill="#1A2E1A"
-              opacity=".85"
-            />
-          </g>
-        </svg>
-      </span>
-
-      <span className="pdf-btn__badge" aria-hidden="true">
-        <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
-          <circle
-            cx="11"
-            cy="11"
-            r="9.6"
-            fill="#1A2E1A"
-            stroke="#A8D84A"
-            strokeWidth="1.6"
-          />
-          <path
-            d="M6.6 11.4 L9.6 14.3 L15.4 8.2"
-            fill="none"
-            stroke="#A8D84A"
-            strokeWidth="2.1"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
-
-      <span className="pdf-btn__label-stack">
-        <span className="pdf-btn__lbl pdf-btn__lbl-default">
-          ðŸ“„ Export PDF Itinerary
-        </span>
-        <span className="pdf-btn__lbl pdf-btn__lbl-drop">
-          ðŸª‚ Dropping your PDFâ€¦
-        </span>
-        <span className="pdf-btn__lbl pdf-btn__lbl-done">
-          âœ… PDF Downloaded!
-        </span>
-      </span>
-    </button>
-  );
-};
-
-export default ExportPDFButton;
-```
-
-### FILE: frontend\src\components\ItineraryPaper.jsx
-```
-const formatDate = (d) => {
-  if (!d) return "";
-  const dt = new Date(d);
-  return dt.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-};
-
-const ItineraryPaper = ({ trip, places = [] }) => {
-  if (!trip) return null;
-
-  const days = Math.max(
-    1,
-    Math.round(
-      (new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)
-    )
-  );
-  const budgetLabel =
-    trip.budget < 20000 ? "Cheap" : trip.budget < 50000 ? "Moderate" : "Luxury";
-
-  const startDate = formatDate(trip.startDate);
-  const endDate = formatDate(trip.endDate);
-
-  const totalSpent = (trip.itinerary || []).reduce((sum, day) => {
-    return (
-      sum +
-      (day.activities || []).reduce((s, act) => s + (Number(act.cost) || 0), 0)
-    );
-  }, 0);
-
-  return (
-    <main className="itn-paper" id="itineraryPaper">
-      {/* HEADER */}
-      <header className="itn-header">
-        <div className="itn-eyebrow">Official Travel Itinerary</div>
-        <h1 className="itn-title">{trip.destination}</h1>
-        <div className="itn-dest">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-            <circle cx="12" cy="10" r="3"></circle>
-          </svg>
-          <span>{trip.destination}</span>
-        </div>
-        <div className="itn-dates">
-          <span>
-            {days} Day{days > 1 ? "s" : ""}
-          </span>
-          <span className="dot"></span>
-          <span>
-            {startDate} â€” {endDate}
-          </span>
-        </div>
-      </header>
-
-      {/* SUMMARY */}
-      <section className="itn-summary">
-        <div className="itn-metric">
-          <div className="m-label">Travellers</div>
-          <div className="m-value">
-            {trip.travellers}
-            <small>{trip.travellers > 1 ? " guests" : " guest"}</small>
-          </div>
-        </div>
-        <div className="itn-metric m-budget">
-          <div className="m-label">Total Budget</div>
-          <div className="m-value">
-            â‚¹{trip.budget?.toLocaleString?.() || trip.budget}
-          </div>
-        </div>
-        <div className="itn-metric m-travellers">
-          <div className="m-label">Trip Style</div>
-          <div className="m-value">
-            {budgetLabel}
-            <small> tier</small>
-          </div>
-        </div>
-      </section>
-
-      {/* ITINERARY */}
-      {trip.itinerary?.length > 0 && (
-        <>
-          <div className="itn-section-head">
-            <h2>Day-by-Day Itinerary</h2>
-          </div>
-
-          {trip.itinerary.map((day) => (
-            <article className="itn-day" key={day.day}>
-              <header className="itn-day-head">
-                <div className="itn-day-num">
-                  {String(day.day).padStart(2, "0")}
-                </div>
-                <div className="itn-day-name">Day {day.day}</div>
-                <div className="itn-day-date">{day.date}</div>
-              </header>
-              <table className="itn-table">
-                <thead>
-                  <tr>
-                    <th className="itn-col-time">Time</th>
-                    <th>Activity</th>
-                    <th className="itn-col-cost">Cost</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(day.activities || []).map((act, i) => (
-                    <tr key={i}>
-                      <td className="itn-col-time">
-                        <span className="itn-time-chip">{act.time}</span>
-                      </td>
-                      <td>
-                        <div className="itn-act-title">{act.title}</div>
-                        {act.description && (
-                          <div className="itn-act-desc">{act.description}</div>
-                        )}
-                        {act.location && (
-                          <div className="itn-venue">
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                              <circle cx="12" cy="10" r="3"></circle>
-                            </svg>
-                            <span>{act.location}</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="itn-col-cost">
-                        <div
-                          className={`itn-cost-val ${
-                            !act.cost || act.cost === 0 ? "free" : ""
-                          }`}
-                        >
-                          {!act.cost || act.cost === 0 ? "Free" : `â‚¹${act.cost}`}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </article>
-          ))}
-        </>
-      )}
-
-      {/* HOTELS */}
-      {trip.hotels?.length > 0 && (
-        <>
-          <div className="itn-section-head">
-            <h2>Recommended Hotels</h2>
-          </div>
-          <div className="itn-hotel-grid">
-            {trip.hotels.map((h, i) => (
-              <div className="itn-hotel" key={i}>
-                <div className="itn-hotel-name">{h.name}</div>
-                <div className="itn-hotel-row">ðŸ“ {h.address}</div>
-                <div className="itn-hotel-row">
-                  â­ {h.rating} Â· ðŸ’° {h.price}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* PLACES */}
-      {places.length > 0 && (
-        <>
-          <div className="itn-section-head">
-            <h2>Nearby Attractions</h2>
-          </div>
-          <div className="itn-hotel-grid">
-            {places.slice(0, 6).map((p, i) => (
-              <div className="itn-hotel" key={i}>
-                <div className="itn-hotel-name">{p.name}</div>
-                <div className="itn-hotel-row">ðŸ· {p.type}</div>
-                {p.description && (
-                  <div className="itn-hotel-row">
-                    {String(p.description).slice(0, 120)}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* BUDGET BREAKDOWN */}
-      {trip.budgetBreakdown && trip.budgetBreakdown.total > 0 && (
-        <>
-          <div className="itn-section-head">
-            <h2>Budget Breakdown</h2>
-          </div>
-          <table className="itn-table">
-            <tbody>
-              <tr>
-                <td>âœˆï¸ Flights</td>
-                <td className="itn-col-cost">
-                  <div className="itn-cost-val">
-                    â‚¹{trip.budgetBreakdown.flights}
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td>ðŸ¨ Hotels</td>
-                <td className="itn-col-cost">
-                  <div className="itn-cost-val">
-                    â‚¹{trip.budgetBreakdown.hotels}
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td>ðŸ½ Food</td>
-                <td className="itn-col-cost">
-                  <div className="itn-cost-val">
-                    â‚¹{trip.budgetBreakdown.food}
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td>ðŸŽŸ Activities</td>
-                <td className="itn-col-cost">
-                  <div className="itn-cost-val">
-                    â‚¹{trip.budgetBreakdown.activities}
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>Total</strong>
-                </td>
-                <td className="itn-col-cost">
-                  <div className="itn-cost-val">
-                    <strong>â‚¹{trip.budgetBreakdown.total}</strong>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </>
-      )}
-
-      <footer className="itn-foot">
-        <div className="f-left">
-          Generated via <span>AI Travel Planner</span>
-        </div>
-        <div className="f-mid">
-          Planned activity cost: â‚¹{totalSpent.toLocaleString?.() || totalSpent}
-        </div>
-        <div className="f-right">Safe Travels!</div>
-      </footer>
-    </main>
-  );
-};
-
-export default ItineraryPaper;
-```
-
-### FILE: frontend\src\components\Navbar.css
-```
-/* frontend/src/components/Navbar.css */
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   ROOT NAVBAR
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.nb-root {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  background: rgba(5, 5, 5, 0.82);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.nb-inner {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   BRAND
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.nb-brand {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-  flex-shrink: 0;
-}
-.nb-brand-text {
-  color: #fff;
-  font-family: 'Poppins', system-ui, sans-serif;
-  font-size: 1.15rem;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-}
-.nb-brand-text .nb-brand-accent {
-  color: #a3e635;
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   DESKTOP NAV LINKS
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.nb-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1;
-  justify-content: center;
-}
-.nb-link {
-  font-family: 'Poppins', system-ui, sans-serif;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #888;
-  text-decoration: none;
-  padding: 8px 14px;
-  border-radius: 10px;
-  transition: color 0.2s, background 0.2s;
-  white-space: nowrap;
-}
-.nb-link:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-}
-.nb-link.active {
-  color: #a3e635;
-  background: rgba(163, 230, 53, 0.12);
-  font-weight: 700;
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   AUTH ZONE (right side)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.nb-auth {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-.nb-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #a3e635, #bef264);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #000;
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-decoration: none;
-  letter-spacing: 0.02em;
-  box-shadow: 0 0 14px rgba(163, 230, 53, 0.35);
-  transition: box-shadow 0.2s, transform 0.2s;
-  flex-shrink: 0;
-}
-.nb-avatar:hover {
-  box-shadow: 0 0 22px rgba(163, 230, 53, 0.6);
-  transform: translateY(-1px);
-}
-.nb-logout {
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #888;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 7px 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background 0.2s;
-  white-space: nowrap;
-}
-.nb-logout:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   NOT-LOGGED-IN CTAs
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.nb-cta-login {
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #888;
-  text-decoration: none;
-  padding: 8px 14px;
-  border-radius: 10px;
-  transition: color 0.2s, background 0.2s;
-  white-space: nowrap;
-}
-.nb-cta-login:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-}
-.nb-cta-get-started {
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: #000;
-  text-decoration: none;
-  padding: 9px 18px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #a3e635, #bef264);
-  box-shadow: 0 6px 20px -6px rgba(163, 230, 53, 0.55);
-  transition: transform 0.2s, box-shadow 0.2s;
-  white-space: nowrap;
-}
-.nb-cta-get-started:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 26px -6px rgba(163, 230, 53, 0.75);
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   MOBILE TOGGLE
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.nb-toggle {
-  display: none;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #fff;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-  font-family: inherit;
-  transition: border-color 0.2s, background 0.2s;
-  flex-shrink: 0;
-}
-.nb-toggle:hover {
-  border-color: rgba(163, 230, 53, 0.5);
-  background: rgba(163, 230, 53, 0.06);
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   MOBILE PANEL
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.nb-mobile {
-  display: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(5, 5, 5, 0.95);
-  padding: 16px 24px 20px;
-  animation: nbSlideDown 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes nbSlideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.nb-mobile.open { display: block; }
-
-.nb-mobile-links {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 14px;
-}
-.nb-mobile-link {
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #888;
-  text-decoration: none;
-  padding: 12px 14px;
-  border-radius: 12px;
-  transition: color 0.2s, background 0.2s;
-}
-.nb-mobile-link:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-}
-.nb-mobile-link.active {
-  color: #a3e635;
-  background: rgba(163, 230, 53, 0.12);
-  font-weight: 700;
-}
-
-.nb-mobile-user {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  margin-bottom: 10px;
-  text-decoration: none;
-}
-.nb-mobile-user .nb-avatar {
-  width: 42px;
-  height: 42px;
-  font-size: 0.85rem;
-  border-radius: 50%;
-}
-.nb-mobile-user-info {
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.nb-mobile-user-name {
-  font-family: 'Poppins', system-ui, sans-serif;
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.nb-mobile-user-email {
-  font-family: 'Poppins', system-ui, sans-serif;
-  font-size: 0.72rem;
-  color: #888;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.nb-mobile-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.nb-mobile-logout {
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #888;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: left;
-}
-.nb-mobile-logout:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.3);
-}
-.nb-mobile-cta {
-  display: block;
-  text-align: center;
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: #000;
-  text-decoration: none;
-  padding: 12px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #a3e635, #bef264);
-  box-shadow: 0 8px 24px -8px rgba(163, 230, 53, 0.6);
-  transition: transform 0.2s;
-}
-.nb-mobile-cta:hover { transform: translateY(-1px); }
-.nb-mobile-cta-ghost {
-  display: block;
-  text-align: center;
-  font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #fff;
-  text-decoration: none;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  transition: border-color 0.2s;
-}
-.nb-mobile-cta-ghost:hover { border-color: rgba(255, 255, 255, 0.3); }
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   THREE-DOT MENU
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.nb-menu-wrap {
-  position: relative;
-  display: inline-block;
-}
-
-.nb-menu-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #888;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background 0.2s;
-  font-family: inherit;
-  flex-shrink: 0;
-}
-.nb-menu-btn:hover {
-  color: #fff;
-  border-color: rgba(163, 230, 53, 0.5);
-  background: rgba(163, 230, 53, 0.06);
-}
-.nb-menu-btn.open {
-  color: #a3e635;
-  border-color: #a3e635;
-  background: rgba(163, 230, 53, 0.12);
-}
-
-.nb-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 240px;
-  background: rgba(15, 15, 15, 0.98);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  padding: 6px;
-  box-shadow:
-    0 20px 50px -12px rgba(0, 0, 0, 0.9),
-    0 0 24px -8px rgba(163, 230, 53, 0.15);
-  z-index: 200;
-  animation: nbMenuIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes nbMenuIn {
-  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.nb-menu-label {
-  font-family: 'Poppins', system-ui, sans-serif;
-  font-size: 0.62rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: #52525b;
-  padding: 8px 12px 6px;
-}
-
-.nb-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  background: transparent;
-  border: none;
-  color: #e5e5e5;
-  font-family: 'Poppins', system-ui, sans-serif;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 10px 12px;
-  border-radius: 10px;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.15s, color 0.15s;
-}
-.nb-menu-item:hover:not(:disabled) {
-  background: rgba(163, 230, 53, 0.1);
-  color: #a3e635;
-}
-.nb-menu-item:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.nb-menu-icon {
-  font-size: 0.95rem;
-  flex-shrink: 0;
-  width: 18px;
-  text-align: center;
-}
-
-.nb-menu-divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-  margin: 6px 4px;
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   TOAST
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.nb-toast {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #a3e635;
-  color: #000;
-  padding: 12px 22px;
-  border-radius: 14px;
-  font-family: 'Poppins', system-ui, sans-serif;
-  font-size: 0.85rem;
-  font-weight: 800;
-  box-shadow: 0 12px 32px -8px rgba(163, 230, 53, 0.5);
-  z-index: 400;
-  animation: nbToastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
-}
-@keyframes nbToastIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   RESPONSIVE
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-@media (max-width: 820px) {
-  .nb-links,
-  .nb-auth,
-  .nb-cta-login,
-  .nb-cta-get-started {
-    display: none;
-  }
-  .nb-toggle {
-    display: flex;
-  }
-  .nb-menu-wrap {
-    display: none;
-  }
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   SMALL FLOATING PDF PANEL (top-right)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-.pdf-mini {
-  position: fixed;
-  top: 76px;
-  right: 24px;
-  width: 200px;
-  height: 220px;
-  border-radius: 20px;
-  background: #050505;
-  border: 1px solid rgba(163, 230, 53, 0.35);
-  box-shadow:
-    0 24px 60px -20px rgba(0, 0, 0, 0.85),
-    0 0 32px -8px rgba(163, 230, 53, 0.35);
-  overflow: hidden;
-  z-index: 300;
-  pointer-events: none;
-  font-family: 'Poppins', system-ui, sans-serif;
-  animation: pdfMiniIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes pdfMiniIn {
-  from { opacity: 0; transform: translateY(-12px) scale(0.94); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* Sky background */
-.pdf-mini__sky {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    circle at 50% 35%,
-    rgba(163, 230, 53, 0.18) 0%,
-    rgba(5, 5, 5, 0.95) 70%
-  );
-}
-
-/* Parachute wrapper */
-.pdf-mini__para {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  width: 60px;
-  height: 68px;
-  margin-left: -30px;
-  opacity: 0;
-  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55));
-  animation: pdfMiniDrop 1.9s cubic-bezier(0.34, 0.94, 0.6, 1) forwards;
-  will-change: transform, opacity;
-}
-
-@keyframes pdfMiniDrop {
-  0% {
-    opacity: 0;
-    transform: translateY(-120px) scale(0.5) rotate(-10deg);
-  }
-  15% {
-    opacity: 1;
-    transform: translateY(-70px) scale(0.85) rotate(6deg);
-  }
-  45% {
-    transform: translateY(-28px) scale(1) rotate(-4deg);
-  }
-  70% {
-    transform: translateY(-6px) scale(1.06) rotate(3deg);
-  }
-  88% {
-    transform: translateY(2px) scale(1.02) rotate(-1deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(8px) scale(0.75) rotate(0deg);
-  }
-}
-
-.pdf-mini__para svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* Canopy sway */
-.pdf-mini__para .mini-canopy {
-  transform-origin: 20px 16px;
-  animation: pdfMiniCanopySway 1.1s ease-in-out infinite alternate;
-}
-
-@keyframes pdfMiniCanopySway {
-  from { transform: rotate(-4deg) scaleX(0.98); }
-  to   { transform: rotate(4deg) scaleX(1.02); }
-}
-
-/* Crate swing */
-.pdf-mini__para .mini-crate {
-  transform-origin: 20px 26px;
-  animation: pdfMiniCrateSwing 0.85s ease-in-out infinite alternate;
-}
-
-@keyframes pdfMiniCrateSwing {
-  from { transform: rotate(-8deg); }
-  to   { transform: rotate(8deg); }
-}
-
-/* Shockwave on landing */
-.pdf-mini__shock {
-  position: absolute;
-  top: 88px;
-  left: 50%;
-  width: 40px;
-  height: 40px;
-  margin-left: -20px;
-  border-radius: 50%;
-  border: 2px solid rgba(163, 230, 53, 0.85);
-  opacity: 0;
-  animation: pdfMiniShock 0.9s 1.45s ease-out forwards;
-}
-
-@keyframes pdfMiniShock {
-  0% {
-    opacity: 0.9;
-    transform: scale(0.4);
-    border-color: rgba(163, 230, 53, 0.95);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(3.4);
-    border-color: rgba(163, 230, 53, 0);
-  }
-}
-
-/* Checkmark badge after drop */
-.pdf-mini__badge {
-  position: absolute;
-  top: 70px;
-  left: 50%;
-  width: 60px;
-  height: 60px;
-  margin-left: -30px;
-  filter: drop-shadow(0 0 16px rgba(163, 230, 53, 0.6));
-  animation: pdfMiniBadgePop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-@keyframes pdfMiniBadgePop {
-  0% {
-    opacity: 0;
-    transform: scale(0.3) rotate(-30deg);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.2) rotate(8deg);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) rotate(0deg);
-  }
-}
-
-/* Label under the animation */
-.pdf-mini__label {
-  position: absolute;
-  bottom: 18px;
-  left: 12px;
-  right: 12px;
-  text-align: center;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: #a3e635;
-  text-shadow: 0 0 14px rgba(163, 230, 53, 0.6);
-  animation: pdfMiniLabelIn 0.4s ease-out forwards;
-}
-
-@keyframes pdfMiniLabelIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .pdf-mini,
-  .pdf-mini__para,
-  .pdf-mini__shock,
-  .pdf-mini__badge,
-  .pdf-mini__para .mini-canopy,
-  .pdf-mini__para .mini-crate,
-  .pdf-mini__label {
-    animation: none !important;
-    transition: opacity 0.2s ease !important;
-  }
-  .pdf-mini__para { opacity: 1; transform: none; }
-  .pdf-mini__badge { opacity: 1; transform: none; }
-}
-
-/* Mobile */
-@media (max-width: 480px) {
-  .pdf-mini {
-    top: 70px;
-    right: 12px;
-    width: 170px;
-    height: 200px;
-  }
-}
-```
-
-### FILE: frontend\src\components\Navbar.jsx
-```
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
-import { useAuth } from "../context/AuthContext";
-import { useTripActions } from "../context/TripActionsContext";
-import CurrencyToggle from "./CurrencyToggle";
-import "./Navbar.css";
-
-const NAV_LINKS = [
-  { to: "/", label: "Home" },
-  { to: "/trips/new", label: "Create" },
-  { to: "/trips", label: "My Trips" },
-  { to: "/compare", label: "Compare" },
-  { to: "/weather", label: "Weather" },
-  { to: "/journal", label: "Journal" },
-];
-
-const loadHtml2Pdf = () => {
-  if (window.html2pdf) return Promise.resolve(window.html2pdf);
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-    s.onload = () => resolve(window.html2pdf);
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-};
-
-const Navbar = () => {
-  const { user, logout } = useAuth();
-  const { actions } = useTripActions();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [open, setOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [toast, setToast] = useState("");
-  const [pdfAnim, setPdfAnim] = useState("idle"); // idle | dropping | done
-
-  const menuRef = useRef(null);
-  const audioRef = useRef({ ac: null, noiseBuf: null });
-  const path = location.pathname;
-
-  /* â”€â”€â”€ Audio helpers â”€â”€â”€ */
-  const getAudio = () => {
-    const a = audioRef.current;
-    if (!a.ac) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return null;
-      a.ac = new AC();
-      const len = a.ac.sampleRate * 1.5;
-      a.noiseBuf = a.ac.createBuffer(1, len, a.ac.sampleRate);
-      const d = a.noiseBuf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    }
-    if (a.ac.state === "suspended") a.ac.resume();
-    return a.ac;
-  };
-
-  useEffect(() => {
-    const unlock = () => {
-      getAudio();
-      window.removeEventListener("pointerdown", unlock);
-    };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    return () => window.removeEventListener("pointerdown", unlock);
-  }, []);
-
-  const sPress = (t) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const o = ctx.createOscillator();
-    o.type = "square";
-    o.frequency.setValueAtTime(820, t);
-    o.frequency.exponentialRampToValueAtTime(230, t + 0.05);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.085, t + 0.004);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-    o.connect(g).connect(ctx.destination);
-    o.start(t);
-    o.stop(t + 0.09);
-  };
-
-  const sDescent = (t, dur) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const a = audioRef.current;
-    const n = ctx.createBufferSource();
-    n.buffer = a.noiseBuf;
-    n.loop = true;
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.Q.value = 1.7;
-    bp.frequency.setValueAtTime(3200, t);
-    bp.frequency.exponentialRampToValueAtTime(640, t + dur);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.1, t + 0.1);
-    g.gain.linearRampToValueAtTime(0.085, t + dur * 0.68);
-    g.gain.linearRampToValueAtTime(0.0001, t + dur);
-    n.connect(bp).connect(g).connect(ctx.destination);
-    n.start(t);
-    n.stop(t + dur + 0.06);
-  };
-
-  const sThud = (t) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const o = ctx.createOscillator();
-    o.type = "sine";
-    o.frequency.setValueAtTime(160, t);
-    o.frequency.exponentialRampToValueAtTime(50, t + 0.22);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.38, t + 0.009);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
-    o.connect(g).connect(ctx.destination);
-    o.start(t);
-    o.stop(t + 0.33);
-  };
-
-  const sPing = (t) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const o = ctx.createOscillator();
-    o.type = "triangle";
-    o.frequency.setValueAtTime(1200, t);
-    o.frequency.exponentialRampToValueAtTime(1188, t + 0.45);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.135, t + 0.006);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
-    o.connect(g).connect(ctx.destination);
-    o.start(t);
-    o.stop(t + 0.52);
-  };
-
-  const sVictory = (t) => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((freq, i) => {
-      const st = t + i * 0.075;
-      const o = ctx.createOscillator();
-      o.type = "triangle";
-      o.frequency.value = freq;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, st);
-      g.gain.exponentialRampToValueAtTime(0.095, st + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.72);
-      o.connect(g).connect(ctx.destination);
-      o.start(st);
-      o.stop(st + 0.78);
-    });
-  };
-
-  const playPDFSounds = () => {
-    const ctx = getAudio();
-    if (!ctx) return;
-    const t = ctx.currentTime + 0.02;
-    sPress(t);
-    sDescent(t + 0.1, 1.6);
-    sThud(t + 1.85);
-    sPing(t + 2.0);
-    sVictory(t + 2.25);
-  };
-
-  /* â”€â”€â”€ PDF export â”€â”€â”€ */
-  const runPDFExport = async () => {
-    const target = document.getElementById("itineraryPaper");
-    const holder = document.getElementById("itnHolder");
-    if (!target) {
-      console.warn("[Navbar PDF] target #itineraryPaper not found");
-      return;
-    }
-    if (holder) holder.classList.add("is-exporting");
-    await new Promise((r) => setTimeout(r, 250));
-
-    try {
-      const html2pdf = await loadHtml2Pdf();
-      const filename = actions?.trip?.destination
-        ? `${actions.trip.destination.replace(/\s+/g, "-")}-itinerary.pdf`
-        : "itinerary.pdf";
-
-      await html2pdf()
-        .set({
-          margin: [10, 10, 10, 10],
-          filename,
-          image: { type: "jpeg", quality: 0.95 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            logging: false,
-            scrollX: 0,
-            scrollY: 0,
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: {
-            mode: ["css", "legacy"],
-            avoid: [".itn-day", ".itn-hotel", ".itn-table tr", ".itn-foot"],
-          },
-        })
-        .from(target)
-        .save();
-    } catch (err) {
-      console.error("[Navbar PDF] failed:", err);
-      window.print();
-    } finally {
-      if (holder) holder.classList.remove("is-exporting");
-    }
-  };
-
-  const handleTripPDF = () => {
-    setMenuOpen(false);
-    if (pdfAnim !== "idle") return;
-
-    setPdfAnim("dropping");
-    playPDFSounds();
-
-    setTimeout(() => setPdfAnim("done"), 2000);
-    setTimeout(() => runPDFExport(), 2300);
-    setTimeout(() => setPdfAnim("idle"), 4800);
-  };
-
-  /* â”€â”€â”€ Nav helpers â”€â”€â”€ */
-  const isLinkActive = (to) => {
-    if (to === "/") return path === "/";
-    if (to === "/trips/new") return path === "/trips/new";
-    if (to === "/compare") return path === "/compare";
-    if (to === "/weather")
-      return path.startsWith("/weather") || path.includes("/weather-itinerary");
-    if (to === "/journal")
-      return path.startsWith("/journal") || path.includes("/journal");
-    if (to === "/trips") {
-      if (path === "/trips/new") return false;
-      if (path.includes("/weather-itinerary")) return false;
-      if (path.includes("/journal")) return false;
-      return path === "/trips" || path.startsWith("/trips/");
-    }
-    return path.startsWith(to);
-  };
-
-  const handleLogout = () => {
-    setOpen(false);
-    setMenuOpen(false);
-    logout();
-    navigate("/login", { replace: true });
-  };
-
-  const initials = (user?.name || "?")
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  const closeMobile = () => setOpen(false);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false);
-      }
-    };
-    const onKey = (e) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
-
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [path]);
-
-  const showToast = (text) => {
-    setToast(text);
-    setTimeout(() => setToast(""), 2000);
-  };
-
-  const handleShare = async () => {
-    const url = window.location.href;
-    const title = document.title || "AI Travel Planner";
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, url });
-        setMenuOpen(false);
-        return;
-      } catch (err) {
-        if (err.name === "AbortError") return;
-      }
-    }
-
-    try {
-      await navigator.clipboard.writeText(url);
-      showToast("Link copied to clipboard");
-    } catch {
-      showToast("Could not copy link");
-    }
-    setMenuOpen(false);
-  };
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      showToast("Link copied");
-    } catch {
-      showToast("Could not copy");
-    }
-    setMenuOpen(false);
-  };
-
-  const handleProfile = () => {
-    setMenuOpen(false);
-    navigate("/profile");
-  };
-
-  const handleTripCalendar = () => {
-    setMenuOpen(false);
-    if (actions?.onCalendar) actions.onCalendar();
-  };
-
-  const handleTripCoverArt = () => {
-    setMenuOpen(false);
-    if (actions?.onCoverArt) actions.onCoverArt();
-  };
-
-  const handleTripJournal = () => {
-    setMenuOpen(false);
-    if (actions?.trip?._id) navigate(`/trips/${actions.trip._id}/journal`);
-  };
-
-  const handleTripShare = () => {
-    setMenuOpen(false);
-    if (actions?.onShare) actions.onShare();
-  };
-
-  return (
-    <>
-      <nav className="nb-root">
-        <div className="nb-inner">
-          {/* Brand */}
-          <Link to="/" className="nb-brand" onClick={closeMobile}>
-            <span className="nb-brand-text">
-              AI Travel <span className="nb-brand-accent">Planner</span>
-            </span>
-          </Link>
-
-          {/* Desktop links */}
-          <div className="nb-links">
-            {NAV_LINKS.map((l) => (
-              <Link
-                key={l.label}
-                to={l.to}
-                className={`nb-link ${isLinkActive(l.to) ? "active" : ""}`}
-              >
-                {l.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Right side */}
-          {user ? (
-            <div className="nb-auth">
-              <CurrencyToggle />
-              <Link
-                to="/profile"
-                className="nb-avatar"
-                title={user.name}
-                aria-label="Your profile"
-              >
-                {initials}
-              </Link>
-
-              <button
-                type="button"
-                className="nb-logout"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
-
-              <div className="nb-menu-wrap" ref={menuRef}>
-                <button
-                  type="button"
-                  className={`nb-menu-btn ${menuOpen ? "open" : ""}`}
-                  onClick={() => setMenuOpen((v) => !v)}
-                  aria-label="More options"
-                  aria-expanded={menuOpen}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="5" r="1.8" />
-                    <circle cx="12" cy="12" r="1.8" />
-                    <circle cx="12" cy="19" r="1.8" />
-                  </svg>
-                </button>
-
-                {menuOpen && (
-                  <div className="nb-menu">
-                    {actions ? (
-                      <>
-                        <div className="nb-menu-label">Trip actions</div>
-
-                        <button
-                          type="button"
-                          className="nb-menu-item"
-                          onClick={handleTripPDF}
-                          disabled={pdfAnim !== "idle"}
-                        >
-                          <span className="nb-menu-icon">ðŸ“„</span>
-                          <span>
-                            {pdfAnim === "dropping"
-                              ? "Dropping your PDFâ€¦"
-                              : pdfAnim === "done"
-                              ? "PDF Downloaded!"
-                              : "Export PDF"}
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="nb-menu-item"
-                          onClick={handleTripCalendar}
-                        >
-                          <span className="nb-menu-icon">ðŸ“…</span>
-                          <span>Add to Calendar</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="nb-menu-item"
-                          onClick={handleTripCoverArt}
-                          disabled={actions.generatingArt}
-                        >
-                          <span className="nb-menu-icon">ðŸŽ¨</span>
-                          <span>
-                            {actions.generatingArt
-                              ? "Generatingâ€¦"
-                              : "Generate Cover Art"}
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="nb-menu-item"
-                          onClick={handleTripJournal}
-                        >
-                          <span className="nb-menu-icon">ðŸ““</span>
-                          <span>View Journal</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="nb-menu-item"
-                          onClick={handleTripShare}
-                          disabled={actions.shareLoading}
-                        >
-                          <span className="nb-menu-icon">ðŸ”—</span>
-                          <span>
-                            {actions.shareLoading
-                              ? "Creating..."
-                              : "Share Trip"}
-                          </span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className="nb-menu-item"
-                          onClick={handleShare}
-                        >
-                          <span className="nb-menu-icon">ðŸ”—</span>
-                          <span>Share this page</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="nb-menu-item"
-                          onClick={handleCopyLink}
-                        >
-                          <span className="nb-menu-icon">ðŸ“‹</span>
-                          <span>Copy link</span>
-                        </button>
-                        <div className="nb-menu-divider" />
-                        <button
-                          type="button"
-                          className="nb-menu-item"
-                          onClick={handleProfile}
-                        >
-                          <span className="nb-menu-icon">ðŸ‘¤</span>
-                          <span>Profile</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="nb-auth">
-              <CurrencyToggle />
-              <Link to="/login" className="nb-cta-login">
-                Login
-              </Link>
-              <Link to="/register" className="nb-cta-get-started">
-                Get Started
-              </Link>
-
-              <div className="nb-menu-wrap" ref={menuRef}>
-                <button
-                  type="button"
-                  className={`nb-menu-btn ${menuOpen ? "open" : ""}`}
-                  onClick={() => setMenuOpen((v) => !v)}
-                  aria-label="More options"
-                  aria-expanded={menuOpen}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="5" r="1.8" />
-                    <circle cx="12" cy="12" r="1.8" />
-                    <circle cx="12" cy="19" r="1.8" />
-                  </svg>
-                </button>
-
-                {menuOpen && (
-                  <div className="nb-menu">
-                    <button
-                      type="button"
-                      className="nb-menu-item"
-                      onClick={handleShare}
-                    >
-                      <span className="nb-menu-icon">ðŸ”—</span>
-                      <span>Share this page</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="nb-menu-item"
-                      onClick={handleCopyLink}
-                    >
-                      <span className="nb-menu-icon">ðŸ“‹</span>
-                      <span>Copy link</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Mobile toggle */}
-          <button
-            type="button"
-            className="nb-toggle"
-            onClick={() => setOpen((v) => !v)}
-            aria-label="Toggle menu"
-            aria-expanded={open}
-          >
-            {open ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            )}
-          </button>
-        </div>
-
-        {/* Mobile panel */}
-        <div className={`nb-mobile ${open ? "open" : ""}`}>
-          <div className="nb-mobile-links">
-            {NAV_LINKS.map((l) => (
-              <Link
-                key={l.label}
-                to={l.to}
-                onClick={closeMobile}
-                className={`nb-mobile-link ${isLinkActive(l.to) ? "active" : ""}`}
-              >
-                {l.label}
-              </Link>
-            ))}
-          </div>
-
-          <div className="nb-mobile-actions">
-            <button
-              type="button"
-              className="nb-mobile-logout"
-              onClick={handleShare}
-            >
-              ðŸ”— Share this page
-            </button>
-            <button
-              type="button"
-              className="nb-mobile-logout"
-              onClick={handleCopyLink}
-            >
-              ðŸ“‹ Copy link
-            </button>
-          </div>
-
-          {user ? (
-            <>
-              <Link
-                to="/profile"
-                className="nb-mobile-user"
-                onClick={closeMobile}
-              >
-                <span className="nb-avatar">{initials}</span>
-                <span className="nb-mobile-user-info">
-                  <span className="nb-mobile-user-name">{user.name}</span>
-                  <span className="nb-mobile-user-email">{user.email}</span>
-                </span>
-              </Link>
-              <div className="nb-mobile-actions">
-                <button
-                  type="button"
-                  className="nb-mobile-logout"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="nb-mobile-actions">
-              <Link
-                to="/register"
-                className="nb-mobile-cta"
-                onClick={closeMobile}
-              >
-                Get Started
-              </Link>
-              <Link
-                to="/login"
-                className="nb-mobile-cta-ghost"
-                onClick={closeMobile}
-              >
-                Login
-              </Link>
-            </div>
-          )}
-        </div>
-      </nav>
-
-      {toast && <div className="nb-toast">{toast}</div>}
-
-      {/* â•â•â•â•â•â•â•â•â•â•â• SMALL FLOATING PDF PANEL (top-right) â•â•â•â•â•â•â•â•â•â•â• */}
-      {pdfAnim !== "idle" && (
-        <div className={`pdf-mini ${pdfAnim}`} aria-hidden="true">
-          <div className="pdf-mini__sky" />
-
-          <div className="pdf-mini__para">
-            <svg viewBox="0 0 40 46" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="miniCp" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#C4E570" />
-                  <stop offset="1" stopColor="#8FBF2E" />
-                </linearGradient>
-                <linearGradient id="miniCrate" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#ffe2a0" />
-                  <stop offset="1" stopColor="#d99b2b" />
-                </linearGradient>
-                <linearGradient id="miniPack" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor="#A8D84A" />
-                  <stop offset="1" stopColor="#1A2E1A" />
-                </linearGradient>
-              </defs>
-
-              <g className="mini-canopy">
-                <path
-                  d="M20 1 C8 1 1 8 1 16 L39 16 C39 8 32 1 20 1 Z"
-                  fill="url(#miniCp)"
-                />
-                <circle cx="7" cy="16" r="6" fill="url(#miniCp)" />
-                <circle cx="20" cy="16" r="6" fill="url(#miniCp)" />
-                <circle cx="33" cy="16" r="6" fill="url(#miniCp)" />
-              </g>
-
-              <g stroke="#DCF0A0" strokeWidth=".9" opacity=".85" fill="none">
-                <line x1="7" y1="20" x2="17" y2="29" />
-                <line x1="20" y1="21" x2="20" y2="29" />
-                <line x1="33" y1="20" x2="23" y2="29" />
-              </g>
-
-              <g className="mini-crate">
-                <rect x="15" y="24" width="10" height="6" rx="1.6" fill="url(#miniPack)" />
-                <rect
-                  x="11"
-                  y="28"
-                  width="18"
-                  height="15"
-                  rx="2.2"
-                  fill="url(#miniCrate)"
-                  stroke="#8a5a10"
-                  strokeWidth=".9"
-                />
-              </g>
-            </svg>
-          </div>
-
-          <div className="pdf-mini__shock" />
-
-          {pdfAnim === "done" && (
-            <div className="pdf-mini__badge">
-              <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-                <circle
-                  cx="20"
-                  cy="20"
-                  r="17"
-                  fill="#1A2E1A"
-                  stroke="#A8D84A"
-                  strokeWidth="2.5"
-                />
-                <path
-                  d="M11 20 L17 26 L29 13"
-                  fill="none"
-                  stroke="#A8D84A"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          )}
-
-          <div className="pdf-mini__label">
-            {pdfAnim === "dropping" ? "Dropping your PDFâ€¦" : "PDF Downloaded!"}
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
-export default Navbar;
-```
-
-### FILE: frontend\src\components\Skeleton.jsx
-```
-/**
- * Reusable skeleton placeholder.
- *
- * Usage:
- *   <Skeleton variant="text" width="60%" />
- *   <Skeleton variant="circular" width={40} height={40} />
- *   <Skeleton variant="rectangular" width="100%" height={200} />
- *   <Skeleton variant="card" />           // image + title + lines
- */
-const Skeleton = ({
-  variant = "rectangular",
-  width,
-  height,
-  className = "",
-  style = {},
-  count = 1,
-  rounded,
-}) => {
-  const baseClass = "skeleton";
-  const variantClass = {
-    text: "skeleton-text",
-    circular: "skeleton-circle",
-    rectangular: "skeleton-img",
-    card: "",
-  }[variant] || "";
-
-  const autoRounded =
-    rounded !== undefined
-      ? rounded
-      : variant === "text"
-      ? "6px"
-      : variant === "circular"
-      ? "50%"
-      : "12px";
-
-  const inlineStyle = {
-    width,
-    height,
-    borderRadius: autoRounded,
-    ...style,
-  };
-
-  // Count = render N stacked skeletons
-  if (count > 1) {
-    return (
-      <div className={`space-y-2 ${className}`}>
-        {[...Array(count)].map((_, i) => (
-          <div key={i} className={`${baseClass} ${variantClass}`} style={inlineStyle} />
-        ))}
-      </div>
-    );
-  }
-
-  // card = composite (image + title + 2 lines)
-  if (variant === "card") {
-    return (
-      <div className={`animate-fade-in ${className}`}>
-        <div className={`${baseClass} skeleton-img`} style={{ width: "100%", aspectRatio: "4 / 3" }} />
-        <div className={`${baseClass} skeleton-text`} style={{ width: "70%", height: 18, marginTop: 12 }} />
-        <div className={`${baseClass} skeleton-text`} style={{ width: "45%", height: 12, marginTop: 8 }} />
-      </div>
-    );
-  }
-
-  return <div className={`${baseClass} ${variantClass} ${className}`} style={inlineStyle} />;
-};
-
-export default Skeleton;
-```
-
-### FILE: frontend\src\components\SkyFlightButton.jsx
-```
-import { useEffect, useState } from "react";
-
-const SkyFlightButton = ({
-  label = "Generate My Trip",
-  loadingLabel = "Curating Your Itinerary",
-  doneLabel = "ðŸŽ‰ Itinerary Ready!",
-  disabled = false,
-  loading = false,
-  onClick,
-  onComplete,
-  autoCompleteAfter = 2000,
-}) => {
-  const [state, setState] = useState("idle"); // idle | loading | complete
-
-  // ---- External control via window (used by TripDetail) ----
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.__skyTripBtn = {
-      setComplete: () => setCompleteState(),
-      setLoading: () => setLoadingState(),
-      reset: () => resetState(),
-    };
-    return () => {
-      delete window.__skyTripBtn;
-    };
-  }, [state]);
-
-  // ---- Sync with external `loading` prop ----
-  useEffect(() => {
-    if (loading && state === "idle") setLoadingState();
-  }, [loading, state]);
-
-  const setLoadingState = () => {
-    if (state === "loading") return;
-    setState("loading");
-  };
-
-  const setCompleteState = () => {
-    if (state === "complete") return;
-    setState("complete");
-    if (typeof onComplete === "function") onComplete();
-  };
-
-  const resetState = () => {
-    if (state === "idle") return;
-    setState("idle");
-  };
-
-  const handleClick = () => {
-    if (state !== "idle" || disabled) return;
-    setLoadingState();
-    if (typeof onClick === "function") onClick();
-
-    // Auto-complete (also handles case where backend hasn't responded yet)
-    if (autoCompleteAfter > 0) {
-      setTimeout(() => setCompleteState(), autoCompleteAfter);
-    }
-  };
-
-  // Auto-reset after complete
-  useEffect(() => {
-    if (state === "complete") {
-      const t = setTimeout(() => resetState(), 2800);
-      return () => clearTimeout(t);
-    }
-  }, [state]);
-
-  const cls = [
-    "sky-btn",
-    state === "idle" ? "is-idle" : "",
-    state === "loading" ? "is-loading" : "",
-    state === "complete" ? "is-complete" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <button
-      type="button"
-      className={cls}
-      onClick={handleClick}
-      disabled={disabled || state !== "idle"}
-      data-state={state}
-      aria-live="polite"
-      aria-busy={state === "loading"}
-    >
-      {/* Sky */}
-      <span className="sky-btn__sky" aria-hidden="true">
-        <span className="sky-btn__tint"></span>
-        <span className="sky-btn__stars"></span>
-        <span className="sky-btn__cloud c1"></span>
-        <span className="sky-btn__cloud c2"></span>
-        <span className="sky-btn__cloud c3"></span>
-      </span>
-
-      {/* Flying plane + contrail */}
-      <span className="sky-btn__flyer" aria-hidden="true">
-        <span className="sky-btn__trail"></span>
-        <span className="sky-btn__streak s1"></span>
-        <span className="sky-btn__streak s2"></span>
-        <span className="sky-btn__streak s3"></span>
-        <svg
-          className="sky-btn__flyer-svg"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-        >
-          <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-        </svg>
-      </span>
-
-      {/* Completion ripple */}
-      {state === "complete" && (
-        <span className="sky-btn__ripple" aria-hidden="true"></span>
-      )}
-
-      {/* Foreground */}
-      <span className="sky-btn__content">
-        <span className="sky-btn__icon" aria-hidden="true">
-          <svg
-            className="sky-btn__icon-plane"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-          </svg>
-          <svg
-            className="sky-btn__icon-check"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M4.5 12.6 9.3 17.4 19.5 7.2" />
-          </svg>
-        </span>
-
-        <span className="sky-btn__swap">
-          <span
-            className={`sky-btn__label ${
-              state === "idle" ? "is-active" : ""
-            }`}
-          >
-            {label}
-          </span>
-          <span
-            className={`sky-btn__label ${
-              state === "loading" ? "is-active" : ""
-            }`}
-          >
-            {loadingLabel}
-            <span className="sky-btn__dots" aria-hidden="true">
-              <i></i>
-              <i></i>
-              <i></i>
-            </span>
-          </span>
-          <span
-            className={`sky-btn__label ${
-              state === "complete" ? "is-active" : ""
-            }`}
-          >
-            {doneLabel}
-          </span>
-        </span>
-      </span>
-    </button>
-  );
-};
-
-export default SkyFlightButton;
-```
-
-### FILE: frontend\src\components\TripMap.css
-```
-/* frontend/src/components/TripMap.css */
-
-/* Wrapper isolates the map into its own stacking context */
-.trip-map-wrap {
-  position: relative;
-  z-index: 0;            /* LOW â€” below navbar (100) and other UI */
-  isolation: isolate;    /* creates a new stacking context */
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid #e5e7eb;
-  background: #f3f4f6;
-}
-
-/* Force the Leaflet container to stay inside the wrapper */
-.trip-map-wrap .leaflet-container {
-  z-index: 0 !important;
-  border-radius: 16px;
-  font-family: 'Poppins', system-ui, sans-serif;
-}
-
-/* Keep Leaflet's internal panes from escaping above the navbar */
-.trip-map-wrap .leaflet-pane,
-.trip-map-wrap .leaflet-top,
-.trip-map-wrap .leaflet-bottom {
-  z-index: auto !important;
-}
-
-.trip-map-wrap .leaflet-pane {
-  z-index: 400 !important;
-}
-.trip-map-wrap .leaflet-tile-pane    { z-index: 200 !important; }
-.trip-map-wrap .leaflet-overlay-pane { z-index: 400 !important; }
-.trip-map-wrap .leaflet-shadow-pane  { z-index: 500 !important; }
-.trip-map-wrap .leaflet-marker-pane  { z-index: 600 !important; }
-.trip-map-wrap .leaflet-tooltip-pane { z-index: 650 !important; }
-.trip-map-wrap .leaflet-popup-pane   { z-index: 700 !important; }
-
-/* Leaflet controls (zoom +/-) */
-.trip-map-wrap .leaflet-top,
-.trip-map-wrap .leaflet-bottom {
-  z-index: 800 !important;
-}
-
-/* Match your site's rounded aesthetic */
-.trip-map-wrap .leaflet-control-zoom a {
-  background: #ffffff;
-  color: #111111;
-  border-color: #e5e7eb;
-  font-weight: 700;
-}
-.trip-map-wrap .leaflet-control-zoom a:hover {
-  background: #a3e635;
-  color: #000;
-  border-color: #a3e635;
-}
-
-/* Attribution styling */
-.trip-map-wrap .leaflet-control-attribution {
-  background: rgba(255, 255, 255, 0.85);
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 8px 0 0 0;
-}
-```
-
-### FILE: frontend\src\components\TripMap.jsx
-```
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import "./TripMap.css";
-
-/* Fix default marker icons (known Leaflet+React quirk) */
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl:
-    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl:
-    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
-/* Red marker icon for tourist attractions */
-const redIcon = new L.Icon({
-  iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
-  shadowUrl:
-    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const TripMap = ({ lat, lng, label, places = [] }) => {
-  if (typeof lat !== "number" || typeof lng !== "number") return null;
-
-  return (
-    <div className="trip-map-wrap">
-      <MapContainer
-        center={[lat, lng]}
-        zoom={11}
-        style={{ height: "360px", width: "100%" }}
-        scrollWheelZoom={false}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
-        <Marker position={[lat, lng]}>
-          <Popup>{label}</Popup>
-        </Marker>
-
-        {places.map((p) => (
-          <Marker key={p.id} position={[p.lat, p.lng]} icon={redIcon}>
-            <Popup>
-              <strong>{p.name}</strong>
-              <br />
-              <span style={{ fontSize: 12, color: "#666" }}>{p.type}</span>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-    </div>
-  );
-};
-
-export default TripMap;
-```
-
-### FILE: frontend\src\components\WeatherIcon.jsx
-```
-// frontend/src/components/WeatherIcon.jsx â€” NEW FILE
-import { useMemo } from "react";
-
-/* WMO code â†’ animation type */
-export function decodeWeatherCode(code) {
-  if (code === 0) return { type: "sun", label: "Clear Sky" };
-  if (code === 1) return { type: "partly", label: "Mainly Clear" };
-  if (code === 2) return { type: "partly", label: "Partly Cloudy" };
-  if (code === 3) return { type: "cloud", label: "Overcast" };
-  if (code === 45 || code === 48) return { type: "fog", label: "Foggy" };
-  if (code >= 51 && code <= 57) return { type: "drizzle", label: "Drizzle" };
-  if (code >= 61 && code <= 67) return { type: "rain", label: "Rain" };
-  if (code >= 71 && code <= 77) return { type: "snow", label: "Snow" };
-  if (code >= 80 && code <= 82) return { type: "rain", label: "Rain Showers" };
-  if (code >= 85 && code <= 86) return { type: "snow", label: "Snow Showers" };
-  if (code >= 95 && code <= 99) return { type: "thunder", label: "Thunderstorm" };
-  return { type: "cloud", label: "Mixed" };
-}
-
-let _uid = 0;
-
-function renderWxSvg(type) {
-  const uid = ++_uid;
-
-  const defs = `<defs>
-    <radialGradient id="wfSunCore-${uid}" cx="40%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#fffbe6"/>
-      <stop offset="35%" stop-color="#fde047"/>
-      <stop offset="70%" stop-color="#facc15"/>
-      <stop offset="100%" stop-color="#f59e0b"/>
-    </radialGradient>
-    <radialGradient id="wfSunGlow-${uid}" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#fde047" stop-opacity="0.85"/>
-      <stop offset="55%" stop-color="#fbbf24" stop-opacity="0.28"/>
-      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="wfRay-${uid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fbbf24"/>
-      <stop offset="100%" stop-color="#f59e0b"/>
-    </linearGradient>
-    <linearGradient id="wfCloud-${uid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="50%" stop-color="#e2e8f0"/>
-      <stop offset="100%" stop-color="#94a3b8"/>
-    </linearGradient>
-    <linearGradient id="wfCloudBack-${uid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#94a3b8"/>
-      <stop offset="100%" stop-color="#475569"/>
-    </linearGradient>
-    <linearGradient id="wfStorm-${uid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#64748b"/>
-      <stop offset="100%" stop-color="#1e293b"/>
-    </linearGradient>
-    <linearGradient id="wfDrop-${uid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#e0f2fe"/>
-      <stop offset="55%" stop-color="#60a5fa"/>
-      <stop offset="100%" stop-color="#2563eb"/>
-    </linearGradient>
-    <linearGradient id="wfBolt-${uid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fff7cc"/>
-      <stop offset="50%" stop-color="#fde047"/>
-      <stop offset="100%" stop-color="#f59e0b"/>
-    </linearGradient>
-    <filter id="wfBlur-${uid}" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="1.4"/>
-    </filter>
-    <filter id="wfGlow-${uid}" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2.4"/>
-    </filter>
-  </defs>`;
-
-  const wrap = (inner) =>
-    `<svg class="wf-wx-icon" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">${defs}${inner}</svg>`;
-
-  const cloud = `<path d="M22 58 h38 c5 0 9 -4 9 -9 c0 -5 -4 -9 -9 -9 c-1 -8 -8 -14 -16 -14 c-7 0 -13 4 -15 11 c-1 -1 -3 -1 -4 -1 c-5 0 -9 4 -9 9 c0 5 4 9 9 9 z" fill="url(#wfCloud-${uid})" stroke="rgba(255,255,255,0.9)" stroke-width="0.9" stroke-linejoin="round"/>`;
-  const cloudBack = `<path d="M22 56 h38 c5 0 9 -4 9 -9 c0 -5 -4 -9 -9 -9 c-1 -8 -8 -14 -16 -14 c-7 0 -13 4 -15 11 c-1 -1 -3 -1 -4 -1 c-5 0 -9 4 -9 9 c0 5 4 9 9 9 z" fill="url(#wfCloudBack-${uid})" stroke="rgba(255,255,255,0.35)" stroke-width="0.8" stroke-linejoin="round"/>`;
-  const storm = `<path d="M18 56 h44 c6 0 10 -4 10 -10 c0 -6 -4 -10 -10 -10 c-1 -9 -9 -16 -18 -16 c-8 0 -15 5 -17 13 c-1 -1 -3 -1 -4 -1 c-6 0 -11 5 -11 11 c0 6 5 13 6 13 z" fill="url(#wfStorm-${uid})" stroke="rgba(255,255,255,0.3)" stroke-width="0.8" stroke-linejoin="round"/>`;
-
-  if (type === "sun") {
-    const rays = Array.from({ length: 12 }, (_, i) => {
-      const a = (i * 360) / 12;
-      return `<rect x="38.6" y="6" width="2.8" height="10" rx="1.4" fill="url(#wfRay-${uid})" transform="rotate(${a} 40 40)"/>`;
-    }).join("");
-    return wrap(`
-      <circle class="wf-wx-sun-glow" cx="40" cy="40" r="28" fill="url(#wfSunGlow-${uid})"/>
-      <g class="wf-wx-sun-rays">${rays}</g>
-      <circle class="wf-wx-sun-core" cx="40" cy="40" r="15" fill="url(#wfSunCore-${uid})"/>
-      <ellipse cx="35" cy="33" rx="6" ry="4.5" fill="#ffffff" opacity="0.55" filter="url(#wfBlur-${uid})"/>
-      <circle cx="40" cy="40" r="15" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
-    `);
-  }
-
-  if (type === "cloud") {
-    return wrap(`
-      <g class="wf-wx-cloud">${cloudBack}${cloud}
-        <ellipse cx="30" cy="38" rx="10" ry="5" fill="#ffffff" opacity="0.35" filter="url(#wfBlur-${uid})"/>
-      </g>
-    `);
-  }
-
-  if (type === "partly") {
-    const rays = Array.from({ length: 8 }, (_, i) => {
-      const a = (i * 360) / 8;
-      return `<rect x="54.6" y="6" width="2.8" height="8" rx="1.4" fill="url(#wfRay-${uid})" transform="rotate(${a} 56 10)"/>`;
-    }).join("");
-    return wrap(`
-      <circle class="wf-wx-sun-glow" cx="56" cy="20" r="18" fill="url(#wfSunGlow-${uid})"/>
-      <g class="wf-wx-sun-rays" style="transform-origin:56px 20px">${rays}</g>
-      <circle class="wf-wx-sun-core" cx="56" cy="20" r="9" fill="url(#wfSunCore-${uid})"/>
-      <ellipse cx="53" cy="17" rx="3.5" ry="2.8" fill="#fff" opacity="0.6" filter="url(#wfBlur-${uid})"/>
-      <g class="wf-wx-cloud" style="transform-origin:40px 50px">${cloudBack}${cloud}
-        <ellipse cx="30" cy="38" rx="10" ry="5" fill="#ffffff" opacity="0.4" filter="url(#wfBlur-${uid})"/>
-      </g>
-    `);
-  }
-
-  if (type === "rain") {
-    const drops = [
-      [22, 68, 0], [32, 68, 0.28], [42, 68, 0.55], [52, 68, 0.83], [62, 68, 1.1],
-    ].map(([x, y, d]) => `
-      <g class="wf-wx-raindrop" style="animation-delay:${d}s">
-        <path d="M${x} ${y-6} c -3 4 -3 8 0 10 c 3 -2 3 -6 0 -10 z" fill="url(#wfDrop-${uid})" stroke="rgba(255,255,255,0.5)" stroke-width="0.5"/>
-        <circle cx="${x}" cy="${y+2}" r="0.9" fill="#ffffff" opacity="0.85"/>
-      </g>`).join("");
-    return wrap(`<g class="wf-wx-cloud-back" style="transform-origin:40px 40px">${storm}</g><g class="wf-wx-cloud">${cloud}</g>${drops}`);
-  }
-
-  if (type === "drizzle") {
-    const drops = [[26, 68, 0], [40, 68, 0.35], [54, 68, 0.7]]
-      .map(([x, y, d]) => `
-      <g class="wf-wx-raindrop" style="animation-delay:${d}s">
-        <path d="M${x} ${y-4} c -2 3 -2 6 0 8 c 2 -2 2 -5 0 -8 z" fill="url(#wfDrop-${uid})" stroke="rgba(255,255,255,0.5)" stroke-width="0.4"/>
-      </g>`).join("");
-    return wrap(`<g class="wf-wx-cloud">${cloud}</g>${drops}`);
-  }
-
-  if (type === "thunder") {
-    return wrap(`
-      <g class="wf-wx-cloud-back" style="transform-origin:40px 40px">${storm}</g>
-      <g class="wf-wx-cloud">${cloud}</g>
-      <path class="wf-wx-bolt-glow" d="M42 52 L32 64 L40 64 L34 76 L50 60 L42 60 L46 52 Z" fill="#fde047" filter="url(#wfGlow-${uid})"/>
-      <path class="wf-wx-bolt" d="M42 52 L32 64 L40 64 L34 76 L50 60 L42 60 L46 52 Z" fill="url(#wfBolt-${uid})" stroke="#fffbe6" stroke-width="1" stroke-linejoin="round"/>
-    `);
-  }
-
-  if (type === "snow") {
-    const flake = (cx, cy, i) => `
-      <g class="wf-wx-snowflake" style="animation-delay:${i * 0.75}s;transform-origin:${cx}px ${cy}px">
-        <g transform="translate(${cx} ${cy})">
-          <line x1="0" y1="-4" x2="0" y2="4" stroke="#f0f9ff" stroke-width="1.6" stroke-linecap="round"/>
-          <line x1="-3.5" y1="-2" x2="3.5" y2="2" stroke="#f0f9ff" stroke-width="1.6" stroke-linecap="round"/>
-          <line x1="-3.5" y1="2" x2="3.5" y2="-2" stroke="#f0f9ff" stroke-width="1.6" stroke-linecap="round"/>
-          <circle cx="0" cy="0" r="1.2" fill="#ffffff"/>
-        </g>
-      </g>`;
-    return wrap(`<g class="wf-wx-cloud">${cloud}</g>${flake(24, 70, 0)}${flake(40, 70, 1)}${flake(56, 70, 2)}`);
-  }
-
-  if (type === "fog") {
-    return wrap(`
-      <g class="wf-wx-cloud">${cloud}</g>
-      <g class="wf-wx-fog-wave"><path d="M14 66 q6 -3 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/></g>
-      <g class="wf-wx-fog-wave"><path d="M10 72 q6 -3 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/></g>
-      <g class="wf-wx-fog-wave"><path d="M14 78 q6 -3 12 0 t12 0 t12 0 t12 0" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/></g>
-    `);
-  }
-
-  return wrap(`<circle cx="40" cy="40" r="14" fill="none" stroke="#cbd5e1" stroke-width="2"/>`);
-}
-
-export default function WeatherIcon({ type, size = 72 }) {
-  const svg = useMemo(() => renderWxSvg(type), [type]);
-  return (
-    <span
-      style={{ display: "inline-block", width: size, height: size }}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
-  );
-}
-```
-
-### FILE: frontend\src\components\WeatherSlider.jsx
-```
-import { useEffect, useMemo, useRef, useState } from "react";
-
-/* ============================================================
-   WMO CODE TABLE
-   ============================================================ */
-const WMO = {
-  0: { icon: "â˜€ï¸", label: "Clear" },
-  1: { icon: "ðŸŒ¤ï¸", label: "Mainly clear" },
-  2: { icon: "â›…", label: "Partly cloudy" },
-  3: { icon: "â˜ï¸", label: "Overcast" },
-  45: { icon: "ðŸŒ«ï¸", label: "Fog" },
-  48: { icon: "ðŸŒ«ï¸", label: "Rime fog" },
-  51: { icon: "ðŸŒ¦ï¸", label: "Light drizzle" },
-  53: { icon: "ðŸŒ¦ï¸", label: "Drizzle" },
-  55: { icon: "ðŸŒ§ï¸", label: "Dense drizzle" },
-  61: { icon: "ðŸŒ¦ï¸", label: "Light rain" },
-  63: { icon: "ðŸŒ§ï¸", label: "Rain" },
-  65: { icon: "ðŸŒ§ï¸", label: "Heavy rain" },
-  71: { icon: "ðŸŒ¨ï¸", label: "Light snow" },
-  73: { icon: "ðŸŒ¨ï¸", label: "Snow" },
-  75: { icon: "â„ï¸", label: "Heavy snow" },
-  77: { icon: "â„ï¸", label: "Snow grains" },
-  80: { icon: "ðŸŒ¦ï¸", label: "Showers" },
-  81: { icon: "ðŸŒ§ï¸", label: "Showers" },
-  82: { icon: "â›ˆï¸", label: "Violent showers" },
-  85: { icon: "ðŸŒ¨ï¸", label: "Snow showers" },
-  86: { icon: "â„ï¸", label: "Heavy snow" },
-  95: { icon: "â›ˆï¸", label: "Thunderstorm" },
-  96: { icon: "â›ˆï¸", label: "Storm + hail" },
-  99: { icon: "â›ˆï¸", label: "Storm + hail" },
-};
-const describe = (c) => WMO[c] || { icon: "ðŸŒ¡ï¸", label: "Unsettled" };
-
-/* ============================================================
-   HELPERS
-   ============================================================ */
-const pad = (n) => String(n).padStart(2, "0");
-const toISO = (d) =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const fromISO = (s) => {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d);
-};
-const fmtShort = (iso) =>
-  fromISO(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-const mean = (arr) =>
-  arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-
-/* ============================================================
-   AI-STYLE TIP GENERATOR (based on weather)
-   ============================================================ */
-function generateTip(day) {
-  const label = describe(day.code).label.toLowerCase();
-  if (day.pop >= 60) {
-    return "âš ï¸ High rain chance â€” best for indoor museums, cafÃ©s, and shopping districts.";
-  }
-  if (day.pop >= 40) {
-    return "Carry an umbrella â€” mix indoor and outdoor stops today.";
-  }
-  if (day.max >= 32) {
-    return "â˜€ï¸ Hot day â€” plan outdoor activities early morning, stay hydrated.";
-  }
-  if (day.max <= 5) {
-    return "â„ï¸ Cold day â€” dress warm, ideal for scenic walks and hot drinks.";
-  }
-  if (label.includes("clear") || label.includes("sunny")) {
-    return "Perfect weather for outdoor sightseeing, photography, and walking tours.";
-  }
-  return "Comfortable weather â€” a great day to explore the destination.";
-}
-
-/* ============================================================
-   COMPONENT
-   ============================================================ */
-const WeatherSlider = ({ lat, lng, startDate, endDate }) => {
-  const [series, setSeries] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [unit, setUnit] = useState("C");
-  const [filter, setFilter] = useState("all");
-  const [activeDay, setActiveDay] = useState(1);
-  const [motionOn, setMotionOn] = useState(false);
-  const [progress, setProgress] = useState(6);
-
-  const trackRef = useRef(null);
-  const motionRef = useRef(null);
-  const dragRef = useRef({ dragging: false, startX: 0, startLeft: 0 });
-
-  /* ---------- Fetch data ---------- */
-  useEffect(() => {
-    if (!lat || !lng || !startDate || !endDate) return;
-    let cancelled = false;
-
-    const run = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const sISO = toISO(new Date(startDate));
-        const eISO = toISO(new Date(endDate));
-        const days =
-          Math.round((fromISO(eISO) - fromISO(sISO)) / 86400000) + 1;
-
-        // Cap at 30 days for the slider
-        const totalDays = Math.min(days, 30);
-
-        // â”€â”€ Live 16-day fetch â”€â”€
-        const url = new URL("https://api.open-meteo.com/v1/forecast");
-        url.searchParams.set("latitude", lat);
-        url.searchParams.set("longitude", lng);
-        url.searchParams.set(
-          "daily",
-          "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
-        );
-        url.searchParams.set("timezone", "auto");
-        url.searchParams.set("forecast_days", "16");
-
-        const res = await fetch(url.toString());
-        if (!res.ok) throw new Error("Forecast failed");
-        const daily = (await res.json())?.daily;
-        if (!daily?.time?.length) throw new Error("No forecast data");
-
-        const liveRows = daily.time.map((date, i) => ({
-          date,
-          code: daily.weather_code?.[i] ?? 0,
-          max: daily.temperature_2m_max?.[i] ?? null,
-          min: daily.temperature_2m_min?.[i] ?? null,
-          pop: daily.precipitation_probability_max?.[i] ?? 0,
-          source: "live",
-        }));
-
-        // â”€â”€ Climate tail (days 17â€“30) â”€â”€
-        // Fetch same calendar window from 3 prior years
-        const climateRows = [];
-        if (totalDays > 16) {
-          const climateStart = new Date(sISO);
-          climateStart.setDate(climateStart.getDate() + 16);
-          const climateEnd = new Date(sISO);
-          climateEnd.setDate(climateEnd.getDate() + totalDays - 1);
-
-          const thisYear = new Date().getFullYear();
-          const years = [thisYear - 1, thisYear - 2, thisYear - 3];
-
-          const perYear = await Promise.all(
-            years.map(async (y) => {
-              const cs = new Date(
-                y,
-                climateStart.getMonth(),
-                climateStart.getDate()
-              );
-              const ce = new Date(
-                y,
-                climateEnd.getMonth(),
-                climateEnd.getDate()
-              );
-              const cu = new URL(
-                "https://archive-api.open-meteo.com/v1/archive"
-              );
-              cu.searchParams.set("latitude", lat);
-              cu.searchParams.set("longitude", lng);
-              cu.searchParams.set("start_date", toISO(cs));
-              cu.searchParams.set("end_date", toISO(ce));
-              cu.searchParams.set(
-                "daily",
-                "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum"
-              );
-              cu.searchParams.set("timezone", "auto");
-              try {
-                const r = await fetch(cu.toString());
-                if (!r.ok) return null;
-                const j = await r.json();
-                const d = j?.daily;
-                if (!d?.time?.length) return null;
-                return d.time.map((date, i) => ({
-                  code: d.weather_code?.[i] ?? 0,
-                  max: d.temperature_2m_max?.[i] ?? null,
-                  min: d.temperature_2m_min?.[i] ?? null,
-                  precip: d.precipitation_sum?.[i] ?? null,
-                }));
-              } catch {
-                return null;
-              }
-            })
-          );
-
-          const validYears = perYear.filter(Boolean);
-          if (validYears.length) {
-            const spine = validYears[0];
-            spine.forEach((_, i) => {
-              const maxes = validYears.map((y) => y[i]?.max).filter((v) => v != null);
-              const mins = validYears.map((y) => y[i]?.min).filter((v) => v != null);
-              const codes = validYears.map((y) => y[i]?.code).filter((v) => v != null);
-              const precips = validYears.map((y) => y[i]?.precip).filter((v) => v != null);
-
-              // mode for weather code
-              const freq = new Map();
-              codes.forEach((c) => freq.set(c, (freq.get(c) || 0) + 1));
-              let dom = codes[0] ?? 0;
-              let best = -1;
-              for (const [c, n] of freq) if (n > best) { best = n; dom = c; }
-
-              const rainy = precips.filter((p) => p > 1).length;
-              const pop = precips.length ? Math.round((rainy / precips.length) * 100) : 0;
-
-              const dateObj = new Date(sISO);
-              dateObj.setDate(dateObj.getDate() + 16 + i);
-
-              climateRows.push({
-                date: toISO(dateObj),
-                code: dom,
-                max: mean(maxes),
-                min: mean(mins),
-                pop,
-                source: "climate",
-              });
-            });
-          }
-        }
-
-        const combined = [...liveRows.slice(0, 16), ...climateRows].slice(0, totalDays);
-        if (!cancelled) setSeries(combined);
-      } catch (err) {
-        console.error("[WeatherSlider]", err);
-        if (!cancelled) setError("Couldn't load the weather forecast.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [lat, lng, startDate, endDate]);
-
-  /* ---------- Temperature conversion ---------- */
-  const temp = (c) => {
-    if (c === null || c === undefined) return "â€“";
-    if (unit === "F") return `${Math.round((c * 9) / 5 + 32)}Â°F`;
-    return `${c}Â°C`;
-  };
-  const tempShort = (c) => {
-    if (c === null || c === undefined) return "â€“";
-    if (unit === "F") return `${Math.round((c * 9) / 5 + 32)}Â°`;
-    return `${c}Â°`;
-  };
-
-  /* ---------- Filtered series ---------- */
-  const visible = useMemo(() => {
-    if (filter === "clear") return series.filter((d) => d.pop < 20);
-    if (filter === "rain") return series.filter((d) => d.pop >= 50);
-    return series;
-  }, [series, filter]);
-
-  /* ---------- Auto-scroll ---------- */
-  useEffect(() => {
-    if (motionOn) {
-      motionRef.current = setInterval(() => {
-        const track = trackRef.current;
-        if (!track) return;
-        if (track.scrollLeft + track.clientWidth >= track.scrollWidth - 10) {
-          track.scrollTo({ left: 0, behavior: "smooth" });
-        } else {
-          track.scrollBy({ left: 165, behavior: "smooth" });
-        }
-      }, 1800);
-    } else if (motionRef.current) {
-      clearInterval(motionRef.current);
-      motionRef.current = null;
-    }
-    return () => {
-      if (motionRef.current) clearInterval(motionRef.current);
-    };
-  }, [motionOn]);
-
-  /* ---------- Progress bar on scroll ---------- */
-  const updateProgress = () => {
-    const track = trackRef.current;
-    if (!track) return;
-    const max = track.scrollWidth - track.clientWidth;
-    if (max <= 0) return setProgress(100);
-    const pct = (track.scrollLeft / max) * 100;
-    setProgress(Math.max(6, Math.min(100, pct)));
-  };
-
-  /* ---------- Drag to scroll ---------- */
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    const onDown = (e) => {
-      dragRef.current.dragging = true;
-      dragRef.current.startX = e.pageX - track.offsetLeft;
-      dragRef.current.startLeft = track.scrollLeft;
-    };
-    const onLeave = () => (dragRef.current.dragging = false);
-    const onUp = () => (dragRef.current.dragging = false);
-    const onMove = (e) => {
-      if (!dragRef.current.dragging) return;
-      e.preventDefault();
-      const x = e.pageX - track.offsetLeft;
-      const walk = (x - dragRef.current.startX) * 1.5;
-      track.scrollLeft = dragRef.current.startLeft - walk;
-    };
-
-    track.addEventListener("mousedown", onDown);
-    track.addEventListener("mouseleave", onLeave);
-    track.addEventListener("mouseup", onUp);
-    track.addEventListener("mousemove", onMove);
-    track.addEventListener("scroll", updateProgress);
-
-    return () => {
-      track.removeEventListener("mousedown", onDown);
-      track.removeEventListener("mouseleave", onLeave);
-      track.removeEventListener("mouseup", onUp);
-      track.removeEventListener("mousemove", onMove);
-      track.removeEventListener("scroll", updateProgress);
-    };
-  }, [visible]);
-
-  /* ---------- Card 3D tilt ---------- */
-  const handleMove = (e, el) => {
-    const rect = el.getBoundingClientRect();
-    const x = e.clientX - rect.left - rect.width / 2;
-    const y = e.clientY - rect.top - rect.height / 2;
-    el.style.transform = `perspective(600px) rotateX(${-y * 0.1}deg) rotateY(${x * 0.1}deg) translateY(-8px) scale(1.04)`;
-  };
-  const handleLeave = (el) => {
-    el.style.transform = "";
-  };
-
-  /* ---------- Arrows ---------- */
-  const slide = (dir) => {
-    const track = trackRef.current;
-    if (track) track.scrollBy({ left: dir * 320, behavior: "smooth" });
-  };
-
-  /* ---------- Active day data ---------- */
-  const activeData = series.find(
-    (d, i) => i + 1 === activeDay
-  ) || series[0] || null;
-
-  /* ---------- Loading ---------- */
-  if (loading) {
-    return (
-      <section className="mt-16">
-        <h2 className="text-2xl font-extrabold text-ink mb-6">
-          Trip Weather Outlook
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="skeleton h-44 rounded-2xl" />
-          ))}
-        </div>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="mt-16">
-        <h2 className="text-2xl font-extrabold text-ink mb-6">
-          Trip Weather Outlook
-        </h2>
-        <p className="text-sm text-gray-500">{error}</p>
-      </section>
-    );
-  }
-
-  if (!series.length) return null;
-
-  return (
-    <section className="mt-16 ws-wrapper">
-      {/* â•â•â•â•â•â•â•â•â•â•â• HEADER â•â•â•â•â•â•â•â•â•â•â• */}
-      <div className="ws-header">
-        <div>
-          <div className="ws-brand-tag">
-            <span className="ws-pulse-dot"></span>
-            AI Live Weather Engine
-          </div>
-          <h2 className="ws-title">
-            {series.length}-Day <span>Forecast Motion</span>
-          </h2>
-          <p className="ws-subtitle">
-            Horizontal scroll with live Open-Meteo + seasonal climate fallback.
-          </p>
-        </div>
-
-        <div className="ws-controls">
-          <button
-            className="ws-btn"
-            onClick={() => setUnit(unit === "C" ? "F" : "C")}
-          >
-            Unit: Â°{unit}
-          </button>
-          <button
-            className={`ws-btn ${motionOn ? "active" : ""}`}
-            onClick={() => setMotionOn((v) => !v)}
-          >
-            <span>{motionOn ? "â¸" : "â–¶"}</span>
-            <span>{motionOn ? "Pause" : "Auto-Scroll"}</span>
-          </button>
-          <div className="ws-nav-arrows">
-            <button
-              className="ws-arrow-btn"
-              onClick={() => slide(-1)}
-              aria-label="Previous"
-            >
-              â—€
-            </button>
-            <button
-              className="ws-arrow-btn"
-              onClick={() => slide(1)}
-              aria-label="Next"
-            >
-              â–¶
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* â•â•â•â•â•â•â•â•â•â•â• FILTERS â•â•â•â•â•â•â•â•â•â•â• */}
-      <div className="ws-filters">
-        <button
-          className={`ws-chip ${filter === "all" ? "active" : ""}`}
-          onClick={() => setFilter("all")}
-        >
-          All {series.length} Days
-        </button>
-        <button
-          className={`ws-chip ${filter === "clear" ? "active" : ""}`}
-          onClick={() => setFilter("clear")}
-        >
-          â˜€ï¸ Clear Skies (&lt;20% Rain)
-        </button>
-        <button
-          className={`ws-chip ${filter === "rain" ? "active" : ""}`}
-          onClick={() => setFilter("rain")}
-        >
-          ðŸŒ§ï¸ Plan B Days (â‰¥50% Rain)
-        </button>
-      </div>
-
-      {/* â•â•â•â•â•â•â•â•â•â•â• TRACK â•â•â•â•â•â•â•â•â•â•â• */}
-      <div className="ws-track-wrapper">
-        <div className="ws-edge-left" />
-        <div className="ws-edge-right" />
-        <div className="ws-track" ref={trackRef}>
-          {visible.map((d, idx) => {
-            const dayNum = series.indexOf(d) + 1;
-            const w = describe(d.code);
-            const isLive = d.source === "live";
-            const isRainy = d.pop >= 50;
-            const isActive = dayNum === activeDay;
-
-            return (
-              <div
-                key={d.date}
-                className={`ws-card ${isActive ? "active" : ""}`}
-                onClick={() => setActiveDay(dayNum)}
-                onMouseMove={(e) => handleMove(e, e.currentTarget)}
-                onMouseLeave={(e) => handleLeave(e.currentTarget)}
-              >
-                <div className="ws-card-header">
-                  <span className="ws-card-day">Day {dayNum}</span>
-                  <span
-                    className={`ws-card-badge ${
-                      isLive ? "ws-badge-live" : "ws-badge-climate"
-                    }`}
-                  >
-                    {isLive ? "Live" : "Climate"}
-                  </span>
-                </div>
-
-                <div className="ws-card-icon-area">
-                  <span className="ws-card-icon">{w.icon}</span>
-                  <div className="ws-card-date">{fmtShort(d.date)}</div>
-                </div>
-
-                <div className="ws-card-stats">
-                  <div>
-                    <span className="ws-temp-high">{tempShort(d.max)}</span>
-                    <span className="ws-temp-low">{tempShort(d.min)}</span>
-                  </div>
-                  <span
-                    className={`ws-rain-stat ${
-                      isRainy ? "ws-rain-warning" : "ws-rain-safe"
-                    }`}
-                  >
-                    {d.pop}%
-                  </span>
-                </div>
-
-                {isRainy && <div className="ws-plan-b">âš¡ Plan B</div>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* â•â•â•â•â•â•â•â•â•â•â• PROGRESS â•â•â•â•â•â•â•â•â•â•â• */}
-      <div className="ws-progress">
-        <div
-          className="ws-progress-fill"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      {/* â•â•â•â•â•â•â•â•â•â•â• INSPECTOR â•â•â•â•â•â•â•â•â•â•â• */}
-      {activeData && (
-        <div className="ws-inspector">
-          <div className="ws-inspector-left">
-            <div className="ws-inspector-icon">
-              {describe(activeData.code).icon}
-            </div>
-            <div className="ws-inspector-info">
-              <div className="ws-inspector-title">
-                <span>
-                  Day {activeDay}: {fmtShort(activeData.date)} â€”{" "}
-                  {describe(activeData.code).label}
-                </span>
-                <span
-                  className={`ws-inspector-risk ${
-                    activeData.pop >= 50 ? "rainy" : ""
-                  }`}
-                >
-                  {activeData.pop >= 50 ? "ðŸŒ§ï¸" : "â˜€ï¸"} {activeData.pop}% Rain
-                  Risk
-                </span>
-              </div>
-              <div className="ws-inspector-sub">
-                High: {temp(activeData.max)} â€¢ Low: {temp(activeData.min)} â€¢
-                Source:{" "}
-                {activeData.source === "live"
-                  ? "Open-Meteo 16-Day Forecast"
-                  : "Historical Climate Model"}
-              </div>
-            </div>
-          </div>
-
-          <div className="ws-inspector-ai">
-            <span className="ws-ai-badge">AI Plan</span>
-            <span>{generateTip(activeData)}</span>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-};
-
-export default WeatherSlider;
-```
-
-### FILE: frontend\src\context\AuthContext.jsx
-```
-import { createContext, useContext, useState } from "react";
-import api from "../api/axios";
-
-const AuthContext = createContext();
-
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(
-    JSON.parse(localStorage.getItem("user")) || null
-  );
-
-  const register = async (name, email, password) => {
-    const res = await api.post("/auth/register", { name, email, password });
-    localStorage.setItem("user", JSON.stringify(res.data));
-    setUser(res.data);
-  };
-
-  const login = async (email, password) => {
-    const res = await api.post("/auth/login", { email, password });
-    localStorage.setItem("user", JSON.stringify(res.data));
-    setUser(res.data);
-  };
-
-  const logout = () => {
-    localStorage.removeItem("user");
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, register, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => useContext(AuthContext);
-```
-
-### FILE: frontend\src\context\CurrencyContext.jsx
-```
-import { createContext, useContext, useState, useEffect } from "react";
-
-const CurrencyContext = createContext();
-
-const FALLBACK_RATES = {
-  INR: 1,
-  USD: 0.012,
-  EUR: 0.011,
-  GBP: 0.0094,
-  JPY: 1.83,
-};
-
-const CURRENCIES = {
-  INR: { symbol: "â‚¹", name: "Indian Rupee" },
-  USD: { symbol: "$", name: "US Dollar" },
-  EUR: { symbol: "â‚¬", name: "Euro" },
-  GBP: { symbol: "Â£", name: "British Pound" },
-  JPY: { symbol: "Â¥", name: "Japanese Yen" },
-};
-
-const STORAGE_KEY = "aitp.currency";
-const RATES_CACHE_KEY = "aitp.rates";
-const CACHE_TTL = 24 * 60 * 60 * 1000;
-
-export function CurrencyProvider({ children }) {
-  const [currency, setCurrencyState] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved && CURRENCIES[saved]) return saved;
-    } catch {}
-    return "INR";
-  });
-
-  const [rates, setRates] = useState(FALLBACK_RATES);
-
-  useEffect(() => {
-    try {
-      const cached = localStorage.getItem(RATES_CACHE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (
-          parsed.time &&
-          Date.now() - parsed.time < CACHE_TTL &&
-          parsed.rates
-        ) {
-          setRates(parsed.rates);
-          return;
-        }
-      }
-    } catch {}
-
-    fetch("https://open.er-api.com/v6/latest/INR")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.rates) {
-          const wanted = {};
-          Object.keys(CURRENCIES).forEach((code) => {
-            wanted[code] = data.rates[code] || FALLBACK_RATES[code] || 1;
-          });
-          wanted.INR = 1;
-          setRates(wanted);
-          try {
-            localStorage.setItem(
-              RATES_CACHE_KEY,
-              JSON.stringify({ time: Date.now(), rates: wanted })
-            );
-          } catch {}
-        }
-      })
-      .catch(() => {
-        /* keep fallback */
-      });
-  }, []);
-
-  const setCurrency = (code) => {
-    if (!CURRENCIES[code]) return;
-    setCurrencyState(code);
-    try {
-      localStorage.setItem(STORAGE_KEY, code);
-    } catch {}
-  };
-
-  const convert = (amountInINR) => {
-    if (amountInINR == null || isNaN(amountInINR)) return 0;
-    const rate = rates[currency] || 1;
-    return Number(amountInINR) * rate;
-  };
-
-  const format = (amountInINR) => {
-    const value = convert(amountInINR);
-    const sym = CURRENCIES[currency].symbol;
-    const rounded =
-      value >= 100 ? Math.round(value) : Math.round(value * 100) / 100;
-    return `${sym}${rounded.toLocaleString("en-US")}`;
-  };
-
-  return (
-    <CurrencyContext.Provider
-      value={{
-        currency,
-        setCurrency,
-        convert,
-        format,
-        currencies: CURRENCIES,
-        rates,
-      }}
-    >
-      {children}
-    </CurrencyContext.Provider>
-  );
-}
-
-export function useCurrency() {
-  const ctx = useContext(CurrencyContext);
-  if (!ctx)
-    throw new Error("useCurrency must be used within CurrencyProvider");
-  return ctx;
-}
-```
-
-### FILE: frontend\src\context\ThemeContext.jsx
-```
-import { createContext, useContext, useMemo } from "react";
-
-const ThemeContext = createContext(null);
-
-export function ThemeProvider({ children }) {
-  // Theme is permanently locked to light mode.
-  // The toggle and dark logic have been removed.
-  const value = useMemo(
-    () => ({
-      theme: "light",
-      isDark: false,
-      dark: false,
-      toggleTheme: () => {},
-      setDark: () => {},
-    }),
-    []
-  );
-
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
-}
-
-export const useTheme = () => {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error("useTheme must be used within <ThemeProvider>");
-  return ctx;
-};
-
-export default ThemeContext;
-```
-
-### FILE: frontend\src\context\TripActionsContext.jsx
-```
-import { createContext, useContext, useState } from "react";
-
-const TripActionsContext = createContext({
-  actions: null,
-  setActions: () => {},
-});
-
-export function TripActionsProvider({ children }) {
-  const [actions, setActions] = useState(null);
-
-  return (
-    <TripActionsContext.Provider value={{ actions, setActions }}>
-      {children}
-    </TripActionsContext.Provider>
-  );
-}
-
-export function useTripActions() {
-  return useContext(TripActionsContext);
-}
-```
-
-### FILE: frontend\src\lib\utils.js
 ```
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -8747,7 +9680,1940 @@ export function cn(...inputs) {
 }
 ```
 
-### FILE: frontend\src\pages\CreateTrip.css
+### frontend/src/main.jsx
+
+```
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App.jsx";
+import "./index.css";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import { ThemeProvider } from "./context/ThemeContext.jsx";
+import { TripActionsProvider } from "./context/TripActionsContext.jsx";
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <TripActionsProvider>
+            <App />
+          </TripActionsProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </BrowserRouter>
+  </React.StrictMode>
+);
+```
+
+### frontend/src/pages/Auth.css
+
+```
+/* frontend/src/pages/Auth.css */
+
+/* ═══════════════════════════════════════════════════════════
+   ROOT CONTAINER
+   ═══════════════════════════════════════════════════════════ */
+.auth-root {
+  --auth-bg: #050505;
+  --auth-card: #0b0b0b;
+  --auth-card-2: #111111;
+  --auth-border: rgba(255, 255, 255, 0.1);
+  --auth-muted: #888888;
+  --auth-dim: #52525b;
+  --auth-lime: #a3e635;
+  --auth-lime-bright: #bef264;
+  --auth-lime-dark: #84cc16;
+  --auth-lime-glow: rgba(163, 230, 53, 0.4);
+  --auth-lime-subtle: rgba(163, 230, 53, 0.12);
+  --auth-red: #f87171;
+  --auth-red-subtle: rgba(248, 113, 113, 0.12);
+  --auth-red-border: rgba(248, 113, 113, 0.35);
+
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  padding: 40px 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--auth-bg);
+  font-family: 'Poppins', system-ui, sans-serif;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+.auth-root *,
+.auth-root *::before,
+.auth-root *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BACKGROUND
+   ═══════════════════════════════════════════════════════════ */
+.auth-cosmos {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #050505;
+}
+
+#auth-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.auth-orb-1,
+.auth-orb-2 {
+  position: absolute;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 1;
+}
+.auth-orb-1 {
+  top: -120px;
+  left: 8%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(
+    circle,
+    rgba(163, 230, 53, 0.4) 0%,
+    rgba(163, 230, 53, 0.05) 50%,
+    transparent 75%
+  );
+  animation: authOrbFloat 10s ease-in-out infinite alternate;
+}
+.auth-orb-2 {
+  bottom: -120px;
+  right: 8%;
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(
+    circle,
+    rgba(96, 165, 250, 0.16) 0%,
+    transparent 70%
+  );
+  animation: authOrbFloat 13s ease-in-out infinite alternate-reverse;
+}
+@keyframes authOrbFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 40px) scale(1.15); }
+}
+
+.auth-aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.auth-aurora svg {
+  position: absolute;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.auth-aurora .auth-trail {
+  fill: none;
+  stroke-linecap: round;
+  filter: blur(6px);
+  opacity: 0.55;
+}
+.auth-aurora .auth-t1 {
+  stroke: url(#authAuroraA);
+  stroke-width: 5;
+  animation: authAuroraPulse 12s ease-in-out infinite;
+}
+.auth-aurora .auth-t2 {
+  stroke: url(#authAuroraB);
+  stroke-width: 4;
+  animation: authAuroraPulse 15s ease-in-out -3s infinite;
+}
+.auth-aurora .auth-t3 {
+  stroke: url(#authAuroraC);
+  stroke-width: 3;
+  animation: authAuroraPulse 18s ease-in-out -6s infinite;
+}
+@keyframes authAuroraPulse {
+  0%, 100% { opacity: 0.2; }
+  50%      { opacity: 0.5; }
+}
+
+.auth-grid-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(163, 230, 53, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(163, 230, 53, 0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 78%);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   KEYFRAMES
+   ═══════════════════════════════════════════════════════════ */
+@keyframes authCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes authBorderShift {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes authSheen {
+  0%, 55%   { left: -40%; }
+  80%, 100% { left: 140%; }
+}
+@keyframes authBlink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+@keyframes authFormSwap {
+  0%   { opacity: 0; transform: translateX(14px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes authSuccessPop {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARD
+   ═══════════════════════════════════════════════════════════ */
+.auth-card {
+  position: relative;
+  margin: auto;
+  z-index: 2;
+  width: 100%;
+  max-width: 460px;
+  padding: 32px 40px 32px;
+  border-radius: 24px;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 20, 20, 0.85) 0%,
+    rgba(11, 11, 11, 0.95) 100%
+  );
+  border: 1px solid var(--auth-border);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  box-shadow:
+    0 0 0 1px rgba(163, 230, 53, 0.08) inset,
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 30px 80px rgba(0, 0, 0, 0.85),
+    0 0 60px rgba(163, 230, 53, 0.15);
+  overflow: visible;
+  animation: authCardIn 0.9s cubic-bezier(0.2, 0.8, 0.25, 1) backwards;
+  will-change: transform;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.25, 1);
+  flex-shrink: 0;
+}
+
+.auth-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(163, 230, 53, 0.55) 0%,
+    rgba(163, 230, 53, 0.1) 25%,
+    rgba(163, 230, 53, 0.7) 50%,
+    rgba(163, 230, 53, 0.1) 75%,
+    rgba(163, 230, 53, 0.55) 100%
+  );
+  background-size: 200% 100%;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  opacity: 0.85;
+  pointer-events: none;
+  animation: authBorderShift 9s linear infinite;
+}
+
+.auth-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: radial-gradient(
+    90% 100% at 50% 0%,
+    rgba(163, 230, 53, 0.12),
+    transparent 70%
+  );
+  pointer-events: none;
+  border-radius: 24px 24px 0 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BRAND
+   ═══════════════════════════════════════════════════════════ */
+.auth-card-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  position: relative;
+  z-index: 1;
+}
+.auth-card-brand .auth-mark {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  filter: drop-shadow(0 0 12px rgba(163, 230, 53, 0.7));
+}
+.auth-brand-name {
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: -0.005em;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.auth-brand-name .auth-a {
+  color: #fff;
+}
+.auth-brand-name .auth-b {
+  color: var(--auth-lime);
+  text-shadow: 0 0 20px var(--auth-lime-glow);
+}
+.auth-brand-tag {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  font-family: 'Roboto Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--auth-dim);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TABS
+   ═══════════════════════════════════════════════════════════ */
+.auth-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 24px;
+  z-index: 1;
+}
+.auth-glider {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: calc(100% - 8px);
+  border-radius: 9px;
+  background: linear-gradient(
+    135deg,
+    var(--auth-lime) 0%,
+    var(--auth-lime-bright) 100%
+  );
+  box-shadow:
+    0 6px 20px rgba(163, 230, 53, 0.45),
+    0 0 20px rgba(163, 230, 53, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.3) inset;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
+}
+.auth-tabs.signup .auth-glider {
+  transform: translateX(100%);
+}
+.auth-tab {
+  position: relative;
+  z-index: 1;
+  padding: 11px 10px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--auth-muted);
+  cursor: pointer;
+  border-radius: 9px;
+  transition: color 0.25s ease;
+}
+.auth-tab.active {
+  color: #000;
+  font-weight: 800;
+}
+.auth-tab:not(.active):hover {
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HEADING
+   ═══════════════════════════════════════════════════════════ */
+.auth-head {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 22px;
+}
+.auth-head h2 {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #fff;
+  line-height: 1.15;
+}
+.auth-head-sub {
+  margin-top: 6px;
+  font-size: 0.86rem;
+  color: var(--auth-muted);
+  font-weight: 400;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FORMS
+   ═══════════════════════════════════════════════════════════ */
+.auth-form-panel {
+  position: relative;
+  z-index: 1;
+  animation: authFormSwap 0.4s cubic-bezier(0.2, 0.8, 0.25, 1) backwards;
+}
+.auth-form-panel form {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.auth-ctrl {
+  position: relative;
+}
+
+.auth-ctrl input {
+  width: 100%;
+  padding: 15px 18px 15px 48px;
+  font-family: inherit;
+  font-size: 0.94rem;
+  font-weight: 500;
+  color: #fff;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  outline: none;
+  color-scheme: dark;
+  transition:
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+.auth-ctrl input::placeholder {
+  color: var(--auth-dim);
+  font-weight: 400;
+}
+.auth-ctrl input:hover {
+  background: #0a0a0a;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.auth-ctrl input:focus {
+  background: rgba(163, 230, 53, 0.04);
+  border-color: var(--auth-lime);
+  box-shadow:
+    0 0 0 4px rgba(163, 230, 53, 0.15),
+    0 0 24px rgba(163, 230, 53, 0.25);
+}
+.auth-ctrl input.invalid {
+  border-color: rgba(248, 113, 113, 0.85);
+  background: rgba(248, 113, 113, 0.06);
+  box-shadow:
+    0 0 0 4px rgba(248, 113, 113, 0.15),
+    0 0 20px rgba(248, 113, 113, 0.3);
+}
+
+.auth-in-ic {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: rgba(163, 230, 53, 0.6);
+  pointer-events: none;
+  transition: color 0.22s ease;
+}
+.auth-ctrl input:focus ~ .auth-in-ic {
+  color: var(--auth-lime);
+}
+.auth-ctrl input.invalid ~ .auth-in-ic {
+  color: var(--auth-red);
+}
+
+.auth-eye {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--auth-muted);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  padding: 0;
+}
+.auth-eye:hover {
+  background: rgba(163, 230, 53, 0.1);
+  color: var(--auth-lime);
+}
+.auth-eye svg {
+  width: 17px;
+  height: 17px;
+}
+
+.auth-err {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: var(--auth-red);
+  font-weight: 500;
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.auth-err.show {
+  opacity: 1;
+  transform: translateY(0);
+  min-height: 16px;
+}
+
+.auth-strength {
+  height: 3px;
+  border-radius: 3px;
+  margin-top: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  display: none;
+}
+.auth-strength.show {
+  display: block;
+}
+.auth-strength .auth-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    #f43f5e 0%,
+    #fb923c 50%,
+    var(--auth-lime) 100%
+  );
+  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.auth-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  margin-top: -2px;
+}
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--auth-muted);
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+.auth-remember:hover {
+  color: #fff;
+}
+.auth-remember input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid rgba(163, 230, 53, 0.4);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex: none;
+}
+.auth-remember input:checked {
+  background: linear-gradient(
+    135deg,
+    var(--auth-lime),
+    var(--auth-lime-bright)
+  );
+  border-color: var(--auth-lime);
+  box-shadow: 0 0 14px rgba(163, 230, 53, 0.6);
+}
+.auth-remember input:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1.5px;
+  width: 5px;
+  height: 9px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.auth-row a {
+  color: var(--auth-muted);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: color 0.2s ease;
+}
+.auth-row a:hover {
+  color: var(--auth-lime);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMARY BUTTON
+   ═══════════════════════════════════════════════════════════ */
+.auth-btn-primary {
+  margin-top: 4px;
+  width: 100%;
+  padding: 16px 22px;
+  font-family: inherit;
+  font-size: 0.94rem;
+  font-weight: 800;
+  letter-spacing: 0.005em;
+  color: #000;
+  background: linear-gradient(
+    135deg,
+    var(--auth-lime) 0%,
+    var(--auth-lime-bright) 100%
+  );
+  background-size: 200% 100%;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow:
+    0 10px 30px rgba(163, 230, 53, 0.45),
+    0 0 40px rgba(163, 230, 53, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+  transition:
+    transform 0.18s ease,
+    background-position 0.6s ease,
+    box-shadow 0.25s ease,
+    opacity 0.2s ease;
+}
+.auth-btn-primary svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+.auth-btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  animation: authSheen 5s ease-in-out 1.6s infinite;
+  pointer-events: none;
+}
+.auth-btn-primary:hover:not(:disabled) {
+  background-position: 100% 0;
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 40px rgba(163, 230, 53, 0.6),
+    0 0 60px rgba(163, 230, 53, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.45) inset;
+}
+.auth-btn-primary:hover:not(:disabled) svg {
+  transform: translateX(5px);
+}
+.auth-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+.auth-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+.auth-btn-primary:focus-visible {
+  outline: 2px solid var(--auth-lime);
+  outline-offset: 3px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 6px 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--auth-dim);
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GOOGLE BUTTON — CUSTOM SKIN + INVISIBLE GSI OVERLAY
+   ═══════════════════════════════════════════════════════════ */
+.auth-google-wrap {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  margin-top: 4px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Invisible Google-rendered button on top */
+.auth-google-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  z-index: 3;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 14px;
+}
+.auth-google-overlay > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+.auth-google-overlay > div > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+.auth-google-overlay iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 14px !important;
+}
+
+/* Custom visible button underneath */
+.auth-btn-google {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 0 20px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: none;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.25s ease;
+}
+.auth-btn-google svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+/* Hover effect targets the wrapper since the visible button has pointer-events: none */
+.auth-google-wrap:hover .auth-btn-google {
+  background: rgba(163, 230, 53, 0.08);
+  border-color: rgba(163, 230, 53, 0.4);
+  box-shadow: 0 8px 24px rgba(163, 230, 53, 0.2);
+}
+
+/* Google error banner */
+.auth-google-error {
+  margin: -8px 0 12px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  color: var(--auth-red);
+  background: var(--auth-red-subtle);
+  border: 1px solid var(--auth-red-border);
+  border-radius: 12px;
+  font-weight: 500;
+  position: relative;
+  z-index: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════ */
+.auth-foot {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 0.86rem;
+  color: var(--auth-muted);
+  position: relative;
+  z-index: 1;
+}
+.auth-foot a {
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--auth-lime);
+  cursor: pointer;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+.auth-foot a:hover {
+  color: var(--auth-lime-bright);
+  text-shadow: 0 0 12px var(--auth-lime-glow);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SUCCESS OVERLAY
+   ═══════════════════════════════════════════════════════════ */
+.auth-success {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 20, 20, 0.97) 0%,
+    rgba(11, 11, 11, 0.99) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: inherit;
+  padding: 40px;
+  text-align: center;
+}
+.auth-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--auth-lime), var(--auth-lime-bright));
+  box-shadow:
+    0 0 40px rgba(163, 230, 53, 0.55),
+    0 0 80px rgba(163, 230, 53, 0.35);
+  animation: authSuccessPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+.auth-circle svg {
+  width: 40px;
+  height: 40px;
+  stroke: #050505;
+  stroke-width: 3;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.auth-success h3 {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+.auth-success p {
+  font-size: 0.9rem;
+  color: var(--auth-muted);
+  max-width: 30ch;
+}
+.auth-success .auth-btn-primary {
+  max-width: 220px;
+  margin-top: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CORNER HUD
+   ═══════════════════════════════════════════════════════════ */
+.auth-tag-hud {
+  position: fixed;
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+  z-index: 3;
+  pointer-events: none;
+}
+.auth-tl { top: 20px; left: 24px; }
+.auth-tr { top: 20px; right: 24px; }
+.auth-bl { bottom: 20px; left: 24px; }
+.auth-br { bottom: 20px; right: 24px; }
+
+.auth-hud-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--auth-lime);
+  margin-right: 7px;
+  vertical-align: middle;
+  box-shadow: 0 0 8px var(--auth-lime);
+  animation: authBlink 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 520px) {
+  .auth-root {
+    padding: 24px 16px;
+  }
+  .auth-card {
+    padding: 28px 24px 26px;
+    border-radius: 20px;
+    max-width: 400px;
+  }
+  .auth-head h2 {
+    font-size: 1.4rem;
+  }
+  .auth-tl,
+  .auth-tr {
+    display: none;
+  }
+  .auth-ctrl input {
+    font-size: 0.9rem;
+    padding: 14px 15px 14px 44px;
+  }
+  .auth-tab {
+    font-size: 0.8rem;
+    padding: 10px 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-root *,
+  .auth-root *::before,
+  .auth-root *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+### frontend/src/pages/Auth.jsx
+
+```
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import "./Auth.css";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// Decode the Google ID token (JWT) payload
+const parseJwt = (token) => {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};
+
+const Auth = ({ initialMode = "login" }) => {
+  const navigate = useNavigate();
+  const { login, register, googleLogin, user } = useAuth();
+
+  const [mode, setMode] = useState(initialMode);
+
+  // Login form
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPwd, setShowLoginPwd] = useState(false);
+  const [loginErrors, setLoginErrors] = useState({});
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Signup form
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [showSignupPwd, setShowSignupPwd] = useState(false);
+  const [signupTerms, setSignupTerms] = useState(false);
+  const [signupErrors, setSignupErrors] = useState({});
+  const [signupLoading, setSignupLoading] = useState(false);
+
+  // Google Identity Services state
+  const [gsiReady, setGsiReady] = useState(false);
+  const [googleError, setGoogleError] = useState("");
+  const googleBtnRef = useRef(null);
+  const googleBtnRefSignup = useRef(null);
+
+  // Success overlay
+  const [success, setSuccess] = useState({ show: false, title: "", msg: "" });
+
+  const canvasRef = useRef(null);
+  const cardRef = useRef(null);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) navigate("/dashboard", { replace: true });
+  }, [user, navigate]);
+
+  // Sync mode when prop changes
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  // Wait for the GSI script to load
+  useEffect(() => {
+    if (window.google?.accounts?.id) {
+      setGsiReady(true);
+      return;
+    }
+    const t = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        setGsiReady(true);
+        clearInterval(t);
+      }
+    }, 150);
+    return () => clearInterval(t);
+  }, []);
+
+  // Handle the credential response from Google
+  const handleGoogleCredential = async (response) => {
+    setGoogleError("");
+    try {
+      const payload = parseJwt(response.credential);
+      if (!payload) throw new Error("Invalid Google credential");
+
+      await googleLogin({
+        email: payload.email,
+        name: payload.name,
+        googleId: payload.sub,
+        avatar: payload.picture,
+      });
+
+      setSuccess({
+        show: true,
+        title: "Welcome!",
+        msg: "Signed in with Google. Redirecting…",
+      });
+      setTimeout(() => navigate("/dashboard"), 1200);
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "Google sign-in failed. Please try again.";
+      setGoogleError(msg);
+    }
+  };
+
+  // Render Google's button invisibly on top of our custom button
+  useEffect(() => {
+    if (!gsiReady) return;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+    if (!clientId) {
+      setGoogleError(
+        "Google sign-in not configured. Set VITE_GOOGLE_CLIENT_ID in frontend/.env"
+      );
+      return;
+    }
+
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: handleGoogleCredential,
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    });
+
+    const opts = {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+      text: "continue_with",
+      shape: "rectangular",
+      logo_alignment: "left",
+      width: 380,
+    };
+
+    if (mode === "login" && googleBtnRef.current) {
+      googleBtnRef.current.innerHTML = "";
+      window.google.accounts.id.renderButton(googleBtnRef.current, opts);
+    }
+    if (mode === "signup" && googleBtnRefSignup.current) {
+      googleBtnRefSignup.current.innerHTML = "";
+      window.google.accounts.id.renderButton(googleBtnRefSignup.current, opts);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gsiReady, mode]);
+
+  // Star field animation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let w = 0,
+      h = 0,
+      stars = [];
+    const COUNT = 120;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    let rafId = null;
+
+    const resize = () => {
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    const build = () => {
+      stars = [];
+      for (let i = 0; i < COUNT; i++) {
+        stars.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * 1.2 + 0.2,
+          a: Math.random() * 0.7 + 0.2,
+          tw: Math.random() * Math.PI * 2,
+          sp: Math.random() * 0.02 + 0.005,
+          hue: Math.random() < 0.65 ? 0 : Math.random() < 0.5 ? 100 : 200,
+        });
+      }
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        s.tw += s.sp;
+        const flicker = 0.7 + Math.sin(s.tw) * 0.3;
+        const alpha = s.a * flicker;
+        const color =
+          s.hue === 0
+            ? `rgba(255,255,255,${alpha})`
+            : s.hue === 100
+            ? `rgba(190,242,100,${alpha})`
+            : `rgba(165,243,252,${alpha})`;
+
+        const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 6);
+        g.addColorStop(0, color);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r * 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      rafId = requestAnimationFrame(draw);
+    };
+
+    const drawStatic = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (let i = 0; i < stars.length; i++) {
+        const s = stars[i];
+        ctx.fillStyle = `rgba(255,255,255,${s.a})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+
+    resize();
+    build();
+    if (!reduced) draw();
+    else drawStatic();
+
+    const onResize = () => {
+      resize();
+      build();
+      if (reduced) drawStatic();
+    };
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  // 3D card tilt
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    if (reduced || coarse) return;
+
+    let rx = 0,
+      ry = 0,
+      cx = 0,
+      cy = 0;
+    const MAX = 4;
+    let rafId = null;
+
+    const onMove = (e) => {
+      const nx = (e.clientX / window.innerWidth - 0.5) * 2;
+      const ny = (e.clientY / window.innerHeight - 0.5) * 2;
+      ry = nx * MAX;
+      rx = -ny * MAX;
+    };
+    const onLeave = () => {
+      rx = 0;
+      ry = 0;
+    };
+    const loop = () => {
+      cx += (ry - cx) * 0.08;
+      cy += (rx - cy) * 0.08;
+      card.style.transform = `perspective(1200px) rotateY(${cx.toFixed(
+        2
+      )}deg) rotateX(${cy.toFixed(2)}deg)`;
+      rafId = requestAnimationFrame(loop);
+    };
+
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerleave", onLeave);
+    loop();
+
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerleave", onLeave);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  // Password strength
+  const strengthPct = (() => {
+    const v = signupPassword;
+    if (!v) return 0;
+    let score = 0;
+    if (v.length >= 8) score++;
+    if (/[A-Z]/.test(v)) score++;
+    if (/[0-9]/.test(v)) score++;
+    if (/[^A-Za-z0-9]/.test(v)) score++;
+    return (score / 4) * 100;
+  })();
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    const errors = {};
+    if (!loginEmail.trim()) errors.loginEmail = "Email is required";
+    else if (!EMAIL_RE.test(loginEmail.trim()))
+      errors.loginEmail = "Enter a valid email";
+    if (!loginPassword) errors.loginPassword = "Password is required";
+    else if (loginPassword.length < 6)
+      errors.loginPassword = "Password must be at least 6 characters";
+
+    setLoginErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    setLoginLoading(true);
+    try {
+      await login(loginEmail.trim(), loginPassword);
+      setSuccess({
+        show: true,
+        title: "Welcome back!",
+        msg: "Redirecting to your trips…",
+      });
+      setTimeout(() => navigate("/dashboard"), 1200);
+    } catch (err) {
+      const msg =
+        err.response?.data?.message || "Login failed. Please try again.";
+      setLoginErrors({ loginPassword: msg });
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleSignupSubmit = async (e) => {
+    e.preventDefault();
+    const errors = {};
+    if (!signupName.trim()) errors.signupName = "Please enter your name";
+    else if (signupName.trim().length < 2)
+      errors.signupName = "Name is too short";
+    if (!signupEmail.trim()) errors.signupEmail = "Email is required";
+    else if (!EMAIL_RE.test(signupEmail.trim()))
+      errors.signupEmail = "Enter a valid email";
+    if (!signupPassword) errors.signupPassword = "Password is required";
+    else if (signupPassword.length < 8)
+      errors.signupPassword = "Password must be at least 8 characters";
+    else if (!/[A-Z]/.test(signupPassword))
+      errors.signupPassword = "Add at least one uppercase letter";
+    else if (!/[0-9]/.test(signupPassword))
+      errors.signupPassword = "Add at least one number";
+    if (!signupTerms)
+      errors.signupTerms = "Please accept the Terms to continue";
+
+    setSignupErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    setSignupLoading(true);
+    try {
+      await register(signupName.trim(), signupEmail.trim(), signupPassword);
+      setSuccess({
+        show: true,
+        title: "Account created!",
+        msg: "Welcome aboard. Start exploring the world.",
+      });
+      setTimeout(() => navigate("/dashboard"), 1200);
+    } catch (err) {
+      const msg =
+        err.response?.data?.message || "Sign up failed. Please try again.";
+      setSignupErrors({ signupEmail: msg });
+    } finally {
+      setSignupLoading(false);
+    }
+  };
+
+  return (
+    <div className="auth-root">
+      {/* Cosmic background */}
+      <div className="auth-cosmos" aria-hidden="true">
+        <canvas ref={canvasRef} id="auth-stars" />
+        <div className="auth-orb-1" />
+        <div className="auth-orb-2" />
+        <div className="auth-aurora">
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 1400 900"
+            preserveAspectRatio="xMidYMid slice"
+          >
+            <defs>
+              <linearGradient id="authAuroraA" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#a3e635" stopOpacity="0" />
+                <stop offset="40%" stopColor="#a3e635" stopOpacity=".85" />
+                <stop offset="70%" stopColor="#bef264" stopOpacity=".8" />
+                <stop offset="100%" stopColor="#60a5fa" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="authAuroraB" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#60a5fa" stopOpacity="0" />
+                <stop offset="50%" stopColor="#a3e635" stopOpacity=".8" />
+                <stop offset="100%" stopColor="#bef264" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="authAuroraC" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0%" stopColor="#84cc16" stopOpacity="0" />
+                <stop offset="50%" stopColor="#a3e635" stopOpacity=".8" />
+                <stop offset="100%" stopColor="#bef264" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path
+              className="auth-trail auth-t1"
+              d="M -100 380 C 200 300, 500 480, 900 380 C 1150 320, 1350 420, 1500 360"
+            />
+            <path
+              className="auth-trail auth-t2"
+              d="M -100 640 C 250 560, 550 760, 950 660 C 1200 600, 1350 700, 1500 640"
+            />
+            <path
+              className="auth-trail auth-t3"
+              d="M -100 180 C 300 140, 600 260, 1000 200 C 1250 160, 1400 220, 1500 200"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div className="auth-grid-overlay" aria-hidden="true" />
+
+      {/* Corner HUD */}
+      <span className="auth-tag-hud auth-tl">
+        <span className="auth-hud-dot" />System online</span>
+      <span className="auth-tag-hud auth-br">© AI Travel Planner 2025</span>
+      {/* Card */}
+      <main className="auth-card" ref={cardRef}>
+        <div className="auth-card-brand">
+          <svg
+            className="auth-mark"
+            viewBox="0 0 48 48"
+            fill="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient id="authLogG" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#a3e635" />
+                <stop offset="100%" stopColor="#bef264" />
+              </linearGradient>
+            </defs>
+            <circle
+              cx="24"
+              cy="24"
+              r="19"
+              stroke="url(#authLogG)"
+              strokeWidth="2.4"
+              fill="rgba(163,230,53,.12)"
+            />
+            <path
+              d="M14 28 L 22 18 L 26 24 L 34 14"
+              stroke="url(#authLogG)"
+              strokeWidth="2.6"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M31 12 L 40 15 L 33 20 L 35 15.5 Z"
+              fill="url(#authLogG)"
+            />
+          </svg>
+          <div className="auth-brand-name">
+            <span className="auth-a">AI TRAVEL</span>
+            <span className="auth-b">PLANNER</span>
+            <span className="auth-brand-tag">Secure access</span>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div
+          className={`auth-tabs ${mode === "signup" ? "signup" : ""}`}
+          role="tablist"
+        >
+          <span className="auth-glider" aria-hidden="true" />
+          <button
+            className={`auth-tab ${mode === "login" ? "active" : ""}`}
+            role="tab"
+            aria-selected={mode === "login"}
+            onClick={() => {
+              setMode("login");
+              setGoogleError("");
+            }}
+            type="button"
+          >
+            Log In
+          </button>
+          <button
+            className={`auth-tab ${mode === "signup" ? "active" : ""}`}
+            role="tab"
+            aria-selected={mode === "signup"}
+            onClick={() => {
+              setMode("signup");
+              setGoogleError("");
+            }}
+            type="button"
+          >
+            Sign Up
+          </button>
+        </div>
+
+        {/* Heading */}
+        <div className="auth-head">
+          <h2>{mode === "login" ? "Welcome Back" : "Create Account"}</h2>
+          <p className="auth-head-sub">
+            {mode === "login"
+              ? "Log in to continue your journey"
+              : "Start planning your next adventure"}
+          </p>
+        </div>
+
+        {googleError && <p className="auth-google-error">{googleError}</p>}
+
+        {/* LOGIN PANEL */}
+        {mode === "login" && (
+          <div className="auth-form-panel" role="tabpanel">
+            <form onSubmit={handleLoginSubmit} noValidate>
+              <div className="auth-ctrl">
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  autoComplete="email"
+                  value={loginEmail}
+                  onChange={(e) => {
+                    setLoginEmail(e.target.value);
+                    setLoginErrors((p) => ({ ...p, loginEmail: "" }));
+                  }}
+                  className={loginErrors.loginEmail ? "invalid" : ""}
+                />
+                <svg
+                  className="auth-in-ic"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="M2 7l10 6 10-6" />
+                </svg>
+                <span
+                  className={`auth-err ${
+                    loginErrors.loginEmail ? "show" : ""
+                  }`}
+                >
+                  {loginErrors.loginEmail}
+                </span>
+              </div>
+
+              <div className="auth-ctrl">
+                <input
+                  type={showLoginPwd ? "text" : "password"}
+                  placeholder="Password"
+                  autoComplete="current-password"
+                  value={loginPassword}
+                  onChange={(e) => {
+                    setLoginPassword(e.target.value);
+                    setLoginErrors((p) => ({ ...p, loginPassword: "" }));
+                  }}
+                  className={loginErrors.loginPassword ? "invalid" : ""}
+                  style={{ paddingRight: 48 }}
+                />
+                <svg
+                  className="auth-in-ic"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="4" y="11" width="16" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+                <button
+                  className="auth-eye"
+                  type="button"
+                  onClick={() => setShowLoginPwd((v) => !v)}
+                  aria-label={showLoginPwd ? "Hide password" : "Show password"}
+                >
+                  {showLoginPwd ? (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                      <path d="M1 1l22 22" />
+                    </svg>
+                  )}
+                </button>
+                <span
+                  className={`auth-err ${
+                    loginErrors.loginPassword ? "show" : ""
+                  }`}
+                >
+                  {loginErrors.loginPassword}
+                </span>
+              </div>
+
+              <div className="auth-row">
+                <label className="auth-remember">
+                  <input type="checkbox" defaultChecked />
+                  <span>Remember me</span>
+                </label>
+                <a href="#">Forgot password?</a>
+              </div>
+
+              <button
+                type="submit"
+                className="auth-btn-primary"
+                disabled={loginLoading}
+              >
+                {loginLoading ? "Signing in…" : "Log In"}
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 12h14" />
+                  <path d="M13 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              <div className="auth-divider">or</div>
+
+              <div className="auth-google-wrap">
+                <div
+                  ref={googleBtnRef}
+                  className="auth-google-overlay"
+                  aria-hidden="true"
+                />
+                <button type="button" className="auth-btn-google" tabIndex={-1}>
+                  <svg viewBox="0 0 48 48" aria-hidden="true">
+                    <path
+                      fill="#FFC107"
+                      d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z"
+                    />
+                    <path
+                      fill="#FF3D00"
+                      d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"
+                    />
+                    <path
+                      fill="#4CAF50"
+                      d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.6 39.6 16.2 44 24 44z"
+                    />
+                    <path
+                      fill="#1976D2"
+                      d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.2 5.2c-.4.4 6.6-4.8 6.6-14.7 0-1.2-.1-2.4-.4-3.5z"
+                    />
+                  </svg>
+                  Continue with Google
+                </button>
+              </div>
+            </form>
+
+            <p className="auth-foot">
+              Don't have an account?{" "}
+              <a onClick={() => setMode("signup")} role="button">
+                Sign up free
+              </a>
+            </p>
+          </div>
+        )}
+
+        {/* SIGNUP PANEL */}
+        {mode === "signup" && (
+          <div className="auth-form-panel" role="tabpanel">
+            <form onSubmit={handleSignupSubmit} noValidate>
+              <div className="auth-ctrl">
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  autoComplete="name"
+                  value={signupName}
+                  onChange={(e) => {
+                    setSignupName(e.target.value);
+                    setSignupErrors((p) => ({ ...p, signupName: "" }));
+                  }}
+                  className={signupErrors.signupName ? "invalid" : ""}
+                />
+                <svg
+                  className="auth-in-ic"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span
+                  className={`auth-err ${
+                    signupErrors.signupName ? "show" : ""
+                  }`}
+                >
+                  {signupErrors.signupName}
+                </span>
+              </div>
+
+              <div className="auth-ctrl">
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  autoComplete="email"
+                  value={signupEmail}
+                  onChange={(e) => {
+                    setSignupEmail(e.target.value);
+                    setSignupErrors((p) => ({ ...p, signupEmail: "" }));
+                  }}
+                  className={signupErrors.signupEmail ? "invalid" : ""}
+                />
+                <svg
+                  className="auth-in-ic"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="M2 7l10 6 10-6" />
+                </svg>
+                <span
+                  className={`auth-err ${
+                    signupErrors.signupEmail ? "show" : ""
+                  }`}
+                >
+                  {signupErrors.signupEmail}
+                </span>
+              </div>
+
+              <div className="auth-ctrl">
+                <input
+                  type={showSignupPwd ? "text" : "password"}
+                  placeholder="Password"
+                  autoComplete="new-password"
+                  value={signupPassword}
+                  onChange={(e) => {
+                    setSignupPassword(e.target.value);
+                    setSignupErrors((p) => ({ ...p, signupPassword: "" }));
+                  }}
+                  className={signupErrors.signupPassword ? "invalid" : ""}
+                  style={{ paddingRight: 48 }}
+                />
+                <svg
+                  className="auth-in-ic"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="4" y="11" width="16" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+                <button
+                  className="auth-eye"
+                  type="button"
+                  onClick={() => setShowSignupPwd((v) => !v)}
+                  aria-label={showSignupPwd ? "Hide password" : "Show password"}
+                >
+                  {showSignupPwd ? (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                      <path d="M1 1l22 22" />
+                    </svg>
+                  )}
+                </button>
+                {signupPassword && (
+                  <div className="auth-strength show">
+                    <div
+                      className="auth-bar"
+                      style={{ width: `${strengthPct}%` }}
+                    />
+                  </div>
+                )}
+                <span
+                  className={`auth-err ${
+                    signupErrors.signupPassword ? "show" : ""
+                  }`}
+                >
+                  {signupErrors.signupPassword}
+                </span>
+              </div>
+
+              <div className="auth-row">
+                <label className="auth-remember">
+                  <input
+                    type="checkbox"
+                    checked={signupTerms}
+                    onChange={(e) => {
+                      setSignupTerms(e.target.checked);
+                      setSignupErrors((p) => ({ ...p, signupTerms: "" }));
+                    }}
+                  />
+                  <span>
+                    I agree to the <a href="#">Terms</a>
+                  </span>
+                </label>
+              </div>
+              <span
+                className={`auth-err ${
+                  signupErrors.signupTerms ? "show" : ""
+                }`}
+                style={{ marginTop: -8 }}
+              >
+                {signupErrors.signupTerms}
+              </span>
+
+              <button
+                type="submit"
+                className="auth-btn-primary"
+                disabled={signupLoading}
+              >
+                {signupLoading ? "Creating account…" : "Create Account"}
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M5 12h14" />
+                  <path d="M13 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              <div className="auth-divider">or</div>
+
+              <div className="auth-google-wrap">
+                <div
+                  ref={googleBtnRefSignup}
+                  className="auth-google-overlay"
+                  aria-hidden="true"
+                />
+                <button type="button" className="auth-btn-google" tabIndex={-1}>
+                  <svg viewBox="0 0 48 48" aria-hidden="true">
+                    <path
+                      fill="#FFC107"
+                      d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z"
+                    />
+                    <path
+                      fill="#FF3D00"
+                      d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"
+                    />
+                    <path
+                      fill="#4CAF50"
+                      d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.6 39.6 16.2 44 24 44z"
+                    />
+                    <path
+                      fill="#1976D2"
+                      d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.2 5.2c-.4.4 6.6-4.8 6.6-14.7 0-1.2-.1-2.4-.4-3.5z"
+                    />
+                  </svg>
+                  Sign up with Google
+                </button>
+              </div>
+            </form>
+
+            <p className="auth-foot">
+              Already have an account?{" "}
+              <a onClick={() => setMode("login")} role="button">
+                Log in
+              </a>
+            </p>
+          </div>
+        )}
+
+        {/* Success overlay */}
+        {success.show && (
+          <div className="auth-success show">
+            <div className="auth-circle">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 12.5l5 5L20 6.5" />
+              </svg>
+            </div>
+            <h3>{success.title}</h3>
+            <p>{success.msg}</p>
+            <button
+              type="button"
+              className="auth-btn-primary"
+              onClick={() => {
+                setSuccess({ show: false });
+                navigate("/dashboard");
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default Auth;
+```
+
+### frontend/src/pages/CreateTrip.css
+
 ```
 /* frontend/src/pages/CreateTrip.css */
 
@@ -8952,29 +11818,145 @@ export function cn(...inputs) {
 .ct-option-title { font-size: 1rem; font-weight: 800; color: #fff; }
 .ct-option-desc { font-size: 0.82rem; color: var(--ct-muted); margin-top: 6px; line-height: 1.4; }
 
+/* ═════════════════════════════════════════════════════
+   INTEREST CHIPS
+   ═════════════════════════════════════════════════════ */
+
+.ct-hint {
+  font-size: 0.82rem;
+  color: var(--ct-muted);
+  margin: -6px 0 16px;
+  line-height: 1.5;
+}
+
+.ct-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ct-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #e5e5e5;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  transition:
+    background 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.22s ease,
+    color 0.22s ease,
+    transform 0.15s ease,
+    box-shadow 0.25s ease;
+  white-space: nowrap;
+  position: relative;
+}
+
+.ct-chip:hover {
+  border-color: rgba(163, 230, 53, 0.4);
+  background: rgba(163, 230, 53, 0.06);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.ct-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.3);
+}
+
+.ct-chip:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.ct-chip-emoji {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: grayscale(0.4);
+  transition: filter 0.22s ease, transform 0.22s ease;
+}
+
+.ct-chip:hover .ct-chip-emoji {
+  filter: grayscale(0);
+  transform: scale(1.1);
+}
+
+.ct-chip.ct-chip-active {
+  background: linear-gradient(
+    135deg,
+    rgba(163, 230, 53, 0.18),
+    rgba(163, 230, 53, 0.08)
+  );
+  border-color: rgba(163, 230, 53, 0.7);
+  color: #e8ffb8;
+  box-shadow:
+    0 0 0 1px rgba(163, 230, 53, 0.15) inset,
+    0 6px 18px -8px rgba(163, 230, 53, 0.5),
+    0 0 20px -8px rgba(163, 230, 53, 0.4);
+}
+
+.ct-chip.ct-chip-active .ct-chip-emoji {
+  filter: grayscale(0);
+  transform: scale(1.1);
+}
+
+.ct-chip.ct-chip-active:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(163, 230, 53, 0.24),
+    rgba(163, 230, 53, 0.12)
+  );
+  border-color: #a3e635;
+}
+
+.ct-chip-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #a3e635;
+  color: #000;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  flex-shrink: 0;
+  animation: chipCheckIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes chipCheckIn {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 480px) {
+  .ct-chip {
+    padding: 9px 14px 9px 12px;
+    font-size: 0.82rem;
+    gap: 6px;
+  }
+  .ct-chip-emoji {
+    font-size: 0.9rem;
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   SUBMIT + TOAST
+   ═════════════════════════════════════════════════════ */
+
 .ct-actions {
   display: flex;
   justify-content: flex-end;
   padding-top: 12px;
 }
-.ct-submit {
-  background: linear-gradient(135deg, var(--ct-lime), var(--ct-lime-bright));
-  color: #000;
-  border: none;
-  padding: 14px 28px;
-  border-radius: 14px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 8px 24px -6px rgba(163, 230, 53, 0.5);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.ct-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px -6px rgba(163, 230, 53, 0.7);
-}
-.ct-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .ct-toast {
   position: fixed;
@@ -9018,21 +12000,88 @@ export function cn(...inputs) {
   color: #fff;
 }
 
+/* ═════════════════════════════════════════════════════
+   KILL ALL FOCUS OUTLINES (fixes the rectangle)
+   ═════════════════════════════════════════════════════ */
+
+/* Wrapper divs that receive programmatic focus */
+.ct-field[tabindex]:focus,
+.ct-field[tabindex]:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+
+/* Any element inside the form that might get an outline */
+.ct-form [tabindex="-1"]:focus,
+.ct-form [tabindex="-1"]:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none;
+}
+
+/* Form element itself */
+.ct-form:focus,
+.ct-form:focus-visible,
+.ct-form:focus-within {
+  outline: none !important;
+}
+
+/* Number inputs — kill browser spin-button outline */
+.ct-input[type="number"]:focus,
+.ct-input[type="number"]:focus-visible {
+  outline: none !important;
+}
+
+.ct-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.ct-input[type="number"]::-webkit-outer-spin-button,
+.ct-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox — remove inner dotted outline */
+.ct-field:-moz-focusring {
+  outline: none !important;
+}
+
+/* Safari — remove tap highlight */
+.ct-field[tabindex] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Re-enable visible focus only for real interactive elements (accessibility) */
+.ct-root button:focus-visible,
+.ct-root input:focus-visible,
+.ct-root a:focus-visible {
+  outline: 2px solid #a3e635;
+  outline-offset: 2px;
+}
+
+/* ═════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═════════════════════════════════════════════════════ */
+
 @media (prefers-reduced-motion: reduce) {
-  .ct-orb-1, .ct-orb-2, .ct-pulse, .ct-toast-dot { animation: none !important; }
+  .ct-orb-1, .ct-orb-2, .ct-pulse, .ct-toast-dot,
+  .ct-chip, .ct-chip-emoji, .ct-chip-check {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 ```
 
-### FILE: frontend\src\pages\CreateTrip.jsx
+### frontend/src/pages/CreateTrip.jsx
+
 ```
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import SubmitButton from "../components/SubmitButton";
 import "./CreateTrip.css";
 
-// Extract a short, geocode-friendly name from a Nominatim display_name
-// Example: "Red Fort, Ring Road, Old Delhi, Delhi, 110003, India"
-//      â†’ "Red Fort, Delhi, India"
 const shortenAddress = (displayName) => {
   if (!displayName) return "";
   const parts = displayName
@@ -9049,16 +12098,28 @@ const shortenAddress = (displayName) => {
 };
 
 const BUDGET_OPTIONS = [
-  { id: "cheap", icon: "ðŸ’µ", label: "Cheap", desc: "Stay conscious of costs", budget: 15000 },
-  { id: "moderate", icon: "ðŸ’°", label: "Moderate", desc: "Keep cost on the average side", budget: 30000 },
-  { id: "luxury", icon: "ðŸ’Ž", label: "Luxury", desc: "Don't worry about cost", budget: 80000 },
+  { id: "cheap", icon: "💵", label: "Cheap", desc: "Stay conscious of costs", budget: 15000 },
+  { id: "moderate", icon: "💰", label: "Moderate", desc: "Keep cost on the average side", budget: 30000 },
+  { id: "luxury", icon: "💎", label: "Luxury", desc: "Don't worry about cost", budget: 80000 },
 ];
 
 const TRAVELER_OPTIONS = [
-  { id: "solo", icon: "âœˆï¸", label: "Just Me", desc: "A sole traveler in exploration", count: 1 },
-  { id: "couple", icon: "ðŸ¥‚", label: "A Couple", desc: "Two travelers in tandem", count: 2 },
-  { id: "family", icon: "ðŸ ", label: "Family", desc: "A group of fun-loving adventurers", count: 4 },
-  { id: "friends", icon: "â›µ", label: "Friends", desc: "A bunch of thrill-seekers", count: 5 },
+  { id: "solo", icon: "✈️", label: "Just Me", desc: "A sole traveler in exploration", count: 1 },
+  { id: "couple", icon: "🥂", label: "A Couple", desc: "Two travelers in tandem", count: 2 },
+  { id: "family", icon: "🏠", label: "Family", desc: "A group of fun-loving adventurers", count: 4 },
+  { id: "friends", icon: "⛵", label: "Friends", desc: "A bunch of thrill-seekers", count: 5 },
+];
+
+const INTEREST_OPTIONS = [
+  { id: "history", icon: "🏛️", label: "History & old towns" },
+  { id: "food", icon: "🍜", label: "Food & markets" },
+  { id: "museums", icon: "🎨", label: "Museums & art" },
+  { id: "walking", icon: "🚶", label: "Walking tours" },
+  { id: "nature", icon: "🌿", label: "Nature & day trips" },
+  { id: "nightlife", icon: "🌙", label: "Nightlife" },
+  { id: "shopping", icon: "🛍️", label: "Shopping" },
+  { id: "beaches", icon: "🏖️", label: "Beaches" },
+  { id: "other", icon: "✨", label: "Other" },
 ];
 
 const CreateTrip = () => {
@@ -9069,10 +12130,18 @@ const CreateTrip = () => {
   const [days, setDays] = useState("");
   const [budget, setBudget] = useState("");
   const [travelerType, setTravelerType] = useState("");
+  const [interests, setInterests] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const suggestionsRef = useRef(null);
+  const [btnState, setBtnState] = useState("idle"); // idle | loading | success
 
+  const suggestionsRef = useRef(null);
+  const daysRef = useRef(null);
+  const budgetRef = useRef(null);
+  const travelersRef = useRef(null);
+  const interestsRef = useRef(null);
+
+  // Fetch destination suggestions
   useEffect(() => {
     if (destination.length < 3) {
       setSuggestions([]);
@@ -9095,6 +12164,7 @@ const CreateTrip = () => {
     return () => clearTimeout(t);
   }, [destination]);
 
+  // Close suggestions on outside click
   useEffect(() => {
     const handler = (e) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
@@ -9105,33 +12175,106 @@ const CreateTrip = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Scroll + focus helper
+  const focusNext = (ref) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => el.focus?.(), 250);
+  };
+
+  // Toggle interest chip
+  const toggleInterest = (id) => {
+    setInterests((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  // Enter key handlers for auto-focus flow
+  const handleDestinationKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (suggestions.length > 0) {
+      setDestination(shortenAddress(suggestions[0].name));
+      setSuggestions([]);
+      setShowSuggestions(false);
+    } else {
+      setShowSuggestions(false);
+    }
+    focusNext(daysRef);
+  };
+
+  const handleDaysKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    focusNext(budgetRef);
+  };
+
+  const handleBudgetKeyDown = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setBudget(id);
+      focusNext(travelersRef);
+    }
+  };
+
+  const handleTravelerKeyDown = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setTravelerType(id);
+      focusNext(interestsRef);
+    }
+  };
+
+  const handleInterestKeyDown = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleInterest(id);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
     if (!destination || !days || !budget || !travelerType) {
       return setError("Please fill all fields");
     }
+
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + Number(days));
     const selectedBudget = BUDGET_OPTIONS.find((b) => b.id === budget);
     const selectedTraveler = TRAVELER_OPTIONS.find((t) => t.id === travelerType);
 
+    const interestLabels = interests.map((id) => {
+      const found = INTEREST_OPTIONS.find((i) => i.id === id);
+      return found ? found.label : id;
+    });
+
     try {
+      setBtnState("loading");
       setLoading(true);
+
       const res = await api.post("/trips", {
         destination: shortenAddress(destination) || destination,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         budget: selectedBudget.budget,
         travellers: selectedTraveler.count,
-        interests: [],
+        interests: interestLabels,
       });
-      navigate(`/trips/${res.data._id}`);
-    } catch (err) {
-      setError(err.response?.data?.message || "Could not create trip");
-    } finally {
+
       setLoading(false);
+      setBtnState("success");
+
+      setTimeout(() => {
+        navigate(`/trips/${res.data._id}`);
+      }, 900);
+    } catch (err) {
+      setBtnState("idle");
+      setLoading(false);
+      setError(err.response?.data?.message || "Could not create trip");
     }
   };
 
@@ -9140,7 +12283,6 @@ const CreateTrip = () => {
       <div className="ct-orb-1" />
       <div className="ct-orb-2" />
 
-      {/* Loading toast */}
       {loading && (
         <div className="ct-toast">
           <span className="ct-toast-dots">
@@ -9161,7 +12303,7 @@ const CreateTrip = () => {
         </div>
 
         <h1 className="ct-title">
-          Tell us your travel <span>preferences</span> ðŸ•ï¸
+          Tell us your travel <span>preferences</span> 🏝️
         </h1>
         <p className="ct-subtitle">
           Just provide some basic information, and our trip planner will
@@ -9172,11 +12314,7 @@ const CreateTrip = () => {
 
         <form onSubmit={handleSubmit} className="ct-form">
           {/* DESTINATION */}
-          <div
-            ref={suggestionsRef}
-            className="ct-field"
-            style={{ zIndex: 30 }}
-          >
+          <div ref={suggestionsRef} className="ct-field" style={{ zIndex: 30 }}>
             <label className="ct-label">
               What is destination of choice?
             </label>
@@ -9187,8 +12325,10 @@ const CreateTrip = () => {
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Search a city â€” try Paris, Tokyo, Baliâ€¦"
+              onKeyDown={handleDestinationKeyDown}
+              placeholder="Search a city — try Paris, Tokyo, Bali…"
               className="ct-input"
+              autoComplete="off"
             />
             {showSuggestions && suggestions.length > 0 && (
               <div className="ct-suggestions">
@@ -9198,7 +12338,9 @@ const CreateTrip = () => {
                     type="button"
                     onClick={() => {
                       setDestination(shortenAddress(s.name));
+                      setSuggestions([]);
                       setShowSuggestions(false);
+                      focusNext(daysRef);
                     }}
                     className="ct-suggestion"
                   >
@@ -9215,24 +12357,35 @@ const CreateTrip = () => {
               How many days are you planning your trip?
             </label>
             <input
+              ref={daysRef}
               type="number"
               min="1"
               value={days}
               onChange={(e) => setDays(e.target.value)}
+              onKeyDown={handleDaysKeyDown}
               placeholder="Ex. 3"
               className="ct-input"
             />
           </div>
 
           {/* BUDGET */}
-          <div className="ct-field" style={{ zIndex: 10 }}>
+          <div
+            className="ct-field"
+            style={{ zIndex: 10 }}
+            ref={budgetRef}
+            tabIndex={-1}
+          >
             <label className="ct-label">What is Your Budget?</label>
             <div className="ct-options-grid">
               {BUDGET_OPTIONS.map((b) => (
                 <button
                   key={b.id}
                   type="button"
-                  onClick={() => setBudget(b.id)}
+                  onClick={() => {
+                    setBudget(b.id);
+                    focusNext(travelersRef);
+                  }}
+                  onKeyDown={(e) => handleBudgetKeyDown(e, b.id)}
                   className={`ct-option ${budget === b.id ? "ct-selected" : ""}`}
                 >
                   <div className="ct-option-icon">{b.icon}</div>
@@ -9244,7 +12397,12 @@ const CreateTrip = () => {
           </div>
 
           {/* TRAVELERS */}
-          <div className="ct-field" style={{ zIndex: 10 }}>
+          <div
+            className="ct-field"
+            style={{ zIndex: 10 }}
+            ref={travelersRef}
+            tabIndex={-1}
+          >
             <label className="ct-label">
               Who do you plan on traveling with on your next adventure?
             </label>
@@ -9253,8 +12411,14 @@ const CreateTrip = () => {
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setTravelerType(t.id)}
-                  className={`ct-option ${travelerType === t.id ? "ct-selected" : ""}`}
+                  onClick={() => {
+                    setTravelerType(t.id);
+                    focusNext(interestsRef);
+                  }}
+                  onKeyDown={(e) => handleTravelerKeyDown(e, t.id)}
+                  className={`ct-option ${
+                    travelerType === t.id ? "ct-selected" : ""
+                  }`}
                 >
                   <div className="ct-option-icon">{t.icon}</div>
                   <div className="ct-option-title">{t.label}</div>
@@ -9264,15 +12428,41 @@ const CreateTrip = () => {
             </div>
           </div>
 
+          {/* INTERESTS */}
+          <div
+            className="ct-field"
+            style={{ zIndex: 10 }}
+            ref={interestsRef}
+            tabIndex={-1}
+          >
+            <label className="ct-label">What do you want to do there?</label>
+            <p className="ct-hint">Pick as many as you like.</p>
+            <div className="ct-chips">
+              {INTEREST_OPTIONS.map((opt) => {
+                const isOn = interests.includes(opt.id);
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => toggleInterest(opt.id)}
+                    onKeyDown={(e) => handleInterestKeyDown(e, opt.id)}
+                    className={`ct-chip ${isOn ? "ct-chip-active" : ""}`}
+                    aria-pressed={isOn}
+                  >
+                    <span className="ct-chip-emoji">{opt.icon}</span>
+                    <span className="ct-chip-label">{opt.label}</span>
+                    {isOn && <span className="ct-chip-check">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* SUBMIT */}
           <div className="ct-actions" style={{ zIndex: 5 }}>
-            <button
-              type="submit"
-              disabled={loading}
-              className="ct-submit"
-            >
-              {loading ? "Generating..." : "Generate Trip"}
-            </button>
+            <SubmitButton type="submit" state={btnState}>
+              Generate Trip
+            </SubmitButton>
           </div>
         </form>
       </div>
@@ -9283,17 +12473,296 @@ const CreateTrip = () => {
 export default CreateTrip;
 ```
 
-### FILE: frontend\src\pages\Dashboard.jsx
+### frontend/src/pages/Dashboard.css
+
+```
+/* frontend/src/pages/Dashboard.css */
+
+.dash-root {
+  --dash-bg: #050505;
+  --dash-card: #111111;
+  --dash-card-hover: #181818;
+  --dash-border: rgba(255, 255, 255, 0.1);
+  --dash-muted: #888888;
+  --dash-dim: #52525b;
+  --dash-lime: #a3e635;
+  --dash-lime-bright: #bef264;
+  --dash-lime-glow: rgba(163, 230, 53, 0.4);
+  --dash-lime-subtle: rgba(163, 230, 53, 0.12);
+  background: var(--dash-bg);
+  color: #fff;
+  min-height: 100vh;
+  font-family: 'Poppins', system-ui, sans-serif;
+  overflow-x: hidden;
+  position: relative;
+}
+.dash-orb-1, .dash-orb-2 {
+  position: fixed;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+.dash-orb-1 {
+  top: -120px; left: 8%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, var(--dash-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
+  animation: dashFloat 10s ease-in-out infinite alternate;
+}
+.dash-orb-2 {
+  bottom: -120px; right: 8%;
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(96,165,250,0.16) 0%, transparent 70%);
+  animation: dashFloat 13s ease-in-out infinite alternate-reverse;
+}
+@keyframes dashFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 40px) scale(1.15); }
+}
+
+.dash-page {
+  position: relative;
+  z-index: 10;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.dash-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--dash-lime);
+  background: var(--dash-lime-subtle);
+  border: 1px solid rgba(163, 230, 53, 0.3);
+  padding: 5px 12px; border-radius: 9999px;
+  width: fit-content;
+  margin-bottom: 14px;
+}
+.dash-pulse {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--dash-lime);
+  box-shadow: 0 0 10px var(--dash-lime);
+  animation: dashPulse 1.5s infinite;
+}
+@keyframes dashPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.8); }
+}
+
+.dash-title {
+  font-size: clamp(2rem, 4.5vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: #fff;
+  margin: 0 0 14px;
+}
+.dash-title span { color: var(--dash-lime); text-shadow: 0 0 30px var(--dash-lime-glow); }
+.dash-subtitle {
+  font-size: 1rem;
+  color: var(--dash-muted);
+  max-width: 620px;
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.dash-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+.dash-btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, var(--dash-lime), var(--dash-lime-bright));
+  color: #000;
+  padding: 13px 24px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 8px 24px -6px rgba(163, 230, 53, 0.5);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dash-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -6px rgba(163, 230, 53, 0.7);
+}
+.dash-btn-ghost {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: transparent;
+  color: #fff;
+  border: 1px solid var(--dash-border);
+  padding: 13px 24px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.22s;
+}
+.dash-btn-ghost:hover {
+  border-color: var(--dash-lime);
+  color: var(--dash-lime);
+  background: var(--dash-lime-subtle);
+}
+
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.dash-stat {
+  background: var(--dash-card);
+  border: 1px solid var(--dash-border);
+  border-radius: 20px;
+  padding: 22px;
+  transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+  animation: dashCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.dash-stat:nth-child(1) { animation-delay: 0.10s; }
+.dash-stat:nth-child(2) { animation-delay: 0.18s; }
+.dash-stat:nth-child(3) { animation-delay: 0.26s; }
+.dash-stat:hover {
+  transform: translateY(-3px);
+  border-color: rgba(163, 230, 53, 0.4);
+  box-shadow: 0 16px 30px -12px rgba(0,0,0,0.9), 0 0 24px rgba(163,230,53,0.12);
+}
+.dash-stat-icon {
+  font-size: 1.6rem;
+  margin-bottom: 12px;
+  line-height: 1;
+}
+.dash-stat-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--dash-dim);
+}
+.dash-stat-value {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-top: 8px;
+}
+.dash-stat-value.accent { color: var(--dash-lime); }
+
+.dash-section-head {
+  display: flex; justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.dash-section-title {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.dash-section-title span { color: var(--dash-lime); }
+.dash-section-link {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--dash-lime);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.dash-section-link:hover { color: var(--dash-lime-bright); }
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.dash-trip {
+  background: var(--dash-card);
+  border: 1px solid var(--dash-border);
+  border-radius: 20px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s, box-shadow 0.25s;
+  animation: dashCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.dash-trip:hover {
+  transform: translateY(-4px);
+  border-color: rgba(163, 230, 53, 0.45);
+  box-shadow: 0 16px 30px -12px rgba(0,0,0,0.9), 0 0 24px rgba(163,230,53,0.16);
+}
+.dash-trip-img {
+  aspect-ratio: 4 / 3;
+  background: #000;
+  overflow: hidden;
+}
+.dash-trip-img img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.5s ease;
+}
+.dash-trip:hover .dash-trip-img img { transform: scale(1.06); }
+.dash-trip-body {
+  padding: 16px 18px;
+}
+.dash-trip-name {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  margin: 0 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-trip-meta {
+  font-size: 0.75rem;
+  color: var(--dash-muted);
+  font-weight: 600;
+}
+
+@keyframes dashCardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-orb-1, .dash-orb-2, .dash-pulse,
+  .dash-stat, .dash-trip { animation: none !important; }
+}
+```
+
+### frontend/src/pages/Dashboard.jsx
+
 ```
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios";
 import Skeleton from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
+import "./Dashboard.css";
+
+const formatINR = (value) => {
+  const n = Number(value) || 0;
+  return `₹${n.toLocaleString("en-IN")}`;
+};
 
 const DashboardSkeleton = () => (
-  <div className="min-h-screen bg-white py-12 px-6">
-    <div className="max-w-4xl mx-auto">
+  <div className="dash-root">
+    <div className="dash-orb-1" />
+    <div className="dash-orb-2" />
+    <div className="dash-page">
       <Skeleton variant="text" width={130} height={14} />
       <div style={{ marginTop: 12 }}>
         <Skeleton variant="rectangular" width="55%" height={48} rounded="12px" />
@@ -9301,15 +12770,15 @@ const DashboardSkeleton = () => (
       <div style={{ marginTop: 20 }}>
         <Skeleton variant="text" width="80%" height={16} />
       </div>
-      <div className="flex gap-4 mt-8 flex-wrap">
-        <Skeleton variant="rectangular" width={180} height={48} rounded="9999px" />
-        <Skeleton variant="rectangular" width={170} height={48} rounded="9999px" />
+      <div className="dash-ctas">
+        <Skeleton variant="rectangular" width={180} height={48} rounded="14px" />
+        <Skeleton variant="rectangular" width={170} height={48} rounded="14px" />
       </div>
-      <div className="grid md:grid-cols-3 gap-4 mt-12">
+      <div className="dash-stats">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="border border-gray-100 rounded-2xl p-5">
-            <Skeleton variant="circular" width={40} height={40} />
-            <div style={{ marginTop: 12 }}>
+          <div key={i} style={{ padding: 22 }}>
+            <Skeleton variant="circular" width={30} height={30} />
+            <div style={{ marginTop: 14 }}>
               <Skeleton variant="text" width="60%" height={12} />
             </div>
             <div style={{ marginTop: 10 }}>
@@ -9345,73 +12814,66 @@ const Dashboard = () => {
     .slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-white py-12 px-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="animate-fade-in-up">
-          <p className="text-gray-500 mb-2">Welcome back,</p>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-ink">
-            Hey {user?.name} ðŸ‘‹
-          </h1>
-          <p className="text-gray-500 mt-4 max-w-lg">
-            Ready to plan your next adventure? Let AI handle the details.
-          </p>
-          <div className="flex gap-4 mt-8 flex-wrap">
-            <Link
-              to="/trips/new"
-              className="px-6 py-3 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark btn-press transition"
-            >
-              âœ¨ Create a Trip
-            </Link>
-            <Link
-              to="/trips"
-              className="px-6 py-3 rounded-full border border-gray-200 text-ink font-bold hover:border-forest transition"
-            >
-              View My Trips
-            </Link>
-          </div>
+    <div className="dash-root">
+      <div className="dash-orb-1" />
+      <div className="dash-orb-2" />
+
+      <main className="dash-page">
+        <div className="dash-tag">
+          <span className="dash-pulse" />
+          Welcome back
         </div>
 
-        <div className="grid md:grid-cols-3 gap-4 mt-12">
-          <div
-            className="border border-gray-100 rounded-2xl p-5 card-hover animate-fade-in-up"
-            style={{ animationDelay: "0.2s" }}
-          >
-            <div className="text-3xl mb-2">ðŸ—ºï¸</div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Total Trips</p>
-            <p className="font-bold text-ink text-2xl mt-1">{trips.length}</p>
+        <h1 className="dash-title">
+          Hey {user?.name?.split(" ")[0] || "traveller"} <span>👋</span>
+        </h1>
+        <p className="dash-subtitle">
+          Ready to plan your next adventure? Let AI handle the details.
+        </p>
+
+        <div className="dash-ctas">
+          <Link to="/trips/new" className="dash-btn-primary">
+            ✨ Create a Trip
+          </Link>
+          <Link to="/trips" className="dash-btn-ghost">
+            View My Trips
+          </Link>
+        </div>
+
+        <div className="dash-stats">
+          <div className="dash-stat">
+            <div className="dash-stat-icon">🗺️</div>
+            <div className="dash-stat-label">Total Trips</div>
+            <div className="dash-stat-value">{trips.length}</div>
           </div>
 
-          <div
-            className="border border-gray-100 rounded-2xl p-5 card-hover animate-fade-in-up"
-            style={{ animationDelay: "0.3s" }}
-          >
-            <div className="text-3xl mb-2">ðŸ’°</div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Total Budget</p>
-            <p className="font-bold text-ink text-2xl mt-1">
-              â‚¹{totalBudget.toLocaleString()}
-            </p>
+          <div className="dash-stat">
+            <div className="dash-stat-icon">💰</div>
+            <div className="dash-stat-label">Total Budget</div>
+            <div className="dash-stat-value accent">
+              {formatINR(totalBudget)}
+            </div>
           </div>
 
-          <div
-            className="border border-gray-100 rounded-2xl p-5 card-hover animate-fade-in-up"
-            style={{ animationDelay: "0.4s" }}
-          >
-            <div className="text-3xl mb-2">ðŸ“…</div>
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Upcoming Trips</p>
-            <p className="font-bold text-ink text-2xl mt-1">{upcomingTrips}</p>
+          <div className="dash-stat">
+            <div className="dash-stat-icon">📅</div>
+            <div className="dash-stat-label">Upcoming Trips</div>
+            <div className="dash-stat-value">{upcomingTrips}</div>
           </div>
         </div>
 
         {recentTrips.length > 0 && (
-          <div className="mt-12 animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-2xl font-extrabold text-ink">Recent Trips</h2>
-              <Link to="/trips" className="text-sm text-lime-dark font-semibold hover:underline">
-                View all â†’
+          <section>
+            <div className="dash-section-head">
+              <h2 className="dash-section-title">
+                Recent <span>Trips</span>
+              </h2>
+              <Link to="/trips" className="dash-section-link">
+                View all →
               </Link>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="dash-grid">
               {recentTrips.map((t) => {
                 const days = Math.max(
                   1,
@@ -9420,35 +12882,29 @@ const Dashboard = () => {
                   )
                 );
                 return (
-                  <Link
-                    key={t._id}
-                    to={`/trips/${t._id}`}
-                    className="group border border-gray-100 rounded-2xl overflow-hidden card-hover"
-                  >
-                    <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+                  <Link key={t._id} to={`/trips/${t._id}`} className="dash-trip">
+                    <div className="dash-trip-img">
                       <img
                         src={t.image || `https://picsum.photos/seed/${encodeURIComponent(t.destination)}/600/450`}
                         alt={t.destination}
-                        className="w-full h-full object-cover img-zoom"
                         onError={(e) => {
                           e.target.src = `https://picsum.photos/seed/${encodeURIComponent(t.destination)}/600/450`;
                         }}
                       />
                     </div>
-                    <div className="p-4">
-                      <h3 className="font-bold text-ink">{t.destination}</h3>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {days} Day{days > 1 ? "s" : ""} Â· â‚¹
-                        {t.budget?.toLocaleString?.() || t.budget}
+                    <div className="dash-trip-body">
+                      <h3 className="dash-trip-name">{t.destination}</h3>
+                      <p className="dash-trip-meta">
+                        {days} Day{days > 1 ? "s" : ""} · {formatINR(t.budget)}
                       </p>
                     </div>
                   </Link>
                 );
               })}
             </div>
-          </div>
+          </section>
         )}
-      </div>
+      </main>
     </div>
   );
 };
@@ -9456,11 +12912,319 @@ const Dashboard = () => {
 export default Dashboard;
 ```
 
-### FILE: frontend\src\pages\EditTrip.jsx
+### frontend/src/pages/EditTrip.css
+
+```
+/* frontend/src/pages/EditTrip.css */
+
+.et-root {
+  --et-bg: #050505;
+  --et-card: #111111;
+  --et-border: rgba(255, 255, 255, 0.1);
+  --et-muted: #888888;
+  --et-dim: #52525b;
+  --et-lime: #a3e635;
+  --et-lime-bright: #bef264;
+  --et-lime-glow: rgba(163, 230, 53, 0.4);
+  --et-lime-subtle: rgba(163, 230, 53, 0.12);
+  background: var(--et-bg);
+  color: #fff;
+  min-height: 100vh;
+  font-family: 'Poppins', system-ui, sans-serif;
+  overflow-x: hidden;
+  position: relative;
+  padding: 48px 24px 80px;
+}
+.et-orb-1, .et-orb-2 {
+  position: fixed;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+.et-orb-1 {
+  top: -120px; left: 8%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, var(--et-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
+  animation: etFloat 10s ease-in-out infinite alternate;
+}
+.et-orb-2 {
+  bottom: -120px; right: 8%;
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(96,165,250,0.16) 0%, transparent 70%);
+  animation: etFloat 13s ease-in-out infinite alternate-reverse;
+}
+@keyframes etFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 40px) scale(1.15); }
+}
+
+.et-page {
+  position: relative;
+  z-index: 10;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.et-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--et-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+.et-back:hover { color: var(--et-lime); }
+
+.et-title {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #fff;
+  margin: 0 0 14px;
+}
+.et-title span { color: var(--et-lime); text-shadow: 0 0 30px var(--et-lime-glow); }
+
+.et-subtitle {
+  font-size: 0.95rem;
+  color: var(--et-muted);
+  line-height: 1.6;
+  margin-bottom: 40px;
+  max-width: 620px;
+}
+
+.et-error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+  padding: 12px 16px;
+  border-radius: 14px;
+  margin-bottom: 24px;
+  font-size: 0.88rem;
+}
+
+.et-form {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.et-field { position: relative; }
+.et-label {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+.et-hint {
+  font-size: 0.82rem;
+  color: var(--et-muted);
+  margin: -6px 0 14px;
+  line-height: 1.5;
+}
+.et-sublabel {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--et-dim);
+  margin-bottom: 8px;
+}
+
+.et-input {
+  width: 100%;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px 16px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  color-scheme: dark;
+}
+.et-input::placeholder { color: var(--et-dim); font-weight: 500; }
+.et-input:focus {
+  outline: none;
+  border-color: var(--et-lime);
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.15);
+}
+
+.et-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 640px) {
+  .et-row { grid-template-columns: 1fr; }
+}
+
+.et-suggestions {
+  position: absolute;
+  left: 0; right: 0;
+  top: 100%;
+  margin-top: 6px;
+  background: #0b0b0b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.9);
+  max-height: 288px;
+  overflow-y: auto;
+  z-index: 50;
+}
+.et-suggestion {
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #d4d4d8;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.et-suggestion:last-child { border-bottom: none; }
+.et-suggestion:hover {
+  background: rgba(163, 230, 53, 0.08);
+  color: var(--et-lime);
+}
+
+.et-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.et-chip {
+  padding: 8px 16px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: var(--et-muted);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.et-chip:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.et-chip.active {
+  border-color: var(--et-lime);
+  background: var(--et-lime-subtle);
+  color: var(--et-lime);
+}
+
+.et-spots-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.et-spots-input {
+  width: 130px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+.et-spots-hint {
+  font-size: 0.85rem;
+  color: var(--et-muted);
+  font-weight: 500;
+}
+
+.et-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 12px;
+}
+@media (max-width: 480px) {
+  .et-actions { flex-direction: column-reverse; }
+  .et-actions > * { width: 100%; justify-content: center; }
+}
+
+.et-btn {
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  padding: 13px 26px;
+  border-radius: 14px;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.et-btn-primary {
+  background: linear-gradient(135deg, var(--et-lime), var(--et-lime-bright));
+  color: #000;
+  box-shadow: 0 8px 24px -6px rgba(163, 230, 53, 0.5);
+}
+.et-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -6px rgba(163, 230, 53, 0.7);
+}
+.et-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+.et-btn-ghost {
+  background: transparent;
+  color: var(--et-muted);
+  border: 1px solid var(--et-border);
+}
+.et-btn-ghost:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.et-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--et-bg);
+}
+.et-spinner {
+  width: 32px; height: 32px;
+  border: 4px solid var(--et-lime);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: etSpin 0.8s linear infinite;
+}
+@keyframes etSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .et-orb-1, .et-orb-2, .et-spinner { animation: none !important; }
+}
+```
+
+### frontend/src/pages/EditTrip.jsx
+
 ```
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import api from "../api/axios";
+import "./EditTrip.css";
 
 const shortenAddress = (displayName) => {
   if (!displayName) return "";
@@ -9492,7 +13256,6 @@ const EditTrip = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionsRef = useRef(null);
 
-  // Load existing trip
   useEffect(() => {
     const loadTrip = async () => {
       try {
@@ -9513,7 +13276,6 @@ const EditTrip = () => {
     loadTrip();
   }, [id]);
 
-  // Destination autocomplete
   useEffect(() => {
     if (destination.length < 3) {
       setSuggestions([]);
@@ -9536,7 +13298,6 @@ const EditTrip = () => {
     return () => clearTimeout(t);
   }, [destination]);
 
-  // Close suggestions on outside click
   useEffect(() => {
     const handler = (e) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target)) {
@@ -9571,7 +13332,6 @@ const EditTrip = () => {
         travellers: Number(travellers),
         spotsCount: Number(spotsCount),
       });
-      // â”€â”€â”€ navigate with autoGen flag so TripDetail regenerates AI â”€â”€â”€
       navigate(`/trips/${id}?autoGen=1`);
     } catch (err) {
       setError(err.response?.data?.message || "Could not update trip");
@@ -9580,47 +13340,38 @@ const EditTrip = () => {
     }
   };
 
-  const inputClass =
-    "w-full border border-gray-200 rounded-lg px-4 py-3.5 text-ink placeholder-gray-400 bg-white focus:outline-none focus:border-forest transition";
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-8 h-8 border-4 border-ink border-t-transparent rounded-full animate-spin" />
+      <div className="et-loading">
+        <div className="et-spinner" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white py-12 px-6">
-      <div className="max-w-3xl mx-auto relative">
-        <Link
-          to={`/trips/${id}`}
-          className="text-sm text-gray-500 hover:text-ink transition"
-        >
-          â† Back to trip
+    <div className="et-root">
+      <div className="et-orb-1" />
+      <div className="et-orb-2" />
+
+      <div className="et-page">
+        <Link to={`/trips/${id}`} className="et-back">
+          ← Back to trip
         </Link>
 
-        <h1 className="mt-6 text-3xl md:text-4xl font-extrabold text-ink">
-          Edit your trip âœï¸
+        <h1 className="et-title">
+          Edit your <span>trip</span> 
         </h1>
-        <p className="text-gray-500 mt-3 mb-12 max-w-xl">
+        <p className="et-subtitle">
           Update the details of your trip. Saving will regenerate the AI
           itinerary with your new preferences.
         </p>
 
-        {error && (
-          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mb-6 text-sm">
-            {error}
-          </p>
-        )}
+        {error && <p className="et-error">{error}</p>}
 
-        <form onSubmit={handleSubmit} className="space-y-10">
-          {/* DESTINATION */}
-          <div ref={suggestionsRef} className="relative" style={{ zIndex: 30 }}>
-            <label className="block text-xl font-bold text-ink mb-4">
-              Destination
-            </label>
+        <form onSubmit={handleSubmit} className="et-form">
+          {/* Destination */}
+          <div ref={suggestionsRef} className="et-field" style={{ zIndex: 30 }}>
+            <label className="et-label">Destination</label>
             <input
               value={destination}
               onChange={(e) => {
@@ -9628,14 +13379,11 @@ const EditTrip = () => {
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Select..."
-              className={inputClass}
+              placeholder="Search a city..."
+              className="et-input"
             />
             {showSuggestions && suggestions.length > 0 && (
-              <div
-                className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-72 overflow-y-auto"
-                style={{ zIndex: 50 }}
-              >
+              <div className="et-suggestions">
                 {suggestions.map((s, i) => (
                   <button
                     key={i}
@@ -9644,7 +13392,7 @@ const EditTrip = () => {
                       setDestination(shortenAddress(s.name));
                       setShowSuggestions(false);
                     }}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 text-ink"
+                    className="et-suggestion"
                   >
                     {s.name}
                   </button>
@@ -9653,126 +13401,103 @@ const EditTrip = () => {
             )}
           </div>
 
-          {/* DATES */}
-          <div className="relative" style={{ zIndex: 10 }}>
-            <label className="block text-xl font-bold text-ink mb-4">
-              Trip dates
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Dates */}
+          <div className="et-field" style={{ zIndex: 10 }}>
+            <label className="et-label">Trip dates</label>
+            <div className="et-row">
               <div>
-                <label className="block text-sm text-gray-500 mb-2">
-                  Start date
-                </label>
+                <span className="et-sublabel">Start date</span>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className={inputClass}
+                  className="et-input"
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-500 mb-2">
-                  End date
-                </label>
+                <span className="et-sublabel">End date</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className={inputClass}
+                  className="et-input"
                 />
               </div>
             </div>
           </div>
 
-          {/* PLACES COUNT â€” NEW */}
-          <div className="relative" style={{ zIndex: 10 }}>
-            <label className="block text-xl font-bold text-ink mb-4">
+          {/* Places count */}
+          <div className="et-field" style={{ zIndex: 10 }}>
+            <label className="et-label">
               How many places do you want to visit?
             </label>
-            <p className="text-sm text-gray-500 mb-4 -mt-2">
+            <p className="et-hint">
               Total distinct spots within your destination. For example, 5 cities
               across Rajasthan, or 8 must-see spots in Tokyo.
             </p>
 
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="et-chips">
               {[3, 5, 7, 10, 15].map((n) => (
                 <button
                   key={n}
                   type="button"
                   onClick={() => setSpotsCount(n)}
-                  className={`px-4 py-2 rounded-full border-2 text-sm font-bold transition ${
-                    spotsCount === n
-                      ? "border-forest bg-lime-light text-forest"
-                      : "border-gray-200 text-gray-500 hover:border-gray-400"
-                  }`}
+                  className={`et-chip ${spotsCount === n ? "active" : ""}`}
                 >
                   {n} places
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="et-spots-row">
               <input
                 type="number"
                 min="1"
                 max="50"
                 value={spotsCount}
                 onChange={(e) => setSpotsCount(Number(e.target.value) || 1)}
-                className="w-32 border border-gray-200 rounded-lg px-4 py-3.5 text-ink placeholder-gray-400 bg-white focus:outline-none focus:border-forest transition text-center font-bold text-lg"
+                className="et-input et-spots-input"
               />
-              <span className="text-sm text-gray-500">
-                places (custom â€” 1 to 50)
-              </span>
+              <span className="et-spots-hint">places (custom — 1 to 50)</span>
             </div>
           </div>
 
-          {/* BUDGET + TRAVELLERS */}
-          <div
-            className="relative grid grid-cols-1 md:grid-cols-2 gap-4"
-            style={{ zIndex: 10 }}
-          >
-            <div>
-              <label className="block text-xl font-bold text-ink mb-4">
-                Budget (INR)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                placeholder="25000"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-xl font-bold text-ink mb-4">
-                Travellers
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={travellers}
-                onChange={(e) => setTravellers(e.target.value)}
-                className={inputClass}
-              />
+          {/* Budget + travellers */}
+          <div className="et-field" style={{ zIndex: 10 }}>
+            <div className="et-row">
+              <div>
+                <label className="et-label">Budget (INR)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  placeholder="25000"
+                  className="et-input"
+                />
+              </div>
+              <div>
+                <label className="et-label">Travellers</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={travellers}
+                  onChange={(e) => setTravellers(e.target.value)}
+                  className="et-input"
+                />
+              </div>
             </div>
           </div>
 
-          {/* ACTIONS */}
-          <div
-            className="relative flex justify-end gap-3 pt-4"
-            style={{ zIndex: 5 }}
-          >
-            <Link
-              to={`/trips/${id}`}
-              className="px-6 py-3.5 rounded-lg border border-gray-200 text-ink font-semibold hover:bg-gray-50 transition"
-            >
+          {/* Actions */}
+          <div className="et-actions">
+            <Link to={`/trips/${id}`} className="et-btn et-btn-ghost">
               Cancel
             </Link>
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-3.5 rounded-lg bg-lime text-forest font-bold hover:bg-lime-dark disabled:opacity-60 btn-press transition shadow-[0_6px_20px_-8px_rgba(168,216,74,0.8)]"
+              className="et-btn et-btn-primary"
             >
               {saving ? "Saving..." : "Save & Regenerate"}
             </button>
@@ -9786,7 +13511,8 @@ const EditTrip = () => {
 export default EditTrip;
 ```
 
-### FILE: frontend\src\pages\JournalTrips.css
+### frontend/src/pages/JournalTrips.css
+
 ```
 /* frontend/src/pages/JournalTrips.css */
 
@@ -10005,7 +13731,8 @@ export default EditTrip;
 }
 ```
 
-### FILE: frontend\src\pages\JournalTrips.jsx
+### frontend/src/pages/JournalTrips.jsx
+
 ```
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -10014,18 +13741,18 @@ import "./JournalTrips.css";
 
 function pickEmoji(destination) {
   const t = (destination || "").toLowerCase();
-  if (t.includes("bali") || t.includes("beach")) return "ðŸï¸";
-  if (t.includes("tokyo") || t.includes("japan")) return "ðŸ—¼";
-  if (t.includes("kyoto")) return "â›©ï¸";
-  if (t.includes("new york") || t.includes("nyc")) return "ðŸ—½";
-  if (t.includes("paris") || t.includes("france")) return "ðŸ¥";
-  if (t.includes("rome") || t.includes("italy")) return "ðŸ›ï¸";
-  if (t.includes("iceland") || t.includes("reyk")) return "ðŸŒ‹";
-  if (t.includes("marrakech") || t.includes("morocco")) return "ðŸ•Œ";
-  if (t.includes("dubai")) return "ðŸŒ‡";
-  if (t.includes("london")) return "ðŸŽ¡";
-  if (t.includes("india") || t.includes("goa") || t.includes("delhi")) return "ðŸ›•";
-  return "âœˆï¸";
+  if (t.includes("bali") || t.includes("beach")) return "🏝️";
+  if (t.includes("tokyo") || t.includes("japan")) return "🗼";
+  if (t.includes("kyoto")) return "⛩️";
+  if (t.includes("new york") || t.includes("nyc")) return "🗽";
+  if (t.includes("paris") || t.includes("france")) return "🥐";
+  if (t.includes("rome") || t.includes("italy")) return "🏛️";
+  if (t.includes("iceland") || t.includes("reyk")) return "🌋";
+  if (t.includes("marrakech") || t.includes("morocco")) return "🕌";
+  if (t.includes("dubai")) return "🌇";
+  if (t.includes("london")) return "🎡";
+  if (t.includes("india") || t.includes("goa") || t.includes("delhi")) return "🛕";
+  return "✈️";
 }
 
 function daysBetween(a, b) {
@@ -10083,13 +13810,13 @@ const JournalTrips = () => {
 
         {!loading && trips.length === 0 && (
           <div className="jt-empty">
-            <div className="jt-empty-icon">ðŸ““</div>
+            <div className="jt-empty-icon">📓</div>
             <div className="jt-empty-title">No trips yet</div>
             <p className="jt-empty-text">
               Create a trip first, then come back to read its journal.
             </p>
             <Link to="/trips/new" className="jt-btn-primary">
-              âœ¨ Create a trip
+              ✨ Create a trip
             </Link>
           </div>
         )}
@@ -10123,10 +13850,10 @@ const JournalTrips = () => {
                   <div className="jt-card-meta">
                     {days} day{days === 1 ? "" : "s"}
                     {!hasItinerary && (
-                      <span className="jt-card-warn"> Â· no itinerary yet</span>
+                      <span className="jt-card-warn"> · no itinerary yet</span>
                     )}
                   </div>
-                  <div className="jt-card-cta">Open journal â†’</div>
+                  <div className="jt-card-cta">Open journal →</div>
                 </Link>
               );
             })}
@@ -10134,8 +13861,8 @@ const JournalTrips = () => {
         )}
 
         <footer className="jt-footer">
-          <span>Two views Â· One journey</span>
-          <span>AI Travel Planner Â© Journal</span>
+          <span>Two views · One journey</span>
+          <span>AI Travel Planner © Journal</span>
         </footer>
       </main>
     </div>
@@ -10145,7 +13872,8 @@ const JournalTrips = () => {
 export default JournalTrips;
 ```
 
-### FILE: frontend\src\pages\Landing.css
+### frontend/src/pages/Landing.css
+
 ```
 /* frontend/src/pages/Landing.css */
 
@@ -10157,7 +13885,7 @@ export default JournalTrips;
   --lp-accent: #a4d14b;
   --lp-accent-lt: #b3dc52;
   --lp-accent-dk: #8bbf35;
-  --lp-card: #f0f0f0;
+  --lp-card: #ffffff;
   --lp-muted: #5f6b7a;
   --lp-soft: #7a8a6a;
   --lp-line: #d5e0b0;
@@ -10176,7 +13904,7 @@ export default JournalTrips;
   flex-direction: column;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€ Background scene â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ═══════════ BACKGROUND SCENE ═══════════ */
 .lp-bg-scene {
   position: fixed;
   inset: 0;
@@ -10190,47 +13918,140 @@ export default JournalTrips;
   left: 0;
   width: 100%;
   height: auto;
-  min-height: 58vh;
+  min-height: 48vh;
   display: block;
 }
 
-.lp-floater {
+.lp-sun {
   position: absolute;
-  color: var(--lp-accent-dk);
-  opacity: 0.22;
-  animation: lpDrift 26s linear infinite;
-  will-change: transform;
+  top: 8%;
+  right: 6%;
+  width: 140px;
+  height: 140px;
+  pointer-events: none;
+  opacity: 0.45;
+  z-index: 1;
 }
-.lp-floater svg {
-  display: block;
+.lp-sun svg {
   width: 100%;
   height: 100%;
+  display: block;
+  filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.12));
+}
+.lp-sun-rays {
+  transform-origin: 50px 50px;
+  animation: lpSunRays 40s linear infinite;
+}
+@keyframes lpSunRays {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.lp-sun-glow {
+  transform-origin: 50px 50px;
+  animation: lpSunGlow 4.5s ease-in-out infinite;
+}
+@keyframes lpSunGlow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(1.08); }
+}
+.lp-sun-core {
+  transform-origin: 50px 50px;
+  animation: lpSunCore 4.5s ease-in-out infinite;
+}
+@keyframes lpSunCore {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
 }
 
-.lp-floater.p1 { top: 14%; left: -8%;  width: 64px; height: 64px; animation-duration: 28s; animation-delay: 0s;    opacity: 0.24; }
-.lp-floater.p2 { top: 30%; left: -6%;  width: 46px; height: 46px; animation-duration: 34s; animation-delay: -9s;   opacity: 0.18; }
-.lp-floater.p3 { top: 56%; left: -10%; width: 72px; height: 72px; animation-duration: 32s; animation-delay: -16s;  opacity: 0.20; }
-.lp-floater.p4 { top: 20%; left: -8%;  width: 40px; height: 40px; animation-duration: 38s; animation-delay: -4s;   opacity: 0.15; }
-.lp-floater.p5 { top: 74%; left: -6%;  width: 52px; height: 52px; animation-duration: 30s; animation-delay: -21s;  opacity: 0.18; }
-.lp-floater.p6 { top: 44%; left: -9%;  width: 36px; height: 36px; animation-duration: 40s; animation-delay: -12s;  opacity: 0.14; }
-
-@keyframes lpDrift {
-  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
-  50%  { transform: translate3d(60vw, -50px, 0) rotate(12deg); }
-  100% { transform: translate3d(125vw, -100px, 0) rotate(24deg); }
+.lp-cloud {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.35;
+}
+.lp-cloud svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.lp-cloud-1 {
+  top: 12%;
+  left: -20%;
+  width: 220px;
+  height: 90px;
+  animation: lpCloudDrift 60s linear infinite;
+}
+.lp-cloud-2 {
+  top: 28%;
+  left: -30%;
+  width: 180px;
+  height: 75px;
+  animation: lpCloudDrift 80s linear infinite;
+  animation-delay: -22s;
+  opacity: 0.28;
+}
+@keyframes lpCloudDrift {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(140vw); }
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€ Topbar â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.lp-birds {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.32;
+}
+.lp-birds svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.lp-birds-1 {
+  top: 18%;
+  left: -10%;
+  width: 90px;
+  height: 30px;
+  animation: lpBirds1 48s linear infinite;
+}
+@keyframes lpBirds1 {
+  0%   { transform: translateX(0) translateY(0); }
+  50%  { transform: translateX(70vw) translateY(-25px); }
+  100% { transform: translateX(140vw) translateY(-15px); }
+}
+
+.lp-sparkle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 0 24px rgba(250, 204, 21, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+}
+.lp-sparkle.s1 { top: 18%; left: 22%; animation: lpSparkle 3.2s ease-in-out infinite; }
+.lp-sparkle.s2 { top: 34%; left: 68%; animation: lpSparkle 4.1s ease-in-out infinite; animation-delay: 0.7s; }
+.lp-sparkle.s3 { top: 12%; left: 82%; animation: lpSparkle 2.8s ease-in-out infinite; animation-delay: 1.4s; }
+.lp-sparkle.s4 { top: 48%; left: 38%; animation: lpSparkle 5s ease-in-out infinite; animation-delay: 2.1s; }
+@keyframes lpSparkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50%      { opacity: 1; transform: scale(1.3); }
+}
+
+/* ═══════════ TOPBAR ═══════════ */
 .lp-topbar {
-  position: relative;
-  z-index: 10;
+  position: sticky;
+  top: 0;
+  z-index: 20;
   background: var(--lp-bar);
   width: 100%;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.15);
 }
 .lp-topbar-inner {
   max-width: 1280px;
   margin: 0 auto;
-  height: 66px;
+  height: 68px;
   padding: 0 clamp(16px, 3vw, 32px);
   display: flex;
   align-items: center;
@@ -10246,7 +14067,7 @@ export default JournalTrips;
 }
 .lp-brand-name {
   color: #fff;
-  font-size: 1.02rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: -0.03em;
   white-space: nowrap;
@@ -10258,27 +14079,22 @@ export default JournalTrips;
 .lp-mainnav {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
   justify-content: center;
 }
 .lp-mainnav a {
   display: inline-block;
-  padding: 8px 18px;
+  padding: 8px 16px;
   border-radius: 8px;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: #9d9d9d;
   text-decoration: none;
   white-space: nowrap;
   transition: color 0.18s ease, background 0.18s ease;
 }
-.lp-mainnav a:hover { color: #e6e6e6; }
-.lp-mainnav a.lp-active {
-  background: var(--lp-accent);
-  color: #12200a;
-  font-weight: 700;
-}
+.lp-mainnav a:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
 
 .lp-user {
   display: flex;
@@ -10318,20 +14134,6 @@ export default JournalTrips;
   color: #fff;
   border-color: #454545;
 }
-.lp-btn-more {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  color: #9d9d9d;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  transition: background 0.18s ease, color 0.18s ease;
-}
-.lp-btn-more:hover { background: #2a2a2a; color: #fff; }
-.lp-btn-more svg { width: 18px; height: 18px; }
 
 .lp-auth-cta {
   padding: 8px 18px;
@@ -10357,7 +14159,7 @@ export default JournalTrips;
 }
 .lp-auth-login:hover { color: #fff; }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ═══════════ HERO ═══════════ */
 .lp-main {
   position: relative;
   z-index: 2;
@@ -10365,14 +14167,42 @@ export default JournalTrips;
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: clamp(56px, 9vh, 100px) clamp(20px, 4vw, 48px) clamp(80px, 12vh, 140px);
+  padding: clamp(60px, 10vh, 120px) clamp(20px, 4vw, 48px) clamp(80px, 12vh, 140px);
   text-align: center;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€ Big 3-line headline â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.lp-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(17, 17, 17, 0.08);
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--lp-ink);
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  animation: lpFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.lp-hero-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lp-accent-dk);
+  box-shadow: 0 0 8px var(--lp-accent-dk);
+  animation: lpBadgePulse 1.5s infinite;
+}
+@keyframes lpBadgePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.8); }
+}
+
 .lp-headline {
   margin: 0 auto;
-  max-width: 22ch;
+  max-width: 24ch;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -10383,22 +14213,17 @@ export default JournalTrips;
   line-height: 1.06;
   letter-spacing: -0.045em;
   color: var(--lp-ink);
-  perspective: 900px;
 }
 
 .lp-headline-line {
   display: block;
   color: var(--lp-ink);
   animation: focusInExpandFwd 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-  will-change: letter-spacing, filter, opacity;
 }
-
 .lp-headline-accent {
-  color: var(--lp-accent);
+  color: var(--lp-accent-dk);
   animation: blurContractBck 0.65s 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-  will-change: transform, filter, opacity, letter-spacing;
 }
-
 .lp-headline-rotate {
   display: inline-block;
   position: relative;
@@ -10406,72 +14231,37 @@ export default JournalTrips;
   width: 100%;
   text-align: center;
 }
-
 .lp-rotator {
   display: inline-block;
-  font-family: 'Poppins', system-ui, sans-serif;
   font-weight: 900;
   letter-spacing: -0.045em;
-  color: var(--lp-accent);
+  color: var(--lp-accent-dk);
   transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
               filter 0.4s ease;
   transform-origin: center bottom;
   animation: lpHeadlineIn 0.45s 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-
 .lp-rotator.out {
   opacity: 0;
   transform: translateY(-18px) rotateX(60deg);
   filter: blur(5px);
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   ANIMISTA-STYLE HERO ANIMATIONS
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
 @keyframes focusInExpandFwd {
-  0% {
-    letter-spacing: -0.5em;
-    filter: blur(12px);
-    opacity: 0;
-  }
-  60% {
-    filter: blur(4px);
-    opacity: 0.85;
-  }
-  100% {
-    letter-spacing: -0.045em;
-    filter: blur(0);
-    opacity: 1;
-  }
+  0%   { letter-spacing: -0.5em; filter: blur(12px); opacity: 0; }
+  60%  { filter: blur(4px); opacity: 0.85; }
+  100% { letter-spacing: -0.045em; filter: blur(0); opacity: 1; }
 }
-
 @keyframes blurContractBck {
-  0% {
-    letter-spacing: 0.35em;
-    transform: translateZ(400px) scale(1.4);
-    filter: blur(14px);
-    opacity: 0;
-  }
-  60% {
-    transform: translateZ(60px) scale(1.08);
-    filter: blur(5px);
-    opacity: 0.85;
-  }
-  100% {
-    letter-spacing: -0.045em;
-    transform: translateZ(0) scale(1);
-    filter: blur(0);
-    opacity: 1;
-  }
+  0%   { letter-spacing: 0.35em; transform: translateZ(400px) scale(1.4); filter: blur(14px); opacity: 0; }
+  60%  { transform: translateZ(60px) scale(1.08); filter: blur(5px); opacity: 0.85; }
+  100% { letter-spacing: -0.045em; transform: translateZ(0) scale(1); filter: blur(0); opacity: 1; }
 }
-
 @keyframes lpHeadlineIn {
   from { opacity: 0; transform: translateY(28px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* â”€â”€â”€ Subtitle â”€â”€â”€ */
 .lp-sub {
   margin: clamp(22px, 3vh, 32px) auto 0;
   max-width: 620px;
@@ -10479,13 +14269,20 @@ export default JournalTrips;
   line-height: 1.6;
   font-weight: 500;
   color: var(--lp-muted);
-  animation: lpFadeIn 0.45s 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: lpFadeIn 0.5s 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* â”€â”€â”€ CTA â”€â”€â”€ */
+.lp-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  margin-top: clamp(30px, 4vh, 44px);
+  animation: lpFadeIn 0.5s 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .lp-cta {
   display: inline-block;
-  margin-top: clamp(30px, 4vh, 44px);
   padding: 18px 44px;
   border: none;
   border-radius: 999px;
@@ -10500,7 +14297,7 @@ export default JournalTrips;
     0 16px 32px -10px rgba(164, 209, 75, 0.95),
     0 2px 0 0 rgba(255, 255, 255, 0.45) inset;
   transition: transform 0.22s ease, box-shadow 0.22s ease;
-  animation: lpFadeIn 0.45s 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  text-decoration: none;
 }
 .lp-cta:hover {
   transform: translateY(-2px);
@@ -10508,13 +14305,28 @@ export default JournalTrips;
 }
 .lp-cta:active { transform: translateY(0); }
 
-@keyframes lpFadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+.lp-cta-ghost {
+  display: inline-flex;
+  align-items: center;
+  padding: 18px 32px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lp-ink);
+  border: 2px solid rgba(17, 17, 17, 0.15);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+.lp-cta-ghost:hover {
+  border-color: var(--lp-ink);
+  background: rgba(17, 17, 17, 0.04);
+  transform: translateY(-2px);
 }
 
-/* â”€â”€â”€ Features â”€â”€â”€ */
-.lp-features {
+.lp-features-inline {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -10523,9 +14335,9 @@ export default JournalTrips;
   margin: clamp(46px, 7vh, 74px) 0 0;
   padding: 0;
   list-style: none;
-  animation: lpFadeIn 0.45s 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: lpFadeIn 0.5s 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.lp-features li {
+.lp-features-inline li {
   display: flex;
   align-items: center;
   gap: 11px;
@@ -10547,17 +14359,380 @@ export default JournalTrips;
 }
 .lp-check svg { width: 13px; height: 13px; }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@keyframes lpFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════ SECTIONS ═══════════ */
+.lp-section {
+  position: relative;
+  z-index: 2;
+  padding: clamp(60px, 9vh, 100px) clamp(20px, 4vw, 48px);
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.lp-section:nth-of-type(even) {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.lp-section-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.lp-section-head {
+  text-align: center;
+  margin-bottom: clamp(40px, 6vh, 70px);
+}
+.lp-section-tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lp-accent-dk);
+  background: rgba(164, 209, 75, 0.18);
+  border: 1px solid rgba(164, 209, 75, 0.4);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  margin-bottom: 16px;
+}
+.lp-section-title {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--lp-ink);
+  margin: 0 0 14px;
+}
+.lp-section-title span {
+  color: var(--lp-accent-dk);
+}
+.lp-section-sub {
+  font-size: 1.05rem;
+  color: var(--lp-muted);
+  max-width: 620px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ═══════════ STEPS ═══════════ */
+.lp-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+.lp-step {
+  padding: 32px 28px;
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 24px;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.28s ease, border-color 0.28s ease;
+}
+.lp-step:hover {
+  transform: translateY(-4px);
+  border-color: rgba(164, 209, 75, 0.55);
+  box-shadow: 0 20px 40px -16px rgba(0, 0, 0, 0.15);
+}
+.lp-step-num {
+  display: inline-block;
+  font-size: 2.4rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: var(--lp-accent-dk);
+  line-height: 1;
+  margin-bottom: 18px;
+}
+.lp-step-title {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--lp-ink);
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+.lp-step-desc {
+  font-size: 0.9rem;
+  color: var(--lp-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ═══════════ FEATURES GRID ═══════════ */
+.lp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+.lp-feature {
+  padding: 28px 26px;
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 24px;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.28s ease, border-color 0.28s ease;
+}
+.lp-feature:hover {
+  transform: translateY(-4px);
+  border-color: rgba(164, 209, 75, 0.55);
+  box-shadow: 0 20px 40px -16px rgba(0, 0, 0, 0.15);
+}
+.lp-feature-icon {
+  font-size: 2rem;
+  line-height: 1;
+  margin-bottom: 16px;
+}
+.lp-feature-title {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--lp-ink);
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+.lp-feature-desc {
+  font-size: 0.88rem;
+  color: var(--lp-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ═══════════ PREVIEW ═══════════ */
+.lp-preview {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 40px;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .lp-preview { grid-template-columns: 1fr; gap: 30px; }
+}
+
+.lp-preview-window {
+  background: #0b0b0b;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 30px 60px -20px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+.lp-preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background: #111;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.lp-preview-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.lp-preview-dot.r { background: #ff5f57; }
+.lp-preview-dot.y { background: #febc2e; }
+.lp-preview-dot.g { background: #28c840; }
+.lp-preview-url {
+  margin-left: 12px;
+  font-family: 'Roboto Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: #6b7280;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.lp-preview-body { padding: 20px; }
+.lp-preview-hero {
+  position: relative;
+  aspect-ratio: 21 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, #a3e635, #8bbf35);
+}
+.lp-preview-hero-img {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.4), transparent 40%),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.25), transparent 45%);
+}
+.lp-preview-hero-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 16px;
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.6) 100%);
+}
+.lp-preview-pill {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 4px 10px;
+  background: #a3e635;
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.lp-preview-hero-overlay h3 {
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.lp-preview-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.lp-preview-card {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: #151515;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  align-items: center;
+}
+.lp-preview-card-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.lp-preview-card-label {
+  font-size: 0.6rem;
+  color: #52525b;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.lp-preview-card-text {
+  font-size: 0.7rem;
+  color: #fff;
+  font-weight: 700;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lp-preview-info {
+  padding: 8px 0;
+}
+.lp-preview-info-title {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--lp-ink);
+  letter-spacing: -0.02em;
+  margin: 0 0 20px;
+}
+.lp-preview-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lp-preview-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--lp-ink);
+}
+.lp-preview-list li span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(164, 209, 75, 0.18);
+  border: 1px solid rgba(164, 209, 75, 0.35);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* ═══════════ STATS ═══════════ */
+.lp-stats-section {
+  padding: clamp(40px, 6vh, 70px) clamp(20px, 4vw, 48px);
+}
+.lp-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+  text-align: center;
+}
+.lp-stat {
+  padding: 24px 16px;
+}
+.lp-stat-value {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: var(--lp-ink);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.lp-stat-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lp-muted);
+}
+
+/* ═══════════ CTA CARD ═══════════ */
+.lp-cta-section {
+  padding-bottom: clamp(80px, 12vh, 130px);
+}
+.lp-cta-card {
+  text-align: center;
+  background: var(--lp-ink);
+  color: var(--lp-bg);
+  padding: clamp(50px, 8vh, 80px) clamp(28px, 5vw, 60px);
+  border-radius: 32px;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.35);
+}
+.lp-cta-title {
+  font-size: clamp(1.6rem, 3.4vw, 2.5rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--lp-bg);
+  margin: 0 0 14px;
+}
+.lp-cta-sub {
+  font-size: 1rem;
+  opacity: 0.75;
+  max-width: 520px;
+  margin: 0 auto 28px;
+  line-height: 1.6;
+}
+.lp-cta-card .lp-cta {
+  box-shadow: 0 16px 32px -10px rgba(164, 209, 75, 0.6);
+}
+
+/* ═══════════ FOOTER ═══════════ */
 .lp-footer {
   position: relative;
-  z-index: 10;
-  width: 100%;
+  z-index: 2;
   background: var(--lp-ink);
   color: var(--lp-bg);
   padding: 56px 32px 24px;
-  margin-top: 80px;
 }
-
 .lp-footer-content {
   max-width: 1100px;
   margin: 0 auto;
@@ -10566,7 +14741,6 @@ export default JournalTrips;
   justify-content: space-between;
   gap: 40px;
 }
-
 .lp-footer-brand h3 {
   color: var(--lp-accent);
   font-size: 1.35rem;
@@ -10580,13 +14754,11 @@ export default JournalTrips;
   max-width: 320px;
   line-height: 1.55;
 }
-
 .lp-footer-links {
   display: flex;
   gap: 56px;
   flex-wrap: wrap;
 }
-
 .lp-footer-column h4 {
   font-size: 0.95rem;
   margin-bottom: 16px;
@@ -10594,17 +14766,12 @@ export default JournalTrips;
   font-weight: 800;
   letter-spacing: 0.02em;
 }
-
 .lp-footer-column ul {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
-.lp-footer-column li {
-  margin-bottom: 10px;
-}
-
+.lp-footer-column li { margin-bottom: 10px; }
 .lp-footer-column a,
 .lp-footer-column span {
   color: var(--lp-bg);
@@ -10621,7 +14788,6 @@ export default JournalTrips;
   opacity: 0.55;
   cursor: default;
 }
-
 .lp-footer-bottom {
   max-width: 1100px;
   margin: 40px auto 0;
@@ -10637,222 +14803,61 @@ export default JournalTrips;
   color: var(--lp-bg);
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€ Responsive â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ═══════════ RESPONSIVE ═══════════ */
 @media (max-width: 1024px) {
-  .lp-mainnav a { padding: 8px 13px; font-size: 0.88rem; }
+  .lp-mainnav a { padding: 8px 13px; font-size: 0.86rem; }
   .lp-mainnav { gap: 2px; }
 }
 
 @media (max-width: 860px) {
   .lp-mainnav { display: none; }
   .lp-topbar-inner { justify-content: space-between; }
-  .lp-brand-name { font-size: 0.98rem; }
 }
 
 @media (max-width: 768px) {
-  .lp-headline {
-    max-width: 20ch;
-    font-size: clamp(2.1rem, 9vw, 3.4rem);
-  }
-  .lp-footer {
-    padding: 44px 24px 20px;
-    margin-top: 56px;
-  }
-  .lp-footer-content {
-    flex-direction: column;
-    gap: 28px;
-  }
-  .lp-footer-links {
-    flex-direction: column;
-    gap: 28px;
-  }
-  .lp-footer-bottom {
-    flex-direction: column;
-    text-align: center;
-    justify-content: center;
-  }
+  .lp-headline { max-width: 20ch; font-size: clamp(2.1rem, 9vw, 3.4rem); }
+  .lp-footer { padding: 44px 24px 20px; }
+  .lp-footer-content { flex-direction: column; gap: 28px; }
+  .lp-footer-links { flex-direction: column; gap: 28px; }
+  .lp-footer-bottom { flex-direction: column; text-align: center; justify-content: center; }
+  .lp-preview-cards { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
-  .lp-brand-name { font-size: 0.9rem; }
-  .lp-btn-logout { padding: 7px 12px; font-size: 0.8rem; }
-  .lp-avatar { width: 32px; height: 32px; font-size: 0.72rem; }
-
-  .lp-headline {
-    font-size: clamp(1.9rem, 11vw, 3rem);
-    max-width: 16ch;
-  }
-
-  .lp-features {
-    flex-direction: column;
-    align-items: flex-start;
-    max-width: 320px;
-    margin-left: auto;
-    margin-right: auto;
-    gap: 16px;
-  }
-  .lp-features li { white-space: normal; }
-
-  .lp-floater.p3,
-  .lp-floater.p6 { display: none; }
-}
-
-@media (max-width: 420px) {
-  .lp-brand-name { font-size: 0.82rem; }
-  .lp-cta { padding: 16px 34px; font-size: 0.98rem; }
+  .lp-hero-actions { flex-direction: column; align-items: stretch; }
+  .lp-cta, .lp-cta-ghost { width: 100%; justify-content: center; text-align: center; }
+  .lp-features-inline { flex-direction: column; align-items: flex-start; max-width: 320px; margin-left: auto; margin-right: auto; gap: 16px; }
+  .lp-features-inline li { white-space: normal; }
+  .lp-sun { width: 90px; height: 90px; }
+  .lp-cloud-1 { width: 150px; height: 60px; }
+  .lp-cloud-2 { width: 120px; height: 50px; }
+  .lp-sparkle { display: none; }
   .lp-btn-logout { display: none; }
-  .lp-headline { font-size: clamp(1.7rem, 12vw, 2.6rem); }
 }
 
-/* â”€â”€â”€ Reduced motion â”€â”€â”€ */
+/* ═══════════ REDUCED MOTION ═══════════ */
 @media (prefers-reduced-motion: reduce) {
-  .lp-floater { animation: none; }
-  .lp-cta { transition: none; }
-  .lp-rotator { transition: none; }
+  .lp-sun-rays,
+  .lp-sun-glow,
+  .lp-sun-core,
+  .lp-cloud,
+  .lp-birds,
+  .lp-sparkle,
+  .lp-hero-badge-dot,
+  .lp-rotator,
   .lp-headline-line,
   .lp-headline-accent,
-  .lp-rotator,
   .lp-sub,
-  .lp-cta,
-  .lp-features {
+  .lp-hero-actions,
+  .lp-features-inline {
     animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-    filter: none !important;
+    transition: none !important;
   }
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   EXTRA BACKGROUND MOTION
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-/* â”€â”€â”€ Sun â€” very soft â”€â”€â”€ */
-.lp-sun {
-  position: absolute;
-  top: 6%;
-  right: 6%;
-  width: 140px;
-  height: 140px;
-  pointer-events: none;
-  opacity: 0.42;
-  z-index: 1;
-}
-.lp-sun svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-  filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.12));
-}
-.lp-sun-rays {
-  transform-origin: 50px 50px;
-  animation: lpSunRays 40s linear infinite;
-}
-@keyframes lpSunRays {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-.lp-sun-glow {
-  transform-origin: 50px 50px;
-  animation: lpSunGlow 4.5s ease-in-out infinite;
-}
-@keyframes lpSunGlow {
-  0%, 100% { opacity: 0.35; transform: scale(1); }
-  50%      { opacity: 0.55; transform: scale(1.08); }
-}
-.lp-sun-core {
-  transform-origin: 50px 50px;
-  animation: lpSunCore 4.5s ease-in-out infinite;
-}
-@keyframes lpSunCore {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.05); }
-}
-
-/* â”€â”€â”€ Clouds â€” subtle â”€â”€â”€ */
-.lp-cloud {
-  position: absolute;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.35;
-}
-.lp-cloud svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.lp-cloud-1 {
-  top: 12%;
-  left: -20%;
-  width: 220px;
-  height: 90px;
-  animation: lpCloudDrift 48s linear infinite;
-}
-.lp-cloud-2 {
-  top: 25%;
-  left: -30%;
-  width: 180px;
-  height: 75px;
-  animation: lpCloudDrift 68s linear infinite;
-  animation-delay: -22s;
-  opacity: 0.28;
-}
-.lp-cloud-3 {
-  top: 4%;
-  left: -40%;
-  width: 260px;
-  height: 105px;
-  animation: lpCloudDrift 82s linear infinite;
-  animation-delay: -45s;
-  opacity: 0.22;
-}
-@keyframes lpCloudDrift {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(140vw); }
-}
-
-/* â”€â”€â”€ Birds â€” subtle â”€â”€â”€ */
-.lp-birds {
-  position: absolute;
-  pointer-events: none;
-  z-index: 2;
-  opacity: 0.32;
-}
-.lp-birds svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.lp-birds-1 {
-  top: 18%;
-  left: -10%;
-  width: 90px;
-  height: 30px;
-  animation: lpBirds1 36s linear infinite;
-}
-.lp-birds-2 {
-  top: 35%;
-  left: -15%;
-  width: 70px;
-  height: 24px;
-  animation: lpBirds2 52s linear infinite;
-  animation-delay: -14s;
-  opacity: 0.22;
-}
-@keyframes lpBirds1 {
-  0%   { transform: translateX(0) translateY(0); }
-  25%  { transform: translateX(35vw) translateY(-30px); }
-  50%  { transform: translateX(70vw) translateY(-15px); }
-  75%  { transform: translateX(105vw) translateY(-40px); }
-  100% { transform: translateX(140vw) translateY(-20px); }
-}
-@keyframes lpBirds2 {
-  0%   { transform: translateX(0) translateY(0); }
-  30%  { transform: translateX(40vw) translateY(-25px); }
-  60%  { transform: translateX(80vw) translateY(-45px); }
-  100% { transform: translateX(140vw) translateY(-10px); }
-}
-
-/* â”€â”€â”€ Swaying palm trees â”€â”€â”€ */
+/* ═════════════════════════════════════════════════════
+   PALM TREES
+   ═════════════════════════════════════════════════════ */
 .lp-palm {
   transform-origin: center bottom;
   transform-box: fill-box;
@@ -10870,80 +14875,560 @@ export default JournalTrips;
   75%      { transform: rotate(-1.4deg); }
 }
 
-/* â”€â”€â”€ Twinkling sparkles â”€â”€â”€ */
-.lp-sparkle {
+/* ═════════════════════════════════════════════════════
+   FLOATING PAPER PLANES / PINS
+   ═════════════════════════════════════════════════════ */
+.lp-floater {
   position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.9), 0 0 24px rgba(250, 204, 21, 0.5);
-  pointer-events: none;
-  opacity: 0;
+  color: var(--lp-accent-dk);
+  opacity: 0.22;
+  animation: lpDrift 26s linear infinite;
+  will-change: transform;
   z-index: 1;
 }
-.lp-sparkle.s1 { top: 14%; left: 22%;  animation: lpSparkle 3.2s ease-in-out infinite; }
-.lp-sparkle.s2 { top: 28%; left: 62%;  animation: lpSparkle 4.1s ease-in-out infinite; animation-delay: 0.7s; }
-.lp-sparkle.s3 { top: 8%;  left: 82%;  animation: lpSparkle 2.8s ease-in-out infinite; animation-delay: 1.4s; }
-.lp-sparkle.s4 { top: 42%; left: 38%;  animation: lpSparkle 5s   ease-in-out infinite; animation-delay: 2.1s; }
-.lp-sparkle.s5 { top: 55%; left: 78%;  animation: lpSparkle 3.6s ease-in-out infinite; animation-delay: 0.9s; }
-.lp-sparkle.s6 { top: 22%; left: 8%;   animation: lpSparkle 4.5s ease-in-out infinite; animation-delay: 1.7s; }
-@keyframes lpSparkle {
-  0%, 100% { opacity: 0; transform: scale(0.4); }
-  50%      { opacity: 1; transform: scale(1.3); }
+.lp-floater svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-/* â”€â”€â”€ Reduced motion for extra elements â”€â”€â”€ */
+.lp-floater.p1 {
+  top: 14%; left: -8%;
+  width: 64px; height: 64px;
+  animation-duration: 28s;
+  animation-delay: 0s;
+  opacity: 0.24;
+}
+.lp-floater.p2 {
+  top: 30%; left: -6%;
+  width: 46px; height: 46px;
+  animation-duration: 34s;
+  animation-delay: -9s;
+  opacity: 0.18;
+}
+.lp-floater.p3 {
+  top: 56%; left: -10%;
+  width: 72px; height: 72px;
+  animation-duration: 32s;
+  animation-delay: -16s;
+  opacity: 0.20;
+}
+.lp-floater.p4 {
+  top: 20%; left: -8%;
+  width: 40px; height: 40px;
+  animation-duration: 38s;
+  animation-delay: -4s;
+  opacity: 0.15;
+}
+.lp-floater.p5 {
+  top: 74%; left: -6%;
+  width: 52px; height: 52px;
+  animation-duration: 30s;
+  animation-delay: -21s;
+  opacity: 0.18;
+}
+.lp-floater.p6 {
+  top: 44%; left: -9%;
+  width: 36px; height: 36px;
+  animation-duration: 40s;
+  animation-delay: -12s;
+  opacity: 0.14;
+}
+
+@keyframes lpDrift {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%  { transform: translate3d(60vw, -50px, 0) rotate(12deg); }
+  100% { transform: translate3d(125vw, -100px, 0) rotate(24deg); }
+}
+
+/* ═════════════════════════════════════════════════════
+   HOT-AIR BALLOONS
+   ═════════════════════════════════════════════════════ */
+.lp-balloon {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.15));
+  will-change: transform;
+}
+.lp-balloon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lp-balloon.b1 {
+  top: 22%; left: -15%;
+  width: 90px; height: 135px;
+  animation: balloonFloat1 32s linear infinite;
+}
+.lp-balloon.b2 {
+  top: 45%; left: -20%;
+  width: 70px; height: 105px;
+  animation: balloonFloat2 42s linear infinite;
+  animation-delay: -12s;
+  opacity: 0.85;
+}
+.lp-balloon.b3 {
+  top: 12%; left: -25%;
+  width: 60px; height: 90px;
+  animation: balloonFloat1 38s linear infinite;
+  animation-delay: -20s;
+  opacity: 0.75;
+}
+.lp-balloon.b4 {
+  top: 62%; left: -18%;
+  width: 80px; height: 120px;
+  animation: balloonFloat2 48s linear infinite;
+  animation-delay: -30s;
+  opacity: 0.8;
+}
+
+@keyframes balloonFloat1 {
+  0%   { transform: translate3d(0, 0, 0) rotate(-3deg); }
+  50%  { transform: translate3d(65vw, -80px, 0) rotate(3deg); }
+  100% { transform: translate3d(135vw, -160px, 0) rotate(-3deg); }
+}
+@keyframes balloonFloat2 {
+  0%   { transform: translate3d(0, 0, 0) rotate(4deg); }
+  50%  { transform: translate3d(70vw, 60px, 0) rotate(-4deg); }
+  100% { transform: translate3d(135vw, -120px, 0) rotate(4deg); }
+}
+
+/* ═════════════════════════════════════════════════════
+   SPARKLES (extra dots)
+   ═════════════════════════════════════════════════════ */
+.lp-sparkle.s5 {
+  top: 55%; left: 78%;
+  animation: lpSparkle 3.6s ease-in-out infinite;
+  animation-delay: 0.9s;
+}
+.lp-sparkle.s6 {
+  top: 22%; left: 8%;
+  animation: lpSparkle 4.5s ease-in-out infinite;
+  animation-delay: 1.7s;
+}
+
+/* ═════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
-  .lp-sun-rays,
-  .lp-sun-glow,
-  .lp-sun-core,
-  .lp-cloud,
-  .lp-birds,
   .lp-palm,
-  .lp-sparkle {
+  .lp-floater,
+  .lp-balloon {
     animation: none !important;
   }
 }
 
-/* â”€â”€â”€ Mobile tweaks for extra elements â”€â”€â”€ */
+/* Mobile tweaks */
 @media (max-width: 640px) {
-  .lp-sun {
-    width: 90px;
-    height: 90px;
-    top: 4%;
-    right: 4%;
+  .lp-balloon.b1 { width: 60px; height: 90px; }
+  .lp-balloon.b2 { width: 50px; height: 75px; }
+  .lp-balloon.b3 { width: 45px; height: 68px; }
+  .lp-balloon.b4 { width: 55px; height: 82px; }
+  .lp-floater.p3,
+  .lp-floater.p6 { display: none; }
+  .lp-sparkle { display: none; }
+}
+
+/* ═════════════════════════════════════════════════════
+   PALM TREES
+   ═════════════════════════════════════════════════════ */
+.lp-palm {
+  transform-origin: center bottom;
+  transform-box: fill-box;
+}
+.lp-palm-1 {
+  animation: lpPalmSway 6.5s ease-in-out infinite;
+}
+.lp-palm-2 {
+  animation: lpPalmSway 8s ease-in-out infinite reverse;
+}
+@keyframes lpPalmSway {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(1.4deg); }
+  50%      { transform: rotate(0deg); }
+  75%      { transform: rotate(-1.4deg); }
+}
+
+/* ═════════════════════════════════════════════════════
+   LEAF MOTIFS (on hills)
+   ═════════════════════════════════════════════════════ */
+.lp-leaf-motif {
+  transform-origin: center bottom;
+  transform-box: fill-box;
+  animation: lpLeafBreath 5s ease-in-out infinite;
+}
+.lp-leaf-motif > g:nth-child(1) { animation-delay: 0s; }
+.lp-leaf-motif > g:nth-child(2) { animation-delay: 0.6s; }
+.lp-leaf-motif > g:nth-child(3) { animation-delay: 1.2s; }
+.lp-leaf-motif > g:nth-child(4) { animation-delay: 1.8s; }
+.lp-leaf-motif > g:nth-child(5) { animation-delay: 2.4s; }
+
+@keyframes lpLeafBreath {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+  50%      { transform: scale(1.08) rotate(4deg); opacity: 0.9; }
+}
+
+/* ═════════════════════════════════════════════════════
+   DOTTED FLIGHT PATHS
+   ═════════════════════════════════════════════════════ */
+.lp-flight-paths {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+.lp-flight-path {
+  animation: lpFlightDash 3s linear infinite;
+}
+.lp-flight-path.fp1 { animation-duration: 4s; }
+.lp-flight-path.fp2 { animation-duration: 5s; animation-direction: reverse; }
+.lp-flight-path.fp3 { animation-duration: 3.5s; }
+
+@keyframes lpFlightDash {
+  to { stroke-dashoffset: -120; }
+}
+
+/* ═════════════════════════════════════════════════════
+   FLOATING LOCATION PINS
+   ═════════════════════════════════════════════════════ */
+.lp-pin {
+  position: absolute;
+  color: #8bbf35;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 2;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.15));
+}
+.lp-pin svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lp-pin.pin1 {
+  top: 22%; left: 22%;
+  width: 30px; height: 30px;
+  animation: pinBob 4s ease-in-out infinite;
+}
+.lp-pin.pin2 {
+  top: 38%; left: 74%;
+  width: 24px; height: 24px;
+  animation: pinBob 5.5s ease-in-out infinite;
+  animation-delay: -1.2s;
+  color: #a4d14b;
+}
+.lp-pin.pin3 {
+  top: 62%; left: 42%;
+  width: 28px; height: 28px;
+  animation: pinBob 6s ease-in-out infinite;
+  animation-delay: -2.5s;
+  color: #7aa036;
+}
+.lp-pin.pin4 {
+  top: 12%; left: 62%;
+  width: 22px; height: 22px;
+  animation: pinBob 4.5s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+@keyframes pinBob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-8px) scale(1.08); }
+}
+
+/* ═════════════════════════════════════════════════════
+   FLOATING PAPER PLANES
+   ═════════════════════════════════════════════════════ */
+.lp-plane {
+  position: absolute;
+  color: #8bbf35;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 2;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.12));
+  animation: planeDrift 22s linear infinite;
+  will-change: transform;
+}
+.lp-plane svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-10deg);
+}
+
+.lp-plane.plane1 {
+  top: 18%; left: -8%;
+  width: 42px; height: 42px;
+  animation-duration: 24s;
+  animation-delay: 0s;
+  opacity: 0.55;
+}
+.lp-plane.plane2 {
+  top: 46%; left: -12%;
+  width: 34px; height: 34px;
+  animation-duration: 30s;
+  animation-delay: -8s;
+  opacity: 0.4;
+}
+.lp-plane.plane3 {
+  top: 68%; left: -10%;
+  width: 48px; height: 48px;
+  animation-duration: 26s;
+  animation-delay: -14s;
+  opacity: 0.48;
+  color: #a4d14b;
+}
+.lp-plane.plane4 {
+  top: 8%; left: -6%;
+  width: 28px; height: 28px;
+  animation-duration: 34s;
+  animation-delay: -20s;
+  opacity: 0.35;
+}
+
+@keyframes planeDrift {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%  { transform: translate3d(60vw, -40px, 0) rotate(8deg); }
+  100% { transform: translate3d(125vw, -80px, 0) rotate(16deg); }
+}
+
+/* ═════════════════════════════════════════════════════
+   FLOATING LEAF MOTIFS (top of page, drifting)
+   ═════════════════════════════════════════════════════ */
+.lp-floating-leaf {
+  position: absolute;
+  color: #a4d14b;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 2;
+  animation: leafDrift 28s linear infinite;
+  will-change: transform;
+}
+.lp-floating-leaf svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lp-floating-leaf.leaf1 {
+  top: 30%; left: -6%;
+  width: 32px; height: 32px;
+  animation-duration: 26s;
+  animation-delay: 0s;
+  opacity: 0.4;
+}
+.lp-floating-leaf.leaf2 {
+  top: 55%; left: -8%;
+  width: 26px; height: 26px;
+  animation-duration: 34s;
+  animation-delay: -10s;
+  opacity: 0.3;
+  color: #8bbf35;
+}
+.lp-floating-leaf.leaf3 {
+  top: 78%; left: -10%;
+  width: 36px; height: 36px;
+  animation-duration: 30s;
+  animation-delay: -18s;
+  opacity: 0.35;
+  color: #7aa036;
+}
+
+@keyframes leafDrift {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
+  25%  { transform: translate3d(30vw, -30px, 0) rotate(90deg); }
+  50%  { transform: translate3d(60vw, -10px, 0) rotate(180deg); }
+  75%  { transform: translate3d(95vw, -40px, 0) rotate(270deg); }
+  100% { transform: translate3d(125vw, -20px, 0) rotate(360deg); }
+}
+
+/* ═════════════════════════════════════════════════════
+   SPARKLES (extra)
+   ═════════════════════════════════════════════════════ */
+.lp-sparkle.s5 {
+  top: 55%; left: 78%;
+  animation: lpSparkle 3.6s ease-in-out infinite;
+  animation-delay: 0.9s;
+}
+.lp-sparkle.s6 {
+  top: 22%; left: 8%;
+  animation: lpSparkle 4.5s ease-in-out infinite;
+  animation-delay: 1.7s;
+}
+
+/* ═════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .lp-palm,
+  .lp-leaf-motif,
+  .lp-flight-path,
+  .lp-pin,
+  .lp-plane,
+  .lp-floating-leaf {
+    animation: none !important;
   }
-  .lp-cloud-1 { width: 150px; height: 60px; }
-  .lp-cloud-2 { width: 120px; height: 50px; }
-  .lp-cloud-3 { width: 180px; height: 72px; }
-  .lp-birds-1 { width: 60px; height: 20px; }
-  .lp-birds-2 { width: 50px; height: 17px; }
+}
+
+/* ═════════════════════════════════════════════════════
+   MOBILE
+   ═════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .lp-pin { transform: scale(0.8); }
+  .lp-plane { transform: scale(0.75); }
+  .lp-floating-leaf { transform: scale(0.75); }
+  .lp-flight-paths { opacity: 0.5; }
   .lp-sparkle { display: none; }
 }
 ```
 
-### FILE: frontend\src\pages\Landing.jsx
+### frontend/src/pages/Landing.jsx
+
 ```
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ImageSlideshow from "../components/ImageSlideshow";
 import "./Landing.css";
 
 const ROTATE_WORDS = [
-  "India",
-  "Japan",
-  "Bali",
-  "America",
-  "Canada",
-  "Sri Lanka",
-  "Nepal",
-  "Saudi Arabia",
-  "Thailand",
-  "Dubai",
-  "France",
-  "Iceland",
+  "India", "Japan", "Bali", "America", "Canada", "Sri Lanka",
+  "Nepal", "Saudi Arabia", "Thailand", "Dubai", "France", "Iceland",
 ];
+
+const FEATURES = [
+  { icon: "🤖", title: "AI Itinerary", desc: "Gemini + Groq craft a day-by-day plan in seconds — hotels, activities, and budget included." },
+  { icon: "🌦️", title: "Weather-Aware", desc: "Live forecasts reshuffle your outdoor plans onto sunny days and indoor ones onto rainy days." },
+  { icon: "🗺️", title: "Interactive Map", desc: "Numbered stops, route lines, and distance between activities — all on a live map." },
+  { icon: "💰", title: "Budget Breakdown", desc: "Flights, hotels, food, activities — see where every rupee goes before you book." },
+  { icon: "📄", title: "One-Click PDF", desc: "Export your full itinerary as a beautiful A4 PDF, ready to print or share." },
+  { icon: "🔗", title: "Share Publicly", desc: "Send friends a link to view your trip — no login required on their end." },
+];
+
+const STEPS = [
+  { n: "01", title: "Tell us where", desc: "Pick a destination, dates, budget, travellers, and the things you love." },
+  { n: "02", title: "AI plans it", desc: "Gemini generates a day-by-day itinerary with hotels and cost estimates." },
+  { n: "03", title: "Explore & export", desc: "View the map, check the weather plan, then download PDF or share a link." },
+];
+
+const PREVIEW_SLIDES = [
+  {
+    image: "https://images.unsplash.com/photo-1564507592333-c60657eea523?w=1600&h=686&fit=crop&q=80",
+    pill: "4 Days · 6 places", title: "Taj Mahal, Agra",
+    url: "aitravelplanner.app/trips/agra",
+    day: "Sunrise at Taj Mahal", weather: "28°C · Clear", budget: "₹35,000 total",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1477587458883-47145ed94245?w=1600&h=686&fit=crop&q=80",
+    pill: "7 Days · 9 places", title: "Rajasthan, India",
+    url: "aitravelplanner.app/trips/rajasthan",
+    day: "Jaipur City Palace", weather: "32°C · Sunny", budget: "₹55,000 total",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=1600&h=686&fit=crop&q=80",
+    pill: "6 Days · 8 places", title: "San Francisco, USA",
+    url: "aitravelplanner.app/trips/san-francisco",
+    day: "Golden Gate Bridge", weather: "20°C · Foggy", budget: "₹1,20,000 total",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1513326738677-b964603b136d?w=1600&h=686&fit=crop&q=80",
+    pill: "5 Days · 7 places", title: "Moscow, Russia",
+    url: "aitravelplanner.app/trips/moscow",
+    day: "Red Square & Kremlin", weather: "-2°C · Snowy", budget: "₹85,000 total",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=1600&h=686&fit=crop&q=80",
+    pill: "8 Days · 10 places", title: "Serengeti, Africa",
+    url: "aitravelplanner.app/trips/serengeti",
+    day: "Wildlife safari", weather: "30°C · Sunny", budget: "₹1,50,000 total",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1600&h=686&fit=crop&q=80",
+    pill: "5 Days · 7 places", title: "Tokyo, Japan",
+    url: "aitravelplanner.app/trips/tokyo",
+    day: "Arrival & Shinjuku", weather: "18°C · Clear", budget: "₹70,000 total",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1600&h=686&fit=crop&q=80",
+    pill: "4 Days · 6 places", title: "Paris, France",
+    url: "aitravelplanner.app/trips/paris",
+    day: "Eiffel Tower & Louvre", weather: "15°C · Cloudy", budget: "₹55,000 total",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1600&h=686&fit=crop&q=80",
+    pill: "7 Days · 9 places", title: "Bali, Indonesia",
+    url: "aitravelplanner.app/trips/bali",
+    day: "Ubud rice terraces", weather: "28°C · Sunny", budget: "₹45,000 total",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1504829857797-ddff29c27927?w=1600&h=686&fit=crop&q=80",
+    pill: "6 Days · 8 places", title: "Reykjavik, Iceland",
+    url: "aitravelplanner.app/trips/reykjavik",
+    day: "Golden Circle tour", weather: "5°C · Snowy", budget: "₹95,000 total",
+  },
+  {
+    image: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1600&h=686&fit=crop&q=80",
+    pill: "4 Days · 5 places", title: "Dubai, UAE",
+    url: "aitravelplanner.app/trips/dubai",
+    day: "Burj Khalifa visit", weather: "32°C · Clear", budget: "₹60,000 total",
+  },
+];
+
+const PreviewSlideshow = () => {
+  const [index, setIndex] = useState(0);
+  const active = PREVIEW_SLIDES[index] || PREVIEW_SLIDES[0];
+
+  return (
+    <div className="lp-preview-window">
+      <div className="lp-preview-bar">
+        <span className="lp-preview-dot r" />
+        <span className="lp-preview-dot y" />
+        <span className="lp-preview-dot g" />
+        <span className="lp-preview-url">{active.url}</span>
+      </div>
+
+      <div className="lp-preview-body">
+        <ImageSlideshow
+          slides={PREVIEW_SLIDES}
+          interval={2000}
+          onChange={(_, i) => {
+            setTimeout(() => setIndex(i), 0);
+          }}
+        />
+
+        <div className="lp-preview-cards">
+          <div className="lp-preview-card">
+            <div className="lp-preview-card-icon">📅</div>
+            <div>
+              <div className="lp-preview-card-label">Day 1</div>
+              <div className="lp-preview-card-text">{active.day}</div>
+            </div>
+          </div>
+          <div className="lp-preview-card">
+            <div className="lp-preview-card-icon">🌤️</div>
+            <div>
+              <div className="lp-preview-card-label">Weather</div>
+              <div className="lp-preview-card-text">{active.weather}</div>
+            </div>
+          </div>
+          <div className="lp-preview-card">
+            <div className="lp-preview-card-icon">💰</div>
+            <div>
+              <div className="lp-preview-card-label">Budget</div>
+              <div className="lp-preview-card-text">{active.budget}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Landing = () => {
   const { user, logout } = useAuth();
@@ -10959,7 +15444,7 @@ const Landing = () => {
         setWordIndex((i) => (i + 1) % ROTATE_WORDS.length);
         setWordOut(false);
       }, 400);
-    }, 1600);
+    }, 1800);
     return () => clearInterval(iv);
   }, []);
 
@@ -10982,10 +15467,7 @@ const Landing = () => {
 
   return (
     <div className="lp-root">
-      {/* â”€â”€â”€â”€â”€ Background scene â”€â”€â”€â”€â”€ */}
       <div className="lp-bg-scene" aria-hidden="true">
-
-        {/* Sun with rotating rays */}
         <div className="lp-sun">
           <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -11002,112 +15484,48 @@ const Landing = () => {
             <circle cx="50" cy="50" r="46" fill="url(#sunGlow)" className="lp-sun-glow" />
             <g className="lp-sun-rays">
               {Array.from({ length: 12 }).map((_, i) => (
-                <rect
-                  key={i}
-                  x="48.6"
-                  y="2"
-                  width="2.8"
-                  height="12"
-                  rx="1.4"
-                  fill="#facc15"
-                  opacity="0.7"
-                  transform={`rotate(${(i * 360) / 12} 50 50)`}
-                />
+                <rect key={i} x="48.6" y="2" width="2.8" height="12" rx="1.4"
+                  fill="#facc15" opacity="0.7"
+                  transform={`rotate(${(i * 360) / 12} 50 50)`} />
               ))}
             </g>
             <circle cx="50" cy="50" r="22" fill="url(#sunCore)" className="lp-sun-core" />
           </svg>
         </div>
 
-        {/* Drifting clouds */}
         <div className="lp-cloud lp-cloud-1">
-          <svg viewBox="0 0 120 50" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M20 42 C 6 42 2 32 10 26 C 8 16 18 10 28 14 C 34 4 50 2 60 12 C 70 4 86 6 92 18 C 104 14 116 22 114 34 C 118 42 108 46 96 44 L 20 42 Z"
-              fill="#ffffff"
-              opacity="0.55"
-            />
+          <svg viewBox="0 0 120 50">
+            <path d="M20 42 C 6 42 2 32 10 26 C 8 16 18 10 28 14 C 34 4 50 2 60 12 C 70 4 86 6 92 18 C 104 14 116 22 114 34 C 118 42 108 46 96 44 L 20 42 Z" fill="#ffffff" opacity="0.55" />
           </svg>
         </div>
         <div className="lp-cloud lp-cloud-2">
-          <svg viewBox="0 0 120 50" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M20 42 C 6 42 2 32 10 26 C 8 16 18 10 28 14 C 34 4 50 2 60 12 C 70 4 86 6 92 18 C 104 14 116 22 114 34 C 118 42 108 46 96 44 L 20 42 Z"
-              fill="#ffffff"
-              opacity="0.4"
-            />
-          </svg>
-        </div>
-        <div className="lp-cloud lp-cloud-3">
-          <svg viewBox="0 0 120 50" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M20 42 C 6 42 2 32 10 26 C 8 16 18 10 28 14 C 34 4 50 2 60 12 C 70 4 86 6 92 18 C 104 14 116 22 114 34 C 118 42 108 46 96 44 L 20 42 Z"
-              fill="#ffffff"
-              opacity="0.35"
-            />
+          <svg viewBox="0 0 120 50">
+            <path d="M20 42 C 6 42 2 32 10 26 C 8 16 18 10 28 14 C 34 4 50 2 60 12 C 70 4 86 6 92 18 C 104 14 116 22 114 34 C 118 42 108 46 96 44 L 20 42 Z" fill="#ffffff" opacity="0.4" />
           </svg>
         </div>
 
-        {/* Bird flock 1 */}
         <div className="lp-birds lp-birds-1">
-          <svg viewBox="0 0 60 20" xmlns="http://www.w3.org/2000/svg">
+          <svg viewBox="0 0 60 20">
             <path d="M4 10 Q 8 4 12 10 Q 16 4 20 10" stroke="#2f3a1f" strokeWidth="1.4" fill="none" strokeLinecap="round" />
             <path d="M28 6 Q 32 1 36 6 Q 40 1 44 6" stroke="#2f3a1f" strokeWidth="1.4" fill="none" strokeLinecap="round" />
-            <path d="M36 15 Q 39 11 42 15 Q 45 11 48 15" stroke="#2f3a1f" strokeWidth="1.4" fill="none" strokeLinecap="round" />
           </svg>
         </div>
 
-        {/* Bird flock 2 */}
-        <div className="lp-birds lp-birds-2">
-          <svg viewBox="0 0 60 20" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 12 Q 10 6 14 12 Q 18 6 22 12" stroke="#2f3a1f" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-            <path d="M34 4 Q 37 0 40 4 Q 43 0 46 4" stroke="#2f3a1f" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-          </svg>
-        </div>
-
-        {/* Landscape */}
-        <svg
-          className="lp-landscape"
-          viewBox="0 0 1440 620"
-          preserveAspectRatio="xMidYMax slice"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+        <svg className="lp-landscape" viewBox="0 0 1440 620" preserveAspectRatio="xMidYMax slice">
           <defs>
             <linearGradient id="lpHillFar" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#dbe8a2" stopOpacity=".75" />
-              <stop offset="100%" stopColor="#dbe8a2" stopOpacity=".28" />
+              <stop offset="0%" stopColor="#e8f0bc" stopOpacity=".85" />
+              <stop offset="100%" stopColor="#d4e28e" stopOpacity=".5" />
             </linearGradient>
             <linearGradient id="lpHillNear" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#cfe08c" stopOpacity=".68" />
-              <stop offset="100%" stopColor="#cfe08c" stopOpacity=".22" />
-            </linearGradient>
-            <linearGradient id="lpPathG" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#eef5cf" stopOpacity=".9" />
-              <stop offset="100%" stopColor="#eef5cf" stopOpacity=".35" />
+              <stop offset="0%" stopColor="#cfe08c" stopOpacity=".85" />
+              <stop offset="100%" stopColor="#b5cd63" stopOpacity=".6" />
             </linearGradient>
           </defs>
+          <path d="M0 400 Q 180 280 360 355 T 720 325 T 1080 365 T 1440 315 L1440 620 L0 620 Z" fill="url(#lpHillFar)" />
+          <path d="M0 520 Q 240 420 480 480 T 960 460 T 1440 490 L1440 620 L0 620 Z" fill="url(#lpHillNear)" />
 
-          <path
-            d="M0 430 Q 180 310 360 385 T 720 355 T 1080 395 T 1440 345 L1440 620 L0 620 Z"
-            fill="url(#lpHillFar)"
-          />
-
-          <path
-            d="M700 620 C 660 540, 765 500, 722 440 C 692 390, 762 360, 730 318"
-            fill="none"
-            stroke="url(#lpPathG)"
-            strokeWidth="44"
-            strokeLinecap="round"
-            opacity=".55"
-          />
-
-          <path
-            d="M0 505 Q 220 405 440 472 T 880 452 T 1440 482 L1440 620 L0 620 Z"
-            fill="url(#lpHillNear)"
-          />
-
-          {/* Palm tree 1 (swaying) */}
-          <g className="lp-palm lp-palm-1" opacity=".5" fill="#adc766">
+          <g className="lp-palm lp-palm-1" opacity=".62" fill="#93b352">
             <path d="M100 575 C 108 500, 135 435, 168 382 L 180 375 C 150 435, 128 500, 135 575 Z" />
             <path d="M174 378 C 160 340, 135 315, 100 305 C 130 325, 155 355, 172 385 Z" />
             <path d="M174 378 C 178 335, 185 305, 198 275 C 190 310, 182 345, 178 380 Z" />
@@ -11117,12 +15535,8 @@ const Landing = () => {
             <path d="M174 378 C 148 408, 122 445, 105 490 C 125 450, 150 412, 172 383 Z" />
             <path d="M174 378 C 135 385, 95 400, 60 425 C 98 408, 140 393, 172 383 Z" />
             <circle cx="172" cy="385" r="5" />
-            <circle cx="180" cy="382" r="4.5" />
-            <circle cx="176" cy="391" r="4" />
           </g>
-
-          {/* Palm tree 2 (swaying, opposite phase) */}
-          <g className="lp-palm lp-palm-2" opacity=".5" fill="#adc766">
+          <g className="lp-palm lp-palm-2" opacity=".62" fill="#93b352">
             <path d="M1275 575 C 1280 510, 1288 450, 1290 405 L 1305 400 C 1305 450, 1302 510, 1308 575 Z" />
             <path d="M1297 402 C 1270 375, 1240 360, 1205 358 C 1235 370, 1265 385, 1295 405 Z" />
             <path d="M1297 402 C 1290 365, 1285 335, 1290 305 C 1300 340, 1302 370, 1300 405 Z" />
@@ -11130,90 +15544,53 @@ const Landing = () => {
             <path d="M1297 402 C 1335 400, 1375 408, 1410 430 C 1370 418, 1332 408, 1300 405 Z" />
             <path d="M1297 402 C 1258 400, 1220 408, 1185 430 C 1225 418, 1262 408, 1294 405 Z" />
             <path d="M1297 402 C 1325 425, 1345 455, 1355 490 C 1338 458, 1318 430, 1300 405 Z" />
-            <path d="M1297 402 C 1270 425, 1250 455, 1240 490 C 1258 458, 1278 430, 1295 405 Z" />
-          </g>
-
-          <g opacity=".38" fill="#c6d98b">
-            <ellipse cx="360" cy="562" rx="72" ry="30" />
-            <ellipse cx="1080" cy="576" rx="92" ry="34" />
-            <ellipse cx="620" cy="592" rx="60" ry="24" />
           </g>
         </svg>
 
-        {/* Floating paper planes / pins / leaves */}
-        <span className="lp-floater p1">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-          </svg>
+        <span className="lp-pin pin1">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" /></svg>
         </span>
-        <span className="lp-floater p2">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
-          </svg>
+        <span className="lp-pin pin2">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" /></svg>
         </span>
-        <span className="lp-floater p3">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-          </svg>
-        </span>
-        <span className="lp-floater p4">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
-          </svg>
-        </span>
-        <span className="lp-floater p5">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-          </svg>
-        </span>
-        <span className="lp-floater p6">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17 3C9 3 4 8 4 16c0 1.5.3 3 .8 4.2l1.6-.7C6.1 18.5 6 17.3 6 16c0-6 4-10 11-10h2V3h-2z" />
-            <path d="M20 3v2c0 8-5 13-13 13H5l1 2h1c9 0 15-6 15-15V3h-2z" opacity=".5" />
-          </svg>
+        <span className="lp-pin pin3">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" /></svg>
         </span>
 
-        {/* Twinkling sparkles */}
+        <span className="lp-plane plane1">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+        </span>
+        <span className="lp-plane plane2">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+        </span>
+        <span className="lp-plane plane3">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+        </span>
+
         <span className="lp-sparkle s1" />
         <span className="lp-sparkle s2" />
         <span className="lp-sparkle s3" />
         <span className="lp-sparkle s4" />
-        <span className="lp-sparkle s5" />
-        <span className="lp-sparkle s6" />
       </div>
 
-      {/* â”€â”€â”€â”€â”€ Topbar â”€â”€â”€â”€â”€ */}
       <header className="lp-topbar">
         <div className="lp-topbar-inner">
-          <Link to="/" className="lp-brand" aria-label="AI travel planner home">
+          <Link to="/" className="lp-brand">
             <span className="lp-brand-name">
               AI Travel <span className="lp-brand-accent">Planner</span>
             </span>
           </Link>
-
-          <nav className="lp-mainnav" aria-label="Primary">
-            <Link to="/" className="lp-active">Home</Link>
-            <Link to="/trips/new">Destinations</Link>
-            <Link to="/weather">Weather</Link>
-            <Link to="/trips">My Trips</Link>
+          <nav className="lp-mainnav">
+            <a href="#features">Features</a>
+            <a href="#how">How it works</a>
+            <a href="#preview">Preview</a>
+            <Link to="/trips/new">Plan a trip</Link>
           </nav>
-
           <div className="lp-user">
             {user ? (
               <>
-                <Link to="/profile" className="lp-avatar" title={user.name} aria-hidden="true">
-                  {initials}
-                </Link>
-                <button className="lp-btn-logout" type="button" onClick={handleLogout}>
-                  Logout
-                </button>
-                <button className="lp-btn-more" type="button" aria-label="More options">
-                  <svg viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="12" cy="5" r="1.8" />
-                    <circle cx="12" cy="12" r="1.8" />
-                    <circle cx="12" cy="19" r="1.8" />
-                  </svg>
-                </button>
+                <Link to="/profile" className="lp-avatar" title={user.name}>{initials}</Link>
+                <button className="lp-btn-logout" type="button" onClick={handleLogout}>Logout</button>
               </>
             ) : (
               <>
@@ -11225,7 +15602,6 @@ const Landing = () => {
         </div>
       </header>
 
-      {/* â”€â”€â”€â”€â”€ Main â”€â”€â”€â”€â”€ */}
       <main className="lp-main">
         <h1 className="lp-headline">
           <span className="lp-headline-line">Your next trip to</span>
@@ -11234,56 +15610,136 @@ const Landing = () => {
               {ROTATE_WORDS[wordIndex]}
             </span>
           </span>
-          <span className="lp-headline-line lp-headline-accent">
-            planned in seconds.
-          </span>
+          <span className="lp-headline-line lp-headline-accent">planned in seconds.</span>
         </h1>
-
         <p className="lp-sub">
-          Stop endlessly searching. Let AI craft your perfect itinerary so you
-          can explore more and stress less.
+          Stop endlessly searching. Let AI craft your perfect itinerary —
+          day-by-day plans, hotels, budget, weather, and maps — in one place.
         </p>
-
-        <button className="lp-cta" type="button" onClick={handlePlanTrip}>
-          Plan a New Trip
-        </button>
-
-        <ul className="lp-features">
+        <div className="lp-hero-actions">
+          <button className="lp-cta" type="button" onClick={handlePlanTrip}>
+            ✨ Plan a New Trip
+          </button>
+          <a href="#how" className="lp-cta-ghost">See how it works →</a>
+        </div>
+        <ul className="lp-features-inline">
           <li>
             <span className="lp-check" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#12200a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#12200a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
             </span>
-            Tailored to Your Vibe
+            Tailored to your vibe
           </li>
           <li>
             <span className="lp-check" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#12200a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#12200a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
             </span>
-            Zero Planning Burnout
+            Zero planning burnout
           </li>
           <li>
             <span className="lp-check" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#12200a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#12200a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
             </span>
-            Endless New Discoveries
+            Free to use
           </li>
         </ul>
       </main>
 
-      {/* â”€â”€â”€â”€â”€ Footer â”€â”€â”€â”€â”€ */}
+      <section className="lp-section" id="how">
+        <div className="lp-section-inner">
+          <div className="lp-section-head">
+            <span className="lp-section-tag">How it works</span>
+            <h2 className="lp-section-title">Three steps from <span>idea to itinerary</span></h2>
+          </div>
+          <div className="lp-steps">
+            {STEPS.map((s) => (
+              <div key={s.n} className="lp-step">
+                <div className="lp-step-num">{s.n}</div>
+                <h3 className="lp-step-title">{s.title}</h3>
+                <p className="lp-step-desc">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="lp-section" id="features">
+        <div className="lp-section-inner">
+          <div className="lp-section-head">
+            <span className="lp-section-tag">Features</span>
+            <h2 className="lp-section-title">Everything you need, <span>nothing you don't</span></h2>
+          </div>
+          <div className="lp-grid">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="lp-feature">
+                <div className="lp-feature-icon">{f.icon}</div>
+                <h3 className="lp-feature-title">{f.title}</h3>
+                <p className="lp-feature-desc">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="lp-section" id="preview">
+        <div className="lp-section-inner">
+          <div className="lp-section-head">
+            <span className="lp-section-tag">Preview</span>
+            <h2 className="lp-section-title">Itineraries that look <span>this good</span></h2>
+            <p className="lp-section-sub">
+              Real output from a 5-day Tokyo trip — map, weather, and budget included.
+            </p>
+          </div>
+          <div className="lp-preview">
+            <PreviewSlideshow />
+            <div className="lp-preview-info">
+              <h3 className="lp-preview-info-title">What you'll get</h3>
+              <ul className="lp-preview-list">
+                <li><span>📅</span> Day-by-day plan with times</li>
+                <li><span>🏨</span> 3–5 hotels with prices</li>
+                <li><span>💰</span> Full budget breakdown</li>
+                <li><span>🗺️</span> Live map with route</li>
+                <li><span>🌦️</span> Weather-aware reshuffling</li>
+                <li><span>📄</span> One-click PDF export</li>
+                <li><span>🔗</span> Public share links</li>
+                <li><span>📓</span> Field journal view</li>
+              </ul>
+              <button className="lp-cta" type="button" onClick={handlePlanTrip}>
+                Try it free →
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="lp-section lp-stats-section">
+        <div className="lp-section-inner">
+          <div className="lp-stats">
+            <div className="lp-stat"><div className="lp-stat-value">8+</div><div className="lp-stat-label">APIs integrated</div></div>
+            <div className="lp-stat"><div className="lp-stat-value">2</div><div className="lp-stat-label">AI providers</div></div>
+            <div className="lp-stat"><div className="lp-stat-value">25</div><div className="lp-stat-label">Currencies</div></div>
+            <div className="lp-stat"><div className="lp-stat-value">~30s</div><div className="lp-stat-label">Average generation</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="lp-section lp-cta-section">
+        <div className="lp-section-inner">
+          <div className="lp-cta-card">
+            <h2 className="lp-cta-title">Ready to plan your next adventure?</h2>
+            <p className="lp-cta-sub">Free, fast, and no credit card. Just tell us where and we'll do the rest.</p>
+            <button className="lp-cta" type="button" onClick={handlePlanTrip}>
+              ✨ Start Planning — It's Free
+            </button>
+          </div>
+        </div>
+      </section>
+
       <footer className="lp-footer">
         <div className="lp-footer-content">
           <div className="lp-footer-brand">
             <h3>AI Travel Planner</h3>
             <p>Your AI-powered travel companion. Plan less, explore more.</p>
           </div>
-
           <div className="lp-footer-links">
             <div className="lp-footer-column">
               <h4>Product</h4>
@@ -11294,7 +15750,6 @@ const Landing = () => {
                 <li><Link to="/journal">Journal</Link></li>
               </ul>
             </div>
-
             <div className="lp-footer-column">
               <h4>Account</h4>
               <ul>
@@ -11304,22 +15759,20 @@ const Landing = () => {
                 <li><Link to="/register">Get Started</Link></li>
               </ul>
             </div>
-
             <div className="lp-footer-column">
               <h4>Data</h4>
               <ul>
                 <li><span>Open-Meteo</span></li>
                 <li><span>OpenStreetMap</span></li>
-                <li><span>Gemini Â· Groq</span></li>
+                <li><span>Gemini · Groq</span></li>
                 <li><span>Pexels</span></li>
               </ul>
             </div>
           </div>
         </div>
-
         <div className="lp-footer-bottom">
-          <p>Â© {new Date().getFullYear()} AI Travel Planner. All rights reserved.</p>
-          <p>Made with â¤ï¸ for travelers</p>
+          <p>© {new Date().getFullYear()} AI Travel Planner. All rights reserved.</p>
+          <p>Made with ❤️ for travelers</p>
         </div>
       </footer>
     </div>
@@ -11329,427 +15782,8 @@ const Landing = () => {
 export default Landing;
 ```
 
-### FILE: frontend\src\pages\Login.css
-```
-/* frontend/src/pages/Login.css */
+### frontend/src/pages/NotFound.jsx
 
-.lg-root {
-  --lg-bg: #050505;
-  --lg-card: rgba(17, 17, 17, 0.9);
-  --lg-muted: #888888;
-  --lg-dim: #52525b;
-  --lg-lime: #a3e635;
-  --lg-lime-bright: #bef264;
-  --lg-lime-glow: rgba(163, 230, 53, 0.4);
-  --lg-lime-subtle: rgba(163, 230, 53, 0.12);
-  background: var(--lg-bg);
-  color: #fff;
-  min-height: 100vh;
-  font-family: 'Poppins', system-ui, sans-serif;
-  overflow: hidden;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-}
-
-/* â”€â”€â”€ Glow orbs â”€â”€â”€ */
-.lg-orb-1, .lg-orb-2, .lg-orb-3 {
-  position: fixed;
-  filter: blur(90px);
-  pointer-events: none;
-  z-index: 0;
-}
-.lg-orb-1 {
-  top: -140px; left: 10%;
-  width: 520px; height: 520px;
-  background: radial-gradient(circle, var(--lg-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
-  animation: lgFloat 11s ease-in-out infinite alternate;
-}
-.lg-orb-2 {
-  bottom: -160px; right: 8%;
-  width: 480px; height: 480px;
-  background: radial-gradient(circle, rgba(163,230,53,0.22) 0%, transparent 70%);
-  animation: lgFloat 14s ease-in-out infinite alternate-reverse;
-}
-.lg-orb-3 {
-  top: 40%; left: 45%;
-  width: 380px; height: 380px;
-  background: radial-gradient(circle, rgba(163,230,53,0.12) 0%, transparent 70%);
-  animation: lgFloat 17s ease-in-out infinite alternate;
-}
-@keyframes lgFloat {
-  0%   { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(50px, 40px) scale(1.2); }
-}
-
-/* â”€â”€â”€ Grid background â”€â”€â”€ */
-.lg-grid-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(163, 230, 53, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(163, 230, 53, 0.04) 1px, transparent 1px);
-  background-size: 60px 60px;
-  mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
-}
-
-/* â”€â”€â”€ Card â”€â”€â”€ */
-.lg-card {
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  max-width: 440px;
-  background: var(--lg-card);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 28px;
-  padding: 44px 40px 40px;
-  box-shadow:
-    0 30px 80px -30px rgba(0, 0, 0, 0.9),
-    0 0 40px -12px rgba(163, 230, 53, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  animation: lgCardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes lgCardIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* â”€â”€â”€ Brand â”€â”€â”€ */
-.lg-brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 28px;
-}
-.lg-brand-text {
-  font-size: 1.15rem;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  color: #fff;
-}
-.lg-brand-text .lg-brand-accent {
-  color: var(--lg-lime);
-}
-
-/* â”€â”€â”€ Titles â”€â”€â”€ */
-.lg-title {
-  font-size: 2rem;
-  font-weight: 900;
-  text-align: center;
-  letter-spacing: -0.03em;
-  color: #fff;
-  line-height: 1.1;
-  margin-bottom: 10px;
-}
-.lg-title span {
-  color: var(--lg-lime);
-  text-shadow: 0 0 30px var(--lg-lime-glow);
-}
-.lg-subtitle {
-  text-align: center;
-  font-size: 0.9rem;
-  color: var(--lg-muted);
-  margin-bottom: 32px;
-  line-height: 1.5;
-}
-
-/* â”€â”€â”€ Error â”€â”€â”€ */
-.lg-error {
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  color: #fecaca;
-  padding: 12px 16px;
-  border-radius: 14px;
-  margin-bottom: 20px;
-  font-size: 0.85rem;
-  text-align: center;
-}
-
-/* â”€â”€â”€ Form â”€â”€â”€ */
-.lg-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.lg-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.lg-label {
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--lg-dim);
-  padding-left: 4px;
-}
-
-.lg-input {
-  width: 100%;
-  background: #000;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: 14px 16px;
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color-scheme: dark;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.lg-input::placeholder { color: var(--lg-dim); font-weight: 500; }
-.lg-input:focus {
-  outline: none;
-  border-color: var(--lg-lime);
-  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.15);
-}
-
-/* Password toggle */
-.lg-pw-toggle {
-  align-self: flex-end;
-  margin-top: -4px;
-  background: transparent;
-  border: none;
-  color: var(--lg-dim);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 4px 6px;
-  transition: color 0.2s;
-}
-.lg-pw-toggle:hover { color: var(--lg-lime); }
-
-/* â”€â”€â”€ Submit â”€â”€â”€ */
-.lg-submit {
-  margin-top: 8px;
-  background: linear-gradient(135deg, var(--lg-lime), var(--lg-lime-bright));
-  color: #000;
-  border: none;
-  padding: 15px 24px;
-  border-radius: 14px;
-  font-family: inherit;
-  font-size: 0.92rem;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  box-shadow: 0 10px 30px -8px rgba(163, 230, 53, 0.55);
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-.lg-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 36px -8px rgba(163, 230, 53, 0.75);
-}
-.lg-submit:active:not(:disabled) {
-  transform: translateY(0);
-}
-.lg-submit:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.lg-spinner {
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  border: 2px solid rgba(0,0,0,0.25);
-  border-top-color: #000;
-  animation: lgSpin 0.7s linear infinite;
-}
-@keyframes lgSpin { to { transform: rotate(360deg); } }
-
-/* â”€â”€â”€ Footer â”€â”€â”€ */
-.lg-footer {
-  text-align: center;
-  font-size: 0.86rem;
-  color: var(--lg-muted);
-  margin-top: 28px;
-}
-.lg-footer a {
-  color: var(--lg-lime);
-  font-weight: 800;
-  text-decoration: none;
-  transition: color 0.2s, text-shadow 0.2s;
-}
-.lg-footer a:hover {
-  color: var(--lg-lime-bright);
-  text-shadow: 0 0 12px var(--lg-lime-glow);
-}
-
-/* â”€â”€â”€ Divider â”€â”€â”€ */
-.lg-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 24px 0 8px;
-  color: var(--lg-dim);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-.lg-divider::before,
-.lg-divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* â”€â”€â”€ Motion preferences â”€â”€â”€ */
-@media (prefers-reduced-motion: reduce) {
-  .lg-orb-1, .lg-orb-2, .lg-orb-3, .lg-spinner { animation: none !important; }
-  .lg-card { animation: none !important; }
-}
-
-/* â”€â”€â”€ Small screens â”€â”€â”€ */
-@media (max-width: 480px) {
-  .lg-card { padding: 36px 24px 28px; border-radius: 22px; }
-  .lg-title { font-size: 1.65rem; }
-  .lg-brand-text { font-size: 1rem; }
-}
-```
-
-### FILE: frontend\src\pages\Login.jsx
-```
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import "./Login.css";
-
-const Login = () => {
-  const { login } = useAuth();
-  const navigate = useNavigate();
-
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      await login(form.email, form.password);
-      navigate("/dashboard");
-    } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="lg-root">
-      <div className="lg-orb-1" />
-      <div className="lg-orb-2" />
-      <div className="lg-orb-3" />
-      <div className="lg-grid-bg" />
-
-      <div className="lg-card">
-        {/* Brand */}
-        <div className="lg-brand">
-          <div className="lg-brand-text">
-            AI Travel <span className="lg-brand-accent">Planner</span>
-          </div>
-        </div>
-
-        <h1 className="lg-title">
-          Sign <span>in</span>
-        </h1>
-        <p className="lg-subtitle">Continue planning your next adventure</p>
-
-        {error && <p className="lg-error">{error}</p>}
-
-        <form onSubmit={handleSubmit} className="lg-form">
-          {/* Email */}
-          <div className="lg-field">
-            <label className="lg-label" htmlFor="email">
-              Email address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={form.email}
-              onChange={handleChange}
-              className="lg-input"
-              required
-            />
-          </div>
-
-          {/* Password */}
-          <div className="lg-field">
-            <label className="lg-label" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              placeholder="Enter your password"
-              value={form.password}
-              onChange={handleChange}
-              className="lg-input"
-              required
-            />
-            <button
-              type="button"
-              className="lg-pw-toggle"
-              onClick={() => setShowPassword((v) => !v)}
-              tabIndex={-1}
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
-          </div>
-
-          <button type="submit" disabled={loading} className="lg-submit">
-            {loading ? (
-              <>
-                <span className="lg-spinner" />
-                Signing inâ€¦
-              </>
-            ) : (
-              <>Sign In â†’</>
-            )}
-          </button>
-        </form>
-
-        <div className="lg-divider">or</div>
-
-        <p className="lg-footer">
-          New here? <Link to="/register">Create an account</Link>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-export default Login;
-```
-
-### FILE: frontend\src\pages\NotFound.jsx
 ```
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -12016,7 +16050,7 @@ const NotFound = () => {
 
         <div>
           <span className="notfound-eyebrow">
-            <span className="dot"></span> Error 404 Â· Castaway Status
+            <span className="dot"></span> Error 404 · Castaway Status
           </span>
         </div>
 
@@ -12027,12 +16061,12 @@ const NotFound = () => {
 
         <p className="notfound-subtext">
           No resorts, no Wi-Fi, and definitely no breakfast buffet here. Don't
-          panic â€” our rescue boat is ready to take you back to safety.
+          panic — our rescue boat is ready to take you back to safety.
         </p>
 
         <div className="notfound-ai-box">
           <div className="notfound-ai-icon" aria-hidden="true">
-            ðŸŒ´
+            🌴
           </div>
           <div className="notfound-ai-content">
             <div className="notfound-ai-label">Ask AI</div>
@@ -12043,21 +16077,21 @@ const NotFound = () => {
             type="button"
             onClick={copyPrompt}
           >
-            {copied ? "Copied âœ“" : "Copy prompt"}
+            {copied ? "Copied ✓" : "Copy prompt"}
           </button>
         </div>
 
         <div className="notfound-actions">
           <Link to="/" className="notfound-btn notfound-btn-primary">
-            ðŸ›Ÿ Rescue Me Home
+            🛟 Rescue Me Home
           </Link>
           <Link to="/trips/new" className="notfound-btn notfound-btn-ghost">
-            ðŸï¸ Plan a Real Trip
+            🏝️ Plan a Real Trip
           </Link>
         </div>
 
         <p className="notfound-footnote">
-          Last known coordinates: <code>/404</code> Â· No coconuts were harmed in
+          Last known coordinates: <code>/404</code> · No coconuts were harmed in
           the making of this page.
         </p>
       </main>
@@ -12068,12 +16102,481 @@ const NotFound = () => {
 export default NotFound;
 ```
 
-### FILE: frontend\src\pages\Profile.jsx
+### frontend/src/pages/Profile.css
+
+```
+/* frontend/src/pages/Profile.css */
+
+.pf-root {
+  --pf-bg: #050505;
+  --pf-card: #111111;
+  --pf-card-hover: #181818;
+  --pf-border: rgba(255, 255, 255, 0.1);
+  --pf-border-strong: rgba(255, 255, 255, 0.2);
+  --pf-muted: #888888;
+  --pf-dim: #52525b;
+  --pf-lime: #a3e635;
+  --pf-lime-bright: #bef264;
+  --pf-lime-glow: rgba(163, 230, 53, 0.4);
+  --pf-lime-subtle: rgba(163, 230, 53, 0.12);
+  --pf-red: #f87171;
+  --pf-red-subtle: rgba(248, 113, 113, 0.12);
+  --pf-red-border: rgba(248, 113, 113, 0.35);
+
+  position: relative;
+  background: var(--pf-bg);
+  color: #fff;
+  min-height: 100vh;
+  font-family: 'Poppins', system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+.pf-orb-1, .pf-orb-2 {
+  position: fixed;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+.pf-orb-1 {
+  top: -120px; left: 8%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, var(--pf-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
+  animation: pfFloat 10s ease-in-out infinite alternate;
+}
+.pf-orb-2 {
+  bottom: -120px; right: 8%;
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(96,165,250,0.16) 0%, transparent 70%);
+  animation: pfFloat 13s ease-in-out infinite alternate-reverse;
+}
+@keyframes pfFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 40px) scale(1.15); }
+}
+
+.pf-page {
+  position: relative; z-index: 10;
+  max-width: 900px; margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+/* ─── Header ─── */
+.pf-header {
+  display: flex; flex-direction: column; gap: 14px;
+  margin-bottom: 32px;
+}
+.pf-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 0.7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--pf-lime);
+  background: var(--pf-lime-subtle);
+  border: 1px solid rgba(163, 230, 53, 0.3);
+  padding: 5px 12px; border-radius: 9999px;
+  width: fit-content;
+}
+.pf-pulse {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--pf-lime);
+  box-shadow: 0 0 10px var(--pf-lime);
+  animation: pfPulse 1.5s infinite;
+}
+@keyframes pfPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.8); }
+}
+.pf-title {
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  font-weight: 900; line-height: 1.05;
+  letter-spacing: -0.035em; color: #fff;
+}
+.pf-title span { color: var(--pf-lime); text-shadow: 0 0 30px var(--pf-lime-glow); }
+.pf-subtitle {
+  font-size: 0.95rem; color: var(--pf-muted);
+  max-width: 640px; line-height: 1.6;
+}
+
+/* ─── Hero card ─── */
+.pf-hero {
+  display: flex; flex-direction: column; gap: 20px;
+  align-items: center;
+  text-align: center;
+  background: var(--pf-card);
+  border: 1px solid var(--pf-border);
+  border-radius: 24px;
+  padding: 32px 26px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 20px;
+  animation: pfCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.pf-hero::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--pf-lime), transparent);
+  opacity: 0.8;
+}
+@keyframes pfCardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (min-width: 640px) {
+  .pf-hero {
+    flex-direction: row;
+    text-align: left;
+    padding: 32px;
+  }
+}
+
+.pf-avatar {
+  width: 96px; height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pf-lime), var(--pf-lime-bright));
+  color: #000;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 900;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  box-shadow: 0 0 40px -6px rgba(163, 230, 53, 0.6);
+  border: 3px solid var(--pf-bg);
+}
+
+.pf-hero-info { flex: 1; min-width: 0; }
+
+.pf-name-row {
+  display: flex; align-items: center; gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+@media (min-width: 640px) {
+  .pf-name-row { justify-content: flex-start; }
+}
+
+.pf-name {
+  font-size: 1.75rem; font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #fff;
+  line-height: 1.1;
+  margin: 0;
+  word-break: break-word;
+}
+.pf-edit-btn {
+  background: transparent;
+  border: 1px solid var(--pf-border-strong);
+  color: var(--pf-muted);
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.04em;
+}
+.pf-edit-btn:hover {
+  color: var(--pf-lime);
+  border-color: var(--pf-lime);
+  background: var(--pf-lime-subtle);
+}
+
+.pf-email {
+  font-size: 0.9rem;
+  color: var(--pf-muted);
+  margin-top: 8px;
+  word-break: break-all;
+}
+.pf-joined {
+  font-size: 0.72rem;
+  color: var(--pf-dim);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 10px;
+}
+
+/* ─── Edit name form ─── */
+.pf-edit-form {
+  display: flex; flex-direction: column; gap: 10px;
+  width: 100%;
+  animation: pfCardIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pf-edit-actions {
+  display: flex; gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+@media (min-width: 640px) {
+  .pf-edit-actions { justify-content: flex-start; }
+}
+
+/* ─── Inputs ─── */
+.pf-input {
+  width: 100%;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 13px 16px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color-scheme: dark;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.pf-input::placeholder { color: var(--pf-dim); font-weight: 500; }
+.pf-input:focus {
+  outline: none;
+  border-color: var(--pf-lime);
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.15);
+}
+
+.pf-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--pf-dim);
+  margin-bottom: 8px;
+}
+
+/* ─── Stat grid ─── */
+.pf-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.pf-stat {
+  background: var(--pf-card);
+  border: 1px solid var(--pf-border);
+  border-radius: 20px;
+  padding: 20px;
+  transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+  animation: pfCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.pf-stat:nth-child(1) { animation-delay: 0.08s; }
+.pf-stat:nth-child(2) { animation-delay: 0.16s; }
+.pf-stat:nth-child(3) { animation-delay: 0.24s; }
+.pf-stat:hover {
+  transform: translateY(-3px);
+  border-color: rgba(163, 230, 53, 0.4);
+  box-shadow: 0 16px 30px -12px rgba(0,0,0,0.9), 0 0 24px rgba(163,230,53,0.12);
+}
+.pf-stat-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--pf-dim);
+}
+.pf-stat-value {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-top: 10px;
+}
+.pf-stat-value.accent { color: var(--pf-lime); }
+
+/* ─── Panel / section ─── */
+.pf-panel {
+  background: var(--pf-card);
+  border: 1px solid var(--pf-border);
+  border-radius: 24px;
+  padding: 26px;
+  margin-bottom: 16px;
+  animation: pfCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.pf-panel-head {
+  display: flex; align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.pf-panel-title {
+  font-size: 1.15rem; font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+}
+.pf-panel-sub {
+  font-size: 0.82rem;
+  color: var(--pf-muted);
+  margin: 0;
+}
+.pf-toggle-pass {
+  background: transparent;
+  border: 1px solid var(--pf-border-strong);
+  color: var(--pf-muted);
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.pf-toggle-pass:hover {
+  color: var(--pf-lime);
+  border-color: var(--pf-lime);
+  background: var(--pf-lime-subtle);
+}
+
+/* ─── Alerts ─── */
+.pf-alert {
+  padding: 12px 16px;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+.pf-alert-error {
+  background: var(--pf-red-subtle);
+  border: 1px solid var(--pf-red-border);
+  color: #fecaca;
+}
+.pf-alert-success {
+  background: var(--pf-lime-subtle);
+  border: 1px solid rgba(163, 230, 53, 0.4);
+  color: var(--pf-lime);
+}
+
+/* ─── Password form ─── */
+.pf-form {
+  display: flex; flex-direction: column; gap: 16px;
+}
+.pf-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 640px) {
+  .pf-form-grid { grid-template-columns: 1fr; }
+}
+.pf-form-actions {
+  display: flex; justify-content: flex-end;
+  padding-top: 6px;
+}
+
+/* ─── Buttons ─── */
+.pf-btn {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 12px 22px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+.pf-btn-primary {
+  background: linear-gradient(135deg, var(--pf-lime), var(--pf-lime-bright));
+  color: #000;
+  box-shadow: 0 8px 24px -6px rgba(163, 230, 53, 0.5);
+}
+.pf-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -6px rgba(163, 230, 53, 0.7);
+}
+.pf-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+.pf-btn-ghost {
+  background: transparent;
+  color: var(--pf-muted);
+  border: 1px solid var(--pf-border-strong);
+}
+.pf-btn-ghost:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Logout panel ─── */
+.pf-danger-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.pf-danger-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 4px;
+}
+.pf-danger-sub {
+  font-size: 0.82rem;
+  color: var(--pf-muted);
+  margin: 0;
+}
+.pf-btn-danger {
+  background: transparent;
+  color: var(--pf-red);
+  border: 1.5px solid var(--pf-red-border);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.pf-btn-danger:hover {
+  background: var(--pf-red-subtle);
+  border-color: var(--pf-red);
+  transform: translateY(-1px);
+}
+
+/* ─── Loading ─── */
+.pf-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--pf-bg);
+}
+.pf-spinner {
+  width: 32px; height: 32px;
+  border: 4px solid var(--pf-lime);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: pfSpin 0.8s linear infinite;
+}
+@keyframes pfSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-orb-1, .pf-orb-2, .pf-pulse, .pf-spinner { animation: none !important; }
+  .pf-hero, .pf-stat, .pf-panel { animation: none !important; }
+}
+```
+
+### frontend/src/pages/Profile.jsx
+
 ```
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
+import "./Profile.css";
 
 const Profile = () => {
   const { logout } = useAuth();
@@ -12195,8 +16698,8 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0d0d0d]">
-        <div className="w-8 h-8 border-4 border-lime border-t-transparent rounded-full animate-spin" />
+      <div className="pf-loading">
+        <div className="pf-spinner" />
       </div>
     );
   }
@@ -12210,193 +16713,165 @@ const Profile = () => {
     .slice(0, 2)
     .toUpperCase();
 
-  const inputClass =
-    "w-full rounded-xl px-4 py-3 transition " +
-    "bg-[#1a1a1a] text-white placeholder-gray-500 " +
-    "border border-white/10 " +
-    "focus:outline-none focus:border-lime " +
-    "focus:ring-2 focus:ring-lime/30";
-
   return (
-    <div className="min-h-screen bg-[#0d0d0d] py-12 px-6">
-      <div className="max-w-4xl mx-auto">
-        {/* HEADER CARD */}
-        <div className="bg-[#141414] border border-white/10 rounded-3xl p-8 animate-fade-in-up">
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            {/* AVATAR */}
-            <div className="w-24 h-24 rounded-full bg-lime flex items-center justify-center text-forest font-extrabold text-3xl flex-shrink-0 shadow-[0_0_30px_-5px_rgba(168,216,74,0.6)]">
-              {initials}
-            </div>
+    <div className="pf-root">
+      <div className="pf-orb-1" />
+      <div className="pf-orb-2" />
 
-            {/* INFO */}
-            <div className="flex-1 text-center md:text-left">
-              {!editingName ? (
-                <>
-                  <div className="flex items-center gap-3 justify-center md:justify-start">
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-white">
-                      {profile.name}
-                    </h1>
-                    <button
-                      onClick={() => {
-                        setEditingName(true);
-                        setNewName(profile.name);
-                        setNameError("");
-                        setNameSuccess("");
-                      }}
-                      className="text-xs text-gray-400 hover:text-lime border border-white/10 rounded-full px-3 py-1 transition"
-                      title="Edit name"
-                    >
-                      âœï¸ Edit
-                    </button>
-                  </div>
-                  <p className="text-gray-400 mt-2">{profile.email}</p>
-                  <p className="text-xs text-gray-500 mt-3">
-                    Joined {formatDate(profile.createdAt)}
-                  </p>
-                </>
-              ) : (
-                <form onSubmit={handleSaveName} className="space-y-3">
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    className={inputClass}
-                    placeholder="Your name"
-                    autoFocus
-                  />
-                  {nameError && (
-                    <p className="text-red-400 text-sm">{nameError}</p>
-                  )}
-                  {nameSuccess && (
-                    <p className="text-lime text-sm">{nameSuccess}</p>
-                  )}
-                  <div className="flex gap-2 justify-center md:justify-start">
-                    <button
-                      type="submit"
-                      disabled={savingName}
-                      className="px-4 py-2 rounded-lg bg-lime text-forest text-sm font-bold hover:bg-lime-dark disabled:opacity-60 btn-press transition"
-                    >
-                      {savingName ? "Saving..." : "Save"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingName(false)}
-                      className="px-4 py-2 rounded-lg border border-white/10 text-gray-300 text-sm font-semibold hover:bg-white/5 transition"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
+      <main className="pf-page">
+        {/* Header */}
+        <header className="pf-header">
+          <div className="pf-tag">
+            <span className="pf-pulse" />
+            Your account
+          </div>
+          <h1 className="pf-title">
+            Your <span>Profile</span>
+          </h1>
+          <p className="pf-subtitle">
+            Manage your account details, change your password, and see your
+            travel stats.
+          </p>
+        </header>
+
+        {/* Hero card */}
+        <div className="pf-hero">
+          <div className="pf-avatar">{initials}</div>
+          <div className="pf-hero-info">
+            {!editingName ? (
+              <>
+                <div className="pf-name-row">
+                  <h2 className="pf-name">{profile.name}</h2>
+                  <button
+                    type="button"
+                    className="pf-edit-btn"
+                    onClick={() => {
+                      setEditingName(true);
+                      setNewName(profile.name);
+                      setNameError("");
+                      setNameSuccess("");
+                    }}
+                  >
+                    ✏️ Edit
+                  </button>
+                </div>
+                <p className="pf-email">{profile.email}</p>
+                <p className="pf-joined">Joined {formatDate(profile.createdAt)}</p>
+              </>
+            ) : (
+              <form onSubmit={handleSaveName} className="pf-edit-form">
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="pf-input"
+                  placeholder="Your name"
+                  autoFocus
+                />
+                {nameError && <p className="pf-alert pf-alert-error">{nameError}</p>}
+                {nameSuccess && (
+                  <p className="pf-alert pf-alert-success">{nameSuccess}</p>
+                )}
+                <div className="pf-edit-actions">
+                  <button
+                    type="submit"
+                    disabled={savingName}
+                    className="pf-btn pf-btn-primary"
+                  >
+                    {savingName ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingName(false)}
+                    className="pf-btn pf-btn-ghost"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="pf-stats">
+          <div className="pf-stat">
+            <div className="pf-stat-label">Trips Planned</div>
+            <div className="pf-stat-value">{stats.trips}</div>
+          </div>
+          <div className="pf-stat">
+            <div className="pf-stat-label">Total Budget</div>
+            <div className="pf-stat-value accent">
+              ₹{stats.totalBudget.toLocaleString()}
+            </div>
+          </div>
+          <div className="pf-stat">
+            <div className="pf-stat-label">Avg Budget / Trip</div>
+            <div className="pf-stat-value">
+              ₹{stats.avgBudget.toLocaleString()}
             </div>
           </div>
         </div>
 
-        {/* STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-5 animate-fade-in-up delay-100">
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-              Trips Planned
-            </p>
-            <p className="text-3xl font-extrabold text-white mt-2">
-              {stats.trips}
-            </p>
-          </div>
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-5 animate-fade-in-up delay-200">
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-              Total Budget
-            </p>
-            <p className="text-3xl font-extrabold text-lime mt-2">
-              â‚¹{stats.totalBudget.toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-5 animate-fade-in-up delay-300">
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-bold">
-              Avg Budget / Trip
-            </p>
-            <p className="text-3xl font-extrabold text-white mt-2">
-              â‚¹{stats.avgBudget.toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        {/* CHANGE PASSWORD */}
-        <div className="bg-[#141414] border border-white/10 rounded-3xl p-8 mt-6 animate-fade-in-up delay-300">
-          <div className="flex items-center justify-between mb-6">
+        {/* Change password */}
+        <div className="pf-panel">
+          <div className="pf-panel-head">
             <div>
-              <h2 className="text-xl font-extrabold text-white">
-                ðŸ”’ Change Password
-              </h2>
-              <p className="text-sm text-gray-400 mt-1">
-                Update your account password
-              </p>
+              <h2 className="pf-panel-title">🔒 Change Password</h2>
+              <p className="pf-panel-sub">Update your account password</p>
             </div>
             <button
               type="button"
-              onClick={() => setShowPasswords(!showPasswords)}
-              className="text-xs text-gray-400 hover:text-lime transition"
+              className="pf-toggle-pass"
+              onClick={() => setShowPasswords((v) => !v)}
             >
               {showPasswords ? "Hide" : "Show"} passwords
             </button>
           </div>
 
-          {pwdError && (
-            <p className="bg-red-500/10 border border-red-500/30 text-red-300 p-3 rounded-xl mb-4 text-sm">
-              {pwdError}
-            </p>
-          )}
-          {pwdSuccess && (
-            <p className="bg-lime/10 border border-lime/30 text-lime p-3 rounded-xl mb-4 text-sm">
-              {pwdSuccess}
-            </p>
-          )}
+          {pwdError && <p className="pf-alert pf-alert-error">{pwdError}</p>}
+          {pwdSuccess && <p className="pf-alert pf-alert-success">{pwdSuccess}</p>}
 
-          <form onSubmit={handleChangePassword} className="space-y-4">
+          <form onSubmit={handleChangePassword} className="pf-form">
             <div>
-              <label className="block text-sm font-semibold text-white mb-2">
-                Current password
-              </label>
+              <label className="pf-label">Current password</label>
               <input
                 type={showPasswords ? "text" : "password"}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className={inputClass}
+                className="pf-input"
                 placeholder="Enter current password"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="pf-form-grid">
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
-                  New password
-                </label>
+                <label className="pf-label">New password</label>
                 <input
                   type={showPasswords ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className={inputClass}
+                  className="pf-input"
                   placeholder="Min 6 characters"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-white mb-2">
-                  Confirm new password
-                </label>
+                <label className="pf-label">Confirm new password</label>
                 <input
                   type={showPasswords ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={inputClass}
+                  className="pf-input"
                   placeholder="Repeat new password"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="pf-form-actions">
               <button
                 type="submit"
                 disabled={savingPassword}
-                className="px-6 py-3 rounded-lg bg-lime text-forest font-bold hover:bg-lime-dark disabled:opacity-60 btn-press transition"
+                className="pf-btn pf-btn-primary"
               >
                 {savingPassword ? "Updating..." : "Update Password"}
               </button>
@@ -12404,22 +16879,25 @@ const Profile = () => {
           </form>
         </div>
 
-        {/* LOGOUT */}
-        <div className="bg-[#141414] border border-white/10 rounded-3xl p-6 mt-6 flex flex-wrap justify-between items-center gap-4 animate-fade-in-up delay-300">
-          <div>
-            <h3 className="font-bold text-white">Sign out of this device</h3>
-            <p className="text-sm text-gray-400 mt-1">
-              You'll need to log in again to access your trips.
-            </p>
+        {/* Logout */}
+        <div className="pf-panel">
+          <div className="pf-danger-panel">
+            <div>
+              <h3 className="pf-danger-title">Sign out of this device</h3>
+              <p className="pf-danger-sub">
+                You'll need to log in again to access your trips.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="pf-btn-danger"
+            >
+              Logout
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-5 py-2.5 rounded-full border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 transition"
-          >
-            Logout
-          </button>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
@@ -12427,476 +16905,485 @@ const Profile = () => {
 export default Profile;
 ```
 
-### FILE: frontend\src\pages\Register.css
-```
-/* frontend/src/pages/Register.css */
+### frontend/src/pages/SharedTrip.css
 
-.rg-root {
-  --rg-bg: #050505;
-  --rg-card: rgba(17, 17, 17, 0.9);
-  --rg-muted: #888888;
-  --rg-dim: #52525b;
-  --rg-lime: #a3e635;
-  --rg-lime-bright: #bef264;
-  --rg-lime-glow: rgba(163, 230, 53, 0.4);
-  --rg-lime-subtle: rgba(163, 230, 53, 0.12);
-  background: var(--rg-bg);
+```
+/* frontend/src/pages/SharedTrip.css */
+
+.shr-root {
+  --shr-bg: #050505;
+  --shr-card: #111111;
+  --shr-card-hover: #181818;
+  --shr-border: rgba(255, 255, 255, 0.1);
+  --shr-muted: #888888;
+  --shr-dim: #52525b;
+  --shr-lime: #a3e635;
+  --shr-lime-bright: #bef264;
+  --shr-lime-glow: rgba(163, 230, 53, 0.4);
+  --shr-lime-subtle: rgba(163, 230, 53, 0.12);
+  background: var(--shr-bg);
   color: #fff;
   min-height: 100vh;
   font-family: 'Poppins', system-ui, sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
+  padding-bottom: 80px;
 }
-
-.rg-orb-1, .rg-orb-2, .rg-orb-3 {
+.shr-orb-1, .shr-orb-2 {
   position: fixed;
   filter: blur(90px);
   pointer-events: none;
   z-index: 0;
 }
-.rg-orb-1 {
-  top: -140px; left: 10%;
-  width: 520px; height: 520px;
-  background: radial-gradient(circle, var(--rg-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
-  animation: rgFloat 11s ease-in-out infinite alternate;
+.shr-orb-1 {
+  top: -120px; left: 8%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, var(--shr-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
+  animation: shrFloat 10s ease-in-out infinite alternate;
 }
-.rg-orb-2 {
-  bottom: -160px; right: 8%;
-  width: 480px; height: 480px;
-  background: radial-gradient(circle, rgba(163,230,53,0.22) 0%, transparent 70%);
-  animation: rgFloat 14s ease-in-out infinite alternate-reverse;
+.shr-orb-2 {
+  bottom: -120px; right: 8%;
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(96,165,250,0.16) 0%, transparent 70%);
+  animation: shrFloat 13s ease-in-out infinite alternate-reverse;
 }
-.rg-orb-3 {
-  top: 40%; left: 45%;
-  width: 380px; height: 380px;
-  background: radial-gradient(circle, rgba(163,230,53,0.12) 0%, transparent 70%);
-  animation: rgFloat 17s ease-in-out infinite alternate;
-}
-@keyframes rgFloat {
+@keyframes shrFloat {
   0%   { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(50px, 40px) scale(1.2); }
+  100% { transform: translate(40px, 40px) scale(1.15); }
 }
 
-.rg-grid-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(163, 230, 53, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(163, 230, 53, 0.04) 1px, transparent 1px);
-  background-size: 60px 60px;
-  mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
-}
-
-.rg-card {
+.shr-page {
   position: relative;
   z-index: 10;
-  width: 100%;
-  max-width: 440px;
-  background: var(--rg-card);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 28px;
-  padding: 44px 40px 40px;
-  box-shadow:
-    0 30px 80px -30px rgba(0, 0, 0, 0.9),
-    0 0 40px -12px rgba(163, 230, 53, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  animation: rgCardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes rgCardIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 0;
 }
 
-/* â”€â”€â”€ Brand â”€â”€â”€ */
-.rg-brand {
+.shr-banner {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.shr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--shr-lime-subtle);
+  border: 1px solid rgba(163, 230, 53, 0.35);
+  color: var(--shr-lime);
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.shr-badge-icon { font-size: 1rem; }
+.shr-banner-link {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--shr-lime);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.shr-banner-link:hover { color: var(--shr-lime-bright); }
+
+.shr-hero {
+  width: 100%;
+  aspect-ratio: 21 / 9;
+  border-radius: 28px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--shr-border);
+  margin-bottom: 32px;
+}
+.shr-hero img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.shr-dest {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  color: #fff;
+  margin: 0 0 20px;
+}
+
+.shr-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 40px;
+}
+.shr-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: var(--shr-card);
+  border: 1px solid var(--shr-border);
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  transition: border-color 0.2s;
+}
+.shr-pill:hover { border-color: rgba(163, 230, 53, 0.4); }
+.shr-pill-icon {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--shr-lime);
+  color: #000;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 28px;
+  font-size: 0.7rem;
+  flex-shrink: 0;
 }
-.rg-brand-text {
-  font-size: 1.15rem;
+
+.shr-interests {
+  margin-bottom: 40px;
+}
+.shr-interests-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--shr-dim);
+  margin-bottom: 12px;
+}
+.shr-interests-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.shr-interest {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  color: #d4d4d8;
+}
+
+.shr-section { margin-top: 56px; }
+.shr-section-title {
+  font-size: 1.5rem;
   font-weight: 900;
   letter-spacing: -0.02em;
   color: #fff;
+  margin: 0 0 24px;
 }
-.rg-brand-text .rg-brand-accent {
-  color: var(--rg-lime);
-}
+.shr-section-title span { color: var(--shr-lime); }
 
-/* â”€â”€â”€ Titles â”€â”€â”€ */
-.rg-title {
-  font-size: 2rem;
-  font-weight: 900;
-  text-align: center;
-  letter-spacing: -0.03em;
-  color: #fff;
-  line-height: 1.1;
-  margin-bottom: 10px;
+/* Hotels */
+.shr-hotels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
 }
-.rg-title span {
-  color: var(--rg-lime);
-  text-shadow: 0 0 30px var(--rg-lime-glow);
+.shr-hotel {
+  background: var(--shr-card);
+  border: 1px solid var(--shr-border);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), border-color 0.25s, box-shadow 0.25s;
+  animation: shrCardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.rg-subtitle {
-  text-align: center;
-  font-size: 0.9rem;
-  color: var(--rg-muted);
-  margin-bottom: 32px;
-  line-height: 1.5;
+.shr-hotel:hover {
+  transform: translateY(-4px);
+  border-color: rgba(163, 230, 53, 0.45);
+  box-shadow: 0 16px 30px -12px rgba(0,0,0,0.9), 0 0 24px rgba(163,230,53,0.16);
 }
-
-.rg-error {
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  color: #fecaca;
-  padding: 12px 16px;
-  border-radius: 14px;
-  margin-bottom: 20px;
-  font-size: 0.85rem;
-  text-align: center;
-}
-
-/* â”€â”€â”€ Form â”€â”€â”€ */
-.rg-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.rg-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.rg-label {
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--rg-dim);
-  padding-left: 4px;
-}
-
-.rg-input {
-  width: 100%;
+.shr-hotel-img {
+  aspect-ratio: 4 / 3;
   background: #000;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: 14px 16px;
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color-scheme: dark;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  overflow: hidden;
 }
-.rg-input::placeholder { color: var(--rg-dim); font-weight: 500; }
-.rg-input:focus {
-  outline: none;
-  border-color: var(--rg-lime);
-  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.15);
-}
-
-.rg-pw-toggle {
-  align-self: flex-end;
-  margin-top: -4px;
-  background: transparent;
-  border: none;
-  color: var(--rg-dim);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 4px 6px;
-  transition: color 0.2s;
-}
-.rg-pw-toggle:hover { color: var(--rg-lime); }
-
-/* â”€â”€â”€ Submit â”€â”€â”€ */
-.rg-submit {
-  margin-top: 8px;
-  background: linear-gradient(135deg, var(--rg-lime), var(--rg-lime-bright));
-  color: #000;
-  border: none;
-  padding: 15px 24px;
-  border-radius: 14px;
-  font-family: inherit;
-  font-size: 0.92rem;
+.shr-hotel-img img { width: 100%; height: 100%; object-fit: cover; }
+.shr-hotel-body { padding: 16px 18px; }
+.shr-hotel-name {
+  font-size: 0.95rem;
   font-weight: 900;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  box-shadow: 0 10px 30px -8px rgba(163, 230, 53, 0.55);
+  color: #fff;
+  line-height: 1.25;
+  margin: 0 0 8px;
+}
+.shr-hotel-row {
+  font-size: 0.78rem;
+  color: var(--shr-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.shr-hotel-price {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: var(--shr-lime);
+  margin-top: 8px;
+}
+.shr-hotel-rating {
+  font-size: 0.75rem;
+  color: var(--shr-muted);
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* Itinerary */
+.shr-day { margin-bottom: 40px; }
+.shr-day-head {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.01em;
+  margin: 0 0 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.shr-day-head .date {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--shr-dim);
+  letter-spacing: 0.06em;
+}
+.shr-activities {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.shr-activity {
+  display: flex;
+  gap: 14px;
+  background: var(--shr-card);
+  border: 1px solid var(--shr-border);
+  border-radius: 18px;
+  padding: 14px;
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), border-color 0.25s, box-shadow 0.25s;
+  animation: shrCardIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.shr-activity:hover {
+  transform: translateY(-3px);
+  border-color: rgba(163, 230, 53, 0.4);
+  box-shadow: 0 14px 28px -14px rgba(0,0,0,0.9), 0 0 20px rgba(163,230,53,0.12);
+}
+.shr-activity-img {
+  width: 88px; height: 88px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  flex-shrink: 0;
+}
+.shr-activity-img img { width: 100%; height: 100%; object-fit: cover; }
+.shr-activity-body { flex: 1; min-width: 0; }
+.shr-activity-time {
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: var(--shr-lime);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+.shr-activity-title {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.25;
+  margin: 0 0 6px;
+}
+.shr-activity-desc {
+  font-size: 0.78rem;
+  color: var(--shr-muted);
+  line-height: 1.5;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.shr-activity-loc {
+  font-size: 0.72rem;
+  color: var(--shr-dim);
+  margin-bottom: 4px;
+}
+.shr-activity-cost {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--shr-lime);
+}
+
+/* Budget */
+.shr-budget {
+  background: var(--shr-card);
+  border: 1px solid var(--shr-border);
+  border-radius: 22px;
+  padding: 26px;
+  max-width: 480px;
+}
+.shr-budget-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.9rem;
+}
+.shr-budget-row:last-of-type { border-bottom: none; }
+.shr-budget-row .label { color: var(--shr-muted); font-weight: 600; }
+.shr-budget-row .val { color: #fff; font-weight: 800; }
+.shr-budget-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 16px;
+  margin-top: 12px;
+  border-top: 2px solid var(--shr-lime);
+}
+.shr-budget-total .label {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+.shr-budget-total .val {
+  color: var(--shr-lime);
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+/* Map */
+.shr-map-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+/* CTA */
+.shr-cta {
+  margin-top: 64px;
+  background: linear-gradient(135deg, rgba(163,230,53,0.12), rgba(163,230,53,0.02));
+  border: 2px solid rgba(163, 230, 53, 0.35);
+  border-radius: 28px;
+  padding: 40px 32px;
+  text-align: center;
+}
+.shr-cta-title {
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin: 0 0 10px;
+}
+.shr-cta-sub {
+  font-size: 0.95rem;
+  color: var(--shr-muted);
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
+.shr-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--shr-lime), var(--shr-lime-bright));
+  color: #000;
+  padding: 14px 28px;
+  border-radius: 9999px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 10px 26px -8px rgba(163, 230, 53, 0.6);
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.shr-cta-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px -8px rgba(163, 230, 53, 0.8);
+}
+
+/* Error */
+.shr-error {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-}
-.rg-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 36px -8px rgba(163, 230, 53, 0.75);
-}
-.rg-submit:active:not(:disabled) {
-  transform: translateY(0);
-}
-.rg-submit:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.rg-spinner {
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  border: 2px solid rgba(0,0,0,0.25);
-  border-top-color: #000;
-  animation: rgSpin 0.7s linear infinite;
-}
-@keyframes rgSpin { to { transform: rotate(360deg); } }
-
-/* â”€â”€â”€ Footer â”€â”€â”€ */
-.rg-footer {
+  min-height: 100vh;
+  padding: 24px;
   text-align: center;
-  font-size: 0.86rem;
-  color: var(--rg-muted);
-  margin-top: 24px;
 }
-.rg-footer a {
-  color: var(--rg-lime);
-  font-weight: 800;
-  text-decoration: none;
-  transition: color 0.2s, text-shadow 0.2s;
+.shr-error-inner { max-width: 440px; }
+.shr-error-icon { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.6; }
+.shr-error-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
 }
-.rg-footer a:hover {
-  color: var(--rg-lime-bright);
-  text-shadow: 0 0 12px var(--rg-lime-glow);
+.shr-error-text {
+  font-size: 0.9rem;
+  color: var(--shr-muted);
+  line-height: 1.6;
+  margin: 0 0 28px;
 }
 
-.rg-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 24px 0 8px;
-  color: var(--rg-dim);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-}
-.rg-divider::before,
-.rg-divider::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+@keyframes shrCardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rg-orb-1, .rg-orb-2, .rg-orb-3, .rg-spinner { animation: none !important; }
-  .rg-card { animation: none !important; }
-}
-
-@media (max-width: 480px) {
-  .rg-card { padding: 36px 24px 28px; border-radius: 22px; }
-  .rg-title { font-size: 1.65rem; }
-  .rg-brand-text { font-size: 1rem; }
+  .shr-orb-1, .shr-orb-2, .shr-hotel, .shr-activity { animation: none !important; }
 }
 ```
 
-### FILE: frontend\src\pages\Register.jsx
-```
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import "./Register.css";
+### frontend/src/pages/SharedTrip.jsx
 
-const Register = () => {
-  const { register } = useAuth();
-  const navigate = useNavigate();
-
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await register(form.name, form.email, form.password);
-      navigate("/dashboard");
-    } catch (err) {
-      setError(err.response?.data?.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="rg-root">
-      <div className="rg-orb-1" />
-      <div className="rg-orb-2" />
-      <div className="rg-orb-3" />
-      <div className="rg-grid-bg" />
-
-      <div className="rg-card">
-        {/* Brand */}
-        <div className="rg-brand">
-          <div className="rg-brand-text">
-            AI Travel <span className="rg-brand-accent">Planner</span>
-          </div>
-        </div>
-
-        <h1 className="rg-title">
-          Create <span>account</span>
-        </h1>
-        <p className="rg-subtitle">Start planning your trips with AI</p>
-
-        {error && <p className="rg-error">{error}</p>}
-
-        <form onSubmit={handleSubmit} className="rg-form">
-          {/* Name */}
-          <div className="rg-field">
-            <label className="rg-label" htmlFor="name">
-              Full name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              autoComplete="name"
-              placeholder="Jane Doe"
-              value={form.name}
-              onChange={handleChange}
-              className="rg-input"
-              required
-            />
-          </div>
-
-          {/* Email */}
-          <div className="rg-field">
-            <label className="rg-label" htmlFor="email">
-              Email address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={form.email}
-              onChange={handleChange}
-              className="rg-input"
-              required
-            />
-          </div>
-
-          {/* Password */}
-          <div className="rg-field">
-            <label className="rg-label" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="new-password"
-              placeholder="At least 6 characters"
-              value={form.password}
-              onChange={handleChange}
-              className="rg-input"
-              minLength={6}
-              required
-            />
-            <button
-              type="button"
-              className="rg-pw-toggle"
-              onClick={() => setShowPassword((v) => !v)}
-              tabIndex={-1}
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
-          </div>
-
-          <button type="submit" disabled={loading} className="rg-submit">
-            {loading ? (
-              <>
-                <span className="rg-spinner" />
-                Creating accountâ€¦
-              </>
-            ) : (
-              <>Create Account â†’</>
-            )}
-          </button>
-        </form>
-
-        <div className="rg-divider">or</div>
-
-        <p className="rg-footer">
-          Already have an account? <Link to="/login">Sign in</Link>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-export default Register;
-```
-
-### FILE: frontend\src\pages\SharedTrip.jsx
 ```
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api/axios";
 import Skeleton from "../components/Skeleton";
 import TripMap from "../components/TripMap";
+import "./SharedTrip.css";
 
-const Pill = ({ icon, children }) => (
-  <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-ink">
-    <span className="w-5 h-5 rounded-full bg-lime flex items-center justify-center text-xs">
-      {icon}
-    </span>
-    {children}
-  </span>
-);
+const parsePrice = (price) => {
+  if (typeof price === "number") return price;
+  if (!price) return null;
+  const match = String(price).replace(/,/g, "").match(/\d+/);
+  return match ? Number(match[0]) : null;
+};
+
+const formatINR = (value) => {
+  const n = Number(value) || 0;
+  return `₹${n.toLocaleString("en-IN")}`;
+};
 
 const SharedTripSkeleton = () => (
-  <div className="min-h-screen bg-white pb-20">
-    <div className="max-w-6xl mx-auto px-6 pt-8">
+  <div className="shr-root">
+    <div className="shr-orb-1" />
+    <div className="shr-orb-2" />
+    <div className="shr-page">
       <Skeleton variant="rectangular" width={280} height={40} rounded="9999px" />
       <div style={{ marginTop: 16 }}>
         <Skeleton
           variant="rectangular"
           width="100%"
           style={{ aspectRatio: "21 / 9" }}
-          rounded="24px"
+          rounded="28px"
         />
       </div>
       <div style={{ marginTop: 32 }}>
         <Skeleton variant="rectangular" width="55%" height={48} rounded="12px" />
       </div>
-      <div className="flex flex-wrap gap-3 mt-5">
+      <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
         <Skeleton variant="rectangular" width={110} height={40} rounded="9999px" />
         <Skeleton variant="rectangular" width={140} height={40} rounded="9999px" />
       </div>
@@ -12929,12 +17416,10 @@ const SharedTrip = () => {
     fetchTrip();
   }, [shareId]);
 
-  // Fire-and-forget image + weather fetch (won't fail the page)
   useEffect(() => {
     if (!trip) return;
     const dest = trip.destination;
 
-    // Destination cover image from Pexels via public fallback
     fetch(
       `https://api.pexels.com/v1/search?query=${encodeURIComponent(
         dest + " travel"
@@ -12952,7 +17437,6 @@ const SharedTrip = () => {
       })
       .catch(() => {});
 
-    // Weather via Nominatim + Open-Meteo
     fetch(
       `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
         dest
@@ -12977,32 +17461,32 @@ const SharedTrip = () => {
   }, [trip]);
 
   if (loading) return <SharedTripSkeleton />;
+
   if (error) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-6">
-        <div className="text-center max-w-md">
-          <p className="text-6xl mb-4">ðŸ”</p>
-          <h1 className="text-2xl font-extrabold text-ink mb-2">
-            Trip not found
-          </h1>
-          <p className="text-gray-500 mb-8">{error}</p>
-          <Link
-            to="/"
-            className="inline-block px-6 py-3 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark transition"
-          >
-            Go to Home
-          </Link>
+      <div className="shr-root">
+        <div className="shr-orb-1" />
+        <div className="shr-orb-2" />
+        <div className="shr-error">
+          <div className="shr-error-inner">
+            <div className="shr-error-icon">🔍</div>
+            <h1 className="shr-error-title">Trip not found</h1>
+            <p className="shr-error-text">{error}</p>
+            <Link to="/" className="shr-cta-btn">
+              Go to Home
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
+
   if (!trip) return null;
 
   const days = Math.max(
     1,
     Math.round(
-      (new Date(trip.endDate) - new Date(trip.startDate)) /
-        (1000 * 60 * 60 * 24)
+      (new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)
     )
   );
   const budgetLabel =
@@ -13013,30 +17497,25 @@ const SharedTrip = () => {
     `https://picsum.photos/seed/${encodeURIComponent(trip.destination)}/1600/700`;
 
   return (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="max-w-6xl mx-auto px-6 pt-8">
-        {/* Top banner */}
-        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
-          <div className="inline-flex items-center gap-2 bg-lime-light border border-lime/30 rounded-full px-4 py-2">
-            <span className="text-lg">ðŸ”—</span>
-            <span className="text-sm font-bold text-forest">
-              Shared trip Â· by {trip.sharedBy}
-            </span>
+    <div className="shr-root">
+      <div className="shr-orb-1" />
+      <div className="shr-orb-2" />
+
+      <main className="shr-page">
+        <div className="shr-banner">
+          <div className="shr-badge">
+            <span className="shr-badge-icon">🔗</span>
+            Shared trip · by {trip.sharedBy}
           </div>
-          <Link
-            to="/register"
-            className="text-sm font-bold text-forest hover:text-lime-dark transition"
-          >
-            Plan your own trip â†’
+          <Link to="/register" className="shr-banner-link">
+            Plan your own trip →
           </Link>
         </div>
 
-        {/* Hero */}
-        <div className="rounded-3xl overflow-hidden aspect-[21/9] bg-gray-100">
+        <div className="shr-hero">
           <img
             src={heroImg}
             alt={trip.destination}
-            className="w-full h-full object-cover"
             onError={(e) => {
               e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
                 trip.destination
@@ -13045,33 +17524,29 @@ const SharedTrip = () => {
           />
         </div>
 
-        <div className="mt-8">
-          <h1 className="text-3xl md:text-5xl font-extrabold text-ink">
-            {trip.destination}
-          </h1>
-        </div>
+        <h1 className="shr-dest">{trip.destination}</h1>
 
-        <div className="flex flex-wrap gap-3 mt-5">
-          <Pill icon="ðŸ“…">
+        <div className="shr-pills">
+          <span className="shr-pill">
+            <span className="shr-pill-icon">📅</span>
             {days} Day{days > 1 ? "s" : ""}
-          </Pill>
-          <Pill icon="ðŸ’°">{budgetLabel} Budget</Pill>
-          <Pill icon="ðŸ‘¥">{trip.travellers} Traveller
-            {trip.travellers > 1 ? "s" : ""}</Pill>
+          </span>
+          <span className="shr-pill">
+            <span className="shr-pill-icon">💰</span>
+            {budgetLabel} Budget
+          </span>
+          <span className="shr-pill">
+            <span className="shr-pill-icon">👥</span>
+            {trip.travellers} Traveller{trip.travellers > 1 ? "s" : ""}
+          </span>
         </div>
 
-        {/* INTERESTS */}
         {trip.interests?.length > 0 && (
-          <div className="mt-6">
-            <p className="text-xs uppercase font-bold text-gray-500 mb-2 tracking-widest">
-              Interests
-            </p>
-            <div className="flex flex-wrap gap-2">
+          <div className="shr-interests">
+            <div className="shr-interests-label">Interests</div>
+            <div className="shr-interests-list">
               {trip.interests.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-xs bg-gray-100 text-ink px-3 py-1 rounded-full"
-                >
+                <span key={tag} className="shr-interest">
                   {tag}
                 </span>
               ))}
@@ -13079,38 +17554,30 @@ const SharedTrip = () => {
           </div>
         )}
 
-        {/* HOTELS */}
         {trip.hotels?.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Hotel Recommendation
+          <section className="shr-section">
+            <h2 className="shr-section-title">
+              Hotel <span>Recommendation</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="shr-hotels">
               {trip.hotels.map((h, i) => {
                 const imgUrl =
                   h.image ||
-                  `https://picsum.photos/seed/${encodeURIComponent(
-                    h.name
-                  )}/400/300`;
+                  `https://picsum.photos/seed/${encodeURIComponent(h.name)}/400/300`;
+                const priceNum = parsePrice(h.price);
                 return (
-                  <div key={i}>
-                    <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-gray-100">
-                      <img
-                        src={imgUrl}
-                        alt={h.name}
-                        className="w-full h-full object-cover"
-                      />
+                  <div key={i} className="shr-hotel">
+                    <div className="shr-hotel-img">
+                      <img src={imgUrl} alt={h.name} />
                     </div>
-                    <h3 className="mt-3 font-bold text-ink text-sm leading-tight">
-                      {h.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-2">ðŸ“ {h.address}</p>
-                    <p className="text-sm font-bold text-ink mt-2">
-                      ðŸ’° {h.price}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      â­ {h.rating} stars
-                    </p>
+                    <div className="shr-hotel-body">
+                      <h3 className="shr-hotel-name">{h.name}</h3>
+                      <div className="shr-hotel-row">📍 {h.address}</div>
+                      <div className="shr-hotel-price">
+                        💰 {priceNum !== null ? `${formatINR(priceNum)}/night` : h.price}
+                      </div>
+                      <div className="shr-hotel-rating">⭐ {h.rating} stars</div>
+                    </div>
                   </div>
                 );
               })}
@@ -13118,51 +17585,33 @@ const SharedTrip = () => {
           </section>
         )}
 
-        {/* ITINERARY */}
         {trip.itinerary?.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-8">
-              Day-by-Day Itinerary
+          <section className="shr-section">
+            <h2 className="shr-section-title">
+              Day-by-Day <span>Itinerary</span>
             </h2>
             {trip.itinerary.map((day) => (
-              <div key={day.day} className="mb-10">
-                <h3 className="text-xl font-extrabold text-ink mb-5">
-                  Day {day.day}{" "}
-                  <span className="text-sm text-gray-400 font-normal">
-                    {day.date}
-                  </span>
+              <div key={day.day} className="shr-day">
+                <h3 className="shr-day-head">
+                  Day {day.day} <span className="date">{day.date}</span>
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="shr-activities">
                   {day.activities.map((act, idx) => {
                     const imgUrl =
                       act.image ||
-                      `https://picsum.photos/seed/${encodeURIComponent(
-                        act.title
-                      )}/200/200`;
+                      `https://picsum.photos/seed/${encodeURIComponent(act.title)}/200/200`;
                     return (
-                      <div key={idx} className="flex flex-col">
-                        <p className="text-red-600 text-sm font-bold mb-2">
-                          {act.time}
-                        </p>
-                        <div className="flex gap-4 p-4 border border-gray-100 rounded-2xl bg-white">
-                          <img
-                            src={imgUrl}
-                            alt={act.title}
-                            className="w-24 h-24 md:w-28 md:h-28 rounded-xl object-cover flex-shrink-0"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-extrabold text-ink text-base leading-tight">
-                              {act.title}
-                            </h4>
-                            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">
-                              {act.description}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-2">
-                              ðŸ“ {act.location}
-                            </p>
-                            <p className="text-xs font-bold text-ink mt-1">
-                              â‚¹ {act.cost} per person
-                            </p>
+                      <div key={idx} className="shr-activity">
+                        <div className="shr-activity-img">
+                          <img src={imgUrl} alt={act.title} />
+                        </div>
+                        <div className="shr-activity-body">
+                          <div className="shr-activity-time">{act.time}</div>
+                          <h4 className="shr-activity-title">{act.title}</h4>
+                          <p className="shr-activity-desc">{act.description}</p>
+                          <div className="shr-activity-loc">📍 {act.location}</div>
+                          <div className="shr-activity-cost">
+                            {formatINR(act.cost)} per person
                           </div>
                         </div>
                       </div>
@@ -13174,52 +17623,45 @@ const SharedTrip = () => {
           </section>
         )}
 
-        {/* BUDGET BREAKDOWN */}
         {trip.budgetBreakdown?.total > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Budget Breakdown
+          <section className="shr-section">
+            <h2 className="shr-section-title">
+              Budget <span>Breakdown</span>
             </h2>
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md">
+            <div className="shr-budget">
               {[
-                { label: "âœˆï¸ Flights", value: trip.budgetBreakdown.flights },
-                { label: "ðŸ¨ Hotels", value: trip.budgetBreakdown.hotels },
-                { label: "ðŸ½ Food", value: trip.budgetBreakdown.food },
-                { label: "ðŸŽŸ Activities", value: trip.budgetBreakdown.activities },
+                { label: "✈️ Flights", value: trip.budgetBreakdown.flights },
+                { label: "🏨 Hotels", value: trip.budgetBreakdown.hotels },
+                { label: "🍽 Food", value: trip.budgetBreakdown.food },
+                { label: "🎟 Activities", value: trip.budgetBreakdown.activities },
               ].map((item, i) => (
-                <div
-                  key={i}
-                  className="flex justify-between py-2 border-b border-gray-100 last:border-b-0"
-                >
-                  <span className="text-sm text-gray-600">{item.label}</span>
-                  <span className="text-sm font-bold text-ink">
-                    â‚¹{item.value}
-                  </span>
+                <div key={i} className="shr-budget-row">
+                  <span className="label">{item.label}</span>
+                  <span className="val">{formatINR(item.value)}</span>
                 </div>
               ))}
-              <div className="flex justify-between pt-3 mt-2 border-t-2 border-ink">
-                <span className="font-extrabold text-ink">Total</span>
-                <span className="font-extrabold text-ink">
-                  â‚¹{trip.budgetBreakdown.total}
-                </span>
+              <div className="shr-budget-total">
+                <span className="label">Total</span>
+                <span className="val">{formatINR(trip.budgetBreakdown.total)}</span>
               </div>
             </div>
           </section>
         )}
 
-        {/* MAP */}
         {weather?.location && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Destination Map
+          <section className="shr-section">
+            <h2 className="shr-section-title">
+              Destination <span>Map</span>
             </h2>
-            <div className="flex flex-wrap gap-3 mb-5">
-              <Pill icon="ðŸŒ¤ï¸">
-                {Math.round(weather.current?.temperature_2m ?? 0)}Â°C
-              </Pill>
-              <Pill icon="ðŸ’¨">
+            <div className="shr-map-pills">
+              <span className="shr-pill">
+                <span className="shr-pill-icon">🌤️</span>
+                {Math.round(weather.current?.temperature_2m ?? 0)}°C
+              </span>
+              <span className="shr-pill">
+                <span className="shr-pill-icon">💨</span>
                 {weather.current?.wind_speed_10m ?? 0} km/h wind
-              </Pill>
+              </span>
             </div>
             <TripMap
               lat={weather.location.lat}
@@ -13229,22 +17671,16 @@ const SharedTrip = () => {
           </section>
         )}
 
-        {/* CTA */}
-        <div className="mt-16 bg-lime-light border-2 border-lime rounded-3xl p-8 text-center">
-          <h3 className="text-2xl font-extrabold text-ink mb-2">
-            Loved this itinerary?
-          </h3>
-          <p className="text-gray-600 mb-6">
+        <div className="shr-cta">
+          <h3 className="shr-cta-title">Loved this itinerary?</h3>
+          <p className="shr-cta-sub">
             Create your own AI-powered trip in under a minute.
           </p>
-          <Link
-            to="/register"
-            className="inline-block px-8 py-3.5 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark transition shadow-[0_6px_20px_-8px_rgba(168,216,74,0.8)]"
-          >
-            âœ¨ Plan Your Own Trip
+          <Link to="/register" className="shr-cta-btn">
+            ✨ Plan Your Own Trip
           </Link>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
@@ -13252,683 +17688,14 @@ const SharedTrip = () => {
 export default SharedTrip;
 ```
 
-### FILE: frontend\src\pages\TripComparison.css
-```
-/* frontend/src/pages/TripComparison.css */
+### frontend/src/pages/TripDetail.css
 
-.cmp-root {
-  --cmp-bg: #050505;
-  --cmp-card: #111111;
-  --cmp-card-hover: #181818;
-  --cmp-border: rgba(255, 255, 255, 0.1);
-  --cmp-muted: #888888;
-  --cmp-dim: #52525b;
-  --cmp-lime: #a3e635;
-  --cmp-lime-bright: #bef264;
-  --cmp-lime-glow: rgba(163, 230, 53, 0.4);
-  --cmp-lime-subtle: rgba(163, 230, 53, 0.12);
-
-  position: relative;
-  background: var(--cmp-bg);
-  color: #fff;
-  min-height: 100vh;
-  font-family: 'Poppins', system-ui, sans-serif;
-  overflow-x: hidden;
-}
-
-.cmp-orb-1, .cmp-orb-2 {
-  position: fixed;
-  filter: blur(90px);
-  pointer-events: none;
-  z-index: 0;
-}
-.cmp-orb-1 {
-  top: -120px; left: 8%;
-  width: 500px; height: 500px;
-  background: radial-gradient(circle, var(--cmp-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
-  animation: cmpFloat 10s ease-in-out infinite alternate;
-}
-.cmp-orb-2 {
-  bottom: -120px; right: 8%;
-  width: 450px; height: 450px;
-  background: radial-gradient(circle, rgba(96,165,250,0.18) 0%, transparent 70%);
-  animation: cmpFloat 13s ease-in-out infinite alternate-reverse;
-}
-@keyframes cmpFloat {
-  0%   { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(40px, 40px) scale(1.15); }
-}
-
-.cmp-page {
-  position: relative;
-  z-index: 10;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 48px 24px 80px;
-}
-
-.cmp-header {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-bottom: 36px;
-}
-.cmp-tag {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 0.7rem; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.12em;
-  color: var(--cmp-lime);
-  background: var(--cmp-lime-subtle);
-  border: 1px solid rgba(163, 230, 53, 0.3);
-  padding: 5px 12px; border-radius: 9999px;
-  width: fit-content;
-}
-.cmp-pulse {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--cmp-lime);
-  box-shadow: 0 0 10px var(--cmp-lime);
-  animation: cmpPulse 1.5s infinite;
-}
-@keyframes cmpPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: 0.4; transform: scale(0.8); }
-}
-.cmp-title {
-  font-size: clamp(1.9rem, 4.2vw, 3rem);
-  font-weight: 900;
-  line-height: 1.05;
-  letter-spacing: -0.035em;
-  color: #fff;
-  margin: 0;
-}
-.cmp-title span {
-  color: var(--cmp-lime);
-  text-shadow: 0 0 30px var(--cmp-lime-glow);
-}
-.cmp-subtitle {
-  font-size: 0.95rem;
-  color: var(--cmp-muted);
-  max-width: 640px;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* â”€â”€â”€ Selection bar â”€â”€â”€ */
-.cmp-select {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 14px;
-  align-items: end;
-  margin-bottom: 32px;
-  padding: 20px;
-  background: var(--cmp-card);
-  border: 1px solid var(--cmp-border);
-  border-radius: 20px;
-}
-@media (max-width: 640px) {
-  .cmp-select {
-    grid-template-columns: 1fr;
-  }
-}
-
-.cmp-select-col {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.cmp-select-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--cmp-dim);
-}
-.cmp-select-input {
-  width: 100%;
-  background: #000;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  padding: 13px 16px;
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color-scheme: dark;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.cmp-select-input:focus {
-  border-color: var(--cmp-lime);
-  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.15);
-}
-
-.cmp-swap {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  border: 1px solid rgba(163, 230, 53, 0.35);
-  background: var(--cmp-lime-subtle);
-  color: var(--cmp-lime);
-  font-size: 1.25rem;
-  font-weight: 900;
-  cursor: pointer;
-  transition: transform 0.25s, background 0.2s, box-shadow 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: end;
-}
-.cmp-swap:hover {
-  background: var(--cmp-lime);
-  color: #000;
-  transform: rotate(180deg);
-  box-shadow: 0 0 20px var(--cmp-lime-glow);
-}
-@media (max-width: 640px) {
-  .cmp-swap {
-    width: 100%;
-    align-self: stretch;
-  }
-}
-
-/* â”€â”€â”€ Trip header cards â”€â”€â”€ */
-.cmp-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 20px;
-}
-@media (max-width: 640px) {
-  .cmp-grid { grid-template-columns: 1fr; }
-}
-
-.cmp-card {
-  background: var(--cmp-card);
-  border: 1px solid var(--cmp-border);
-  border-radius: 20px;
-  padding: 20px;
-  text-align: center;
-  transition: border-color 0.25s, transform 0.25s;
-}
-.cmp-card:hover {
-  border-color: rgba(163, 230, 53, 0.4);
-  transform: translateY(-3px);
-}
-.cmp-card-thumb {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 14px;
-  overflow: hidden;
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 14px;
-}
-.cmp-card-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.cmp-card-emoji {
-  font-size: 3rem;
-}
-.cmp-card-name {
-  font-size: 1.15rem;
-  font-weight: 900;
-  color: #fff;
-  letter-spacing: -0.02em;
-  margin: 0 0 6px;
-}
-.cmp-card-link {
-  color: var(--cmp-lime);
-  font-size: 0.78rem;
-  font-weight: 800;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-.cmp-card-link:hover {
-  color: var(--cmp-lime-bright);
-}
-
-/* â”€â”€â”€ Comparison table â”€â”€â”€ */
-.cmp-table {
-  background: var(--cmp-card);
-  border: 1px solid var(--cmp-border);
-  border-radius: 20px;
-  overflow: hidden;
-  margin-bottom: 24px;
-}
-
-.cmp-row {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  gap: 12px;
-  padding: 16px 22px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  align-items: center;
-}
-.cmp-row:last-child {
-  border-bottom: none;
-}
-.cmp-row-head {
-  background: rgba(163, 230, 53, 0.06);
-  font-weight: 800;
-  padding-top: 18px;
-  padding-bottom: 18px;
-}
-.cmp-row-head .cmp-row-label,
-.cmp-row-head .cmp-row-val {
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.cmp-row-label {
-  color: var(--cmp-muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.cmp-row-val {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 10px;
-  transition: background 0.25s;
-}
-
-.cmp-row-val.win {
-  color: var(--cmp-lime);
-  background: var(--cmp-lime-subtle);
-  box-shadow: inset 0 0 0 1px rgba(163, 230, 53, 0.3);
-}
-
-@media (max-width: 640px) {
-  .cmp-row {
-    grid-template-columns: 1fr;
-    gap: 6px;
-    padding: 14px 18px;
-  }
-  .cmp-row-head {
-    display: none;
-  }
-  .cmp-row-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-  .cmp-row-val {
-    display: flex;
-    justify-content: space-between;
-  }
-}
-
-/* â”€â”€â”€ Summary â”€â”€â”€ */
-.cmp-summary {
-  text-align: center;
-  padding: 18px;
-  font-size: 0.82rem;
-  color: var(--cmp-muted);
-}
-
-/* â”€â”€â”€ Empty state â”€â”€â”€ */
-.cmp-empty {
-  text-align: center;
-  padding: 80px 20px;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.01);
-  margin-top: 40px;
-}
-.cmp-empty-icon {
-  font-size: 3.5rem;
-  margin-bottom: 16px;
-  opacity: 0.6;
-}
-.cmp-empty-title {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #fff;
-  margin-bottom: 10px;
-}
-.cmp-empty-text {
-  font-size: 0.88rem;
-  color: var(--cmp-muted);
-  max-width: 400px;
-  margin: 0 auto 24px;
-  line-height: 1.6;
-}
-.cmp-btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, var(--cmp-lime), var(--cmp-lime-bright));
-  color: #000;
-  padding: 12px 24px;
-  border-radius: 14px;
-  font-size: 0.88rem;
-  font-weight: 800;
-  text-decoration: none;
-  box-shadow: 0 8px 22px -6px rgba(163, 230, 53, 0.55);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.cmp-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 30px -6px rgba(163, 230, 53, 0.75);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cmp-orb-1, .cmp-orb-2, .cmp-pulse { animation: none !important; }
-}
-```
-
-### FILE: frontend\src\pages\TripComparison.jsx
-```
-import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
-import api from "../api/axios";
-import Skeleton from "../components/Skeleton";
-import "./TripComparison.css";
-
-function daysBetween(a, b) {
-  return Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000));
-}
-
-function getStats(trip) {
-  if (!trip) return null;
-  const days = daysBetween(trip.startDate, trip.endDate);
-  const activities = (trip.itinerary || []).reduce(
-    (sum, day) => sum + (day.activities?.length || 0),
-    0
-  );
-  const hotels = (trip.hotels || []).length;
-  const travellers = trip.travellers || 1;
-  const costPerDay = Math.round((trip.budget || 0) / days);
-  const costPerPerson = Math.round((trip.budget || 0) / travellers);
-  const costPerActivity =
-    activities > 0 ? Math.round((trip.budget || 0) / activities) : 0;
-  return {
-    days,
-    activities,
-    hotels,
-    travellers,
-    costPerDay,
-    costPerPerson,
-    costPerActivity,
-  };
-}
-
-const TripComparison = () => {
-  const [trips, setTrips] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tripAId, setTripAId] = useState("");
-  const [tripBId, setTripBId] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await api.get("/trips");
-        if (cancelled) return;
-        const list = res.data || [];
-        setTrips(list);
-        if (list.length >= 1) setTripAId(list[0]._id);
-        if (list.length >= 2) setTripBId(list[1]._id);
-      } catch {
-        if (!cancelled) setTrips([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const tripA = useMemo(
-    () => trips.find((t) => t._id === tripAId) || null,
-    [trips, tripAId]
-  );
-  const tripB = useMemo(
-    () => trips.find((t) => t._id === tripBId) || null,
-    [trips, tripBId]
-  );
-
-  const statsA = useMemo(() => getStats(tripA), [tripA]);
-  const statsB = useMemo(() => getStats(tripB), [tripB]);
-
-  const swap = () => {
-    setTripAId(tripBId);
-    setTripBId(tripAId);
-  };
-
-  if (loading) {
-    return (
-      <div className="cmp-root">
-        <div className="cmp-orb-1" />
-        <div className="cmp-orb-2" />
-        <main className="cmp-page">
-          <Skeleton variant="rectangular" width="100%" height={200} rounded="24px" />
-          <div style={{ marginTop: 24 }}>
-            <Skeleton variant="rectangular" width="100%" height={400} rounded="20px" />
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (trips.length < 2) {
-    return (
-      <div className="cmp-root">
-        <div className="cmp-orb-1" />
-        <div className="cmp-orb-2" />
-        <main className="cmp-page">
-          <div className="cmp-empty">
-            <div className="cmp-empty-icon">âš–ï¸</div>
-            <div className="cmp-empty-title">Not enough trips to compare</div>
-            <p className="cmp-empty-text">
-              You need at least <strong>2 trips</strong> to use comparison.
-              Create another trip to get started.
-            </p>
-            <Link to="/trips/new" className="cmp-btn-primary">
-              âœ¨ Create a trip
-            </Link>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  /* â”€â”€â”€ Row helper â€” key is unique per row â”€â”€â”€ */
-  const compareRow = (label, key, better = "lower", format = (v) => v) => {
-    const a = statsA?.[key];
-    const b = statsB?.[key];
-    let aWins = false;
-    let bWins = false;
-    if (a != null && b != null && a !== b && better !== "neutral") {
-      if (better === "lower") {
-        aWins = a < b;
-        bWins = b < a;
-      } else {
-        aWins = a > b;
-        bWins = b > a;
-      }
-    }
-    return (
-      <div className="cmp-row" key={`row-${key}-${label}`}>
-        <div className="cmp-row-label">{label}</div>
-        <div className={`cmp-row-val ${aWins ? "win" : ""}`}>
-          {a != null ? format(a) : "â€”"}
-        </div>
-        <div className={`cmp-row-val ${bWins ? "win" : ""}`}>
-          {b != null ? format(b) : "â€”"}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="cmp-root">
-      <div className="cmp-orb-1" />
-      <div className="cmp-orb-2" />
-
-      <main className="cmp-page">
-        <header className="cmp-header">
-          <div className="cmp-tag">
-            <span className="cmp-pulse" />
-            Side-by-side
-          </div>
-          <h1 className="cmp-title">
-            Compare your <span>trips</span>
-          </h1>
-          <p className="cmp-subtitle">
-            Pick two trips and see how they stack up on budget, days, cost per
-            person, and activity count. Winning stats are highlighted in lime.
-          </p>
-        </header>
-
-        {/* Selection bar */}
-        <div className="cmp-select">
-          <div className="cmp-select-col">
-            <label className="cmp-select-label">Trip A</label>
-            <select
-              value={tripAId}
-              onChange={(e) => setTripAId(e.target.value)}
-              className="cmp-select-input"
-            >
-              {trips.map((t) => (
-                <option key={`a-${t._id}`} value={t._id}>
-                  {t.destination}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="button"
-            className="cmp-swap"
-            onClick={swap}
-            aria-label="Swap trips"
-          >
-            â‡„
-          </button>
-
-          <div className="cmp-select-col">
-            <label className="cmp-select-label">Trip B</label>
-            <select
-              value={tripBId}
-              onChange={(e) => setTripBId(e.target.value)}
-              className="cmp-select-input"
-            >
-              {trips.map((t) => (
-                <option key={`b-${t._id}`} value={t._id}>
-                  {t.destination}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Trip cards */}
-        <div className="cmp-grid">
-          <div className="cmp-card">
-            <div className="cmp-card-thumb">
-              {tripA.image ? (
-                <img src={tripA.image} alt={tripA.destination} />
-              ) : (
-                <span className="cmp-card-emoji">ðŸŒ</span>
-              )}
-            </div>
-            <h2 className="cmp-card-name">{tripA.destination}</h2>
-            <Link to={`/trips/${tripA._id}`} className="cmp-card-link">
-              View trip â†’
-            </Link>
-          </div>
-
-          <div className="cmp-card">
-            <div className="cmp-card-thumb">
-              {tripB.image ? (
-                <img src={tripB.image} alt={tripB.destination} />
-              ) : (
-                <span className="cmp-card-emoji">ðŸŒ</span>
-              )}
-            </div>
-            <h2 className="cmp-card-name">{tripB.destination}</h2>
-            <Link to={`/trips/${tripB._id}`} className="cmp-card-link">
-              View trip â†’
-            </Link>
-          </div>
-        </div>
-
-        {/* Comparison table â€” 7 unique rows, no duplicates */}
-        <div className="cmp-table">
-          <div className="cmp-row cmp-row-head" key="row-head">
-            <div className="cmp-row-label">Metric</div>
-            <div className="cmp-row-val">{tripA.destination}</div>
-            <div className="cmp-row-val">{tripB.destination}</div>
-          </div>
-
-          {compareRow("Duration", "days", "neutral", (v) => `${v} days`)}
-          {compareRow(
-            "Budget per Day",
-            "costPerDay",
-            "lower",
-            (v) => `â‚¹${v.toLocaleString("en-IN")}`
-          )}
-          {compareRow(
-            "Cost per Person",
-            "costPerPerson",
-            "lower",
-            (v) => `â‚¹${v.toLocaleString("en-IN")}`
-          )}
-          {compareRow("Travellers", "travellers", "neutral", (v) => `${v}`)}
-          {compareRow(
-            "Activities Planned",
-            "activities",
-            "higher",
-            (v) => `${v} activities`
-          )}
-          {compareRow(
-            "Hotels Suggested",
-            "hotels",
-            "higher",
-            (v) => `${v} hotels`
-          )}
-          {compareRow(
-            "Cost per Activity",
-            "costPerActivity",
-            "lower",
-            (v) => (v ? `â‚¹${v.toLocaleString("en-IN")}` : "â€”")
-          )}
-        </div>
-
-        <div className="cmp-summary">
-          <p>
-            <strong style={{ color: "#a3e635" }}>Green</strong> = winning value
-            in that row. Neutral rows have no winner.
-          </p>
-        </div>
-      </main>
-    </div>
-  );
-};
-
-export default TripComparison;
-```
-
-### FILE: frontend\src\pages\TripDetail.css
 ```
 /* frontend/src/pages/TripDetail.css */
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   TOP ROW â€” Back link + Three-dot menu
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ═════════════════════════════════════════════════════
+   TOP ROW
+   ═════════════════════════════════════════════════════ */
 
 .td-top-row {
   display: flex;
@@ -13938,11 +17705,8 @@ export default TripComparison;
   min-height: 40px;
   position: relative;
   z-index: 40;
+  margin-bottom: 16px;
 }
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   THREE-DOT MENU (top right)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 .td-more-wrap {
   position: relative;
@@ -13953,9 +17717,9 @@ export default TripComparison;
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  border: 1.5px solid #e5e7eb;
-  background: #ffffff;
-  color: #111111;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: #111111;
+  color: #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -13971,8 +17735,8 @@ export default TripComparison;
 
 .td-more-btn:hover {
   border-color: #a3e635;
-  background: #f7fee7;
-  color: #3f6212;
+  background: rgba(163, 230, 53, 0.12);
+  color: #a3e635;
   transform: translateY(-2px);
   box-shadow: 0 12px 24px -10px rgba(163, 230, 53, 0.55);
 }
@@ -13989,33 +17753,25 @@ export default TripComparison;
   box-shadow: 0 0 0 4px rgba(163, 230, 53, 0.4);
 }
 
-/* Dropdown panel â€” opens below the top-right button */
 .td-more-menu {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
   min-width: 260px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: #0b0b0b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 18px;
   padding: 8px;
   box-shadow:
-    0 24px 48px -16px rgba(0, 0, 0, 0.25),
+    0 24px 48px -16px rgba(0, 0, 0, 0.95),
     0 0 0 1px rgba(163, 230, 53, 0.08);
   z-index: 100;
   animation: tdMenuIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: top right;
 }
-
 @keyframes tdMenuIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .td-more-item {
@@ -14025,7 +17781,7 @@ export default TripComparison;
   width: 100%;
   background: transparent;
   border: none;
-  color: #111111;
+  color: #e5e5e5;
   font-family: 'Poppins', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -14034,22 +17790,14 @@ export default TripComparison;
   cursor: pointer;
   text-align: left;
   text-decoration: none;
-  transition:
-    background 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
-
 .td-more-item:hover:not(:disabled) {
-  background: #f7fee7;
-  color: #3f6212;
+  background: rgba(163, 230, 53, 0.1);
+  color: #a3e635;
   transform: translateX(2px);
 }
-
-.td-more-item:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
+.td-more-item:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .td-more-icon {
   display: inline-flex;
@@ -14060,21 +17808,16 @@ export default TripComparison;
   flex-shrink: 0;
 }
 
-/* PDF button inside the menu */
 .td-more-item-pdf {
   padding: 4px;
   margin-bottom: 4px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
+.td-more-item-pdf .pdf-btn { width: 100%; justify-content: center; }
 
-.td-more-item-pdf .pdf-btn {
-  width: 100%;
-  justify-content: center;
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   BOTTOM ACTION BAR â€” Edit (left) Â· Delete (right)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* ═════════════════════════════════════════════════════
+   BOTTOM ACTION BAR
+   ═════════════════════════════════════════════════════ */
 
 .td-actions-bar {
   display: flex;
@@ -14082,12 +17825,11 @@ export default TripComparison;
   align-items: center;
   gap: 16px;
   padding-top: 28px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   margin-top: 64px;
   flex-wrap: wrap;
 }
 
-/* â”€â”€â”€ Base pill button â”€â”€â”€ */
 .td-btn {
   position: relative;
   display: inline-flex;
@@ -14096,11 +17838,11 @@ export default TripComparison;
   padding: 11px 20px;
   border-radius: 999px;
   border: 1.5px solid transparent;
-  background: #ffffff;
+  background: #111111;
   font-family: 'Poppins', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 700;
-  color: #111111;
+  color: #ffffff;
   cursor: pointer;
   text-decoration: none;
   overflow: hidden;
@@ -14112,38 +17854,19 @@ export default TripComparison;
     background 0.28s ease,
     color 0.28s ease;
 }
-
-/* Shine sweep */
 .td-btn::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: -75%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(
-    120deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.7) 50%,
-    transparent 100%
-  );
+  top: 0; left: -75%;
+  width: 50%; height: 100%;
+  background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.15) 50%, transparent 100%);
   transform: skewX(-20deg);
   transition: left 0.65s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
 }
-
-.td-btn:hover::before {
-  left: 125%;
-}
-
-.td-btn:hover {
-  transform: translateY(-3px);
-}
-
-.td-btn:active {
-  transform: translateY(-1px);
-}
-
+.td-btn:hover::before { left: 125%; }
+.td-btn:hover { transform: translateY(-3px); }
+.td-btn:active { transform: translateY(-1px); }
 .td-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.5);
@@ -14157,82 +17880,31 @@ export default TripComparison;
   line-height: 1;
   transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.td-btn:hover .td-btn-icon { transform: scale(1.25) rotate(-8deg); }
 
-.td-btn:hover .td-btn-icon {
-  transform: scale(1.25) rotate(-8deg);
-}
-
-/* â”€â”€â”€ Edit variant â”€â”€â”€ */
 .td-btn-edit {
-  background: #ffffff;
-  color: #111111;
-  border-color: #e5e7eb;
+  background: #111111;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.1);
 }
-
 .td-btn-edit:hover {
-  border-color: #1a2e1a;
-  color: #1a2e1a;
-  box-shadow:
-    0 14px 30px -10px rgba(26, 46, 26, 0.25),
-    0 0 0 4px rgba(26, 46, 26, 0.08);
+  background: rgba(163, 230, 53, 0.12);
+  border-color: #a3e635;
+  color: #a3e635;
+  box-shadow: 0 14px 30px -10px rgba(163, 230, 53, 0.55);
 }
+.td-btn-edit:hover .td-btn-icon { transform: scale(1.15) rotate(-10deg); }
 
-.td-btn-edit:hover .td-btn-icon {
-  transform: scale(1.15) rotate(-10deg);
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   RESPONSIVE
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-@media (max-width: 640px) {
-  .td-top-row {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .td-actions-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .td-actions-bar .td-btn {
-    justify-content: center;
-  }
-
-  .td-more-menu {
-    min-width: 230px;
-    right: -4px;
-  }
-}
-
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-   REDUCED MOTION
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-
-@media (prefers-reduced-motion: reduce) {
-  .td-btn,
-  .td-btn::before,
-  .td-btn-icon,
-  .td-more-btn,
-  .td-more-item,
-  .td-more-menu {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-/* â”€â”€â”€ Delete Trip button â”€â”€â”€ */
+/* Delete Trip button */
 .delete-trip-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 11px 20px;
   border-radius: 999px;
-  border: 1.5px solid #fecaca;
-  background: #fff;
-  color: #b91c1c;
+  border: 1.5px solid rgba(248, 113, 113, 0.35);
+  background: #111111;
+  color: #f87171;
   font-family: 'Poppins', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 700;
@@ -14246,28 +17918,751 @@ export default TripComparison;
     box-shadow 0.25s ease;
 }
 .delete-trip-btn:hover:not(:disabled) {
-  background: #fef2f2;
+  background: rgba(248, 113, 113, 0.12);
   border-color: #ef4444;
-  color: #991b1b;
+  color: #fecaca;
   transform: translateY(-3px);
-  box-shadow:
-    0 14px 30px -10px rgba(239, 68, 68, 0.4),
-    0 0 0 4px rgba(239, 68, 68, 0.1);
+  box-shadow: 0 14px 30px -10px rgba(239, 68, 68, 0.4);
 }
-.delete-trip-btn:active:not(:disabled) {
-  transform: translateY(-1px);
+.delete-trip-btn:active:not(:disabled) { transform: translateY(-1px); }
+.delete-trip-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.delete-trip-btn__icon { font-size: 14px; line-height: 1; }
+
+/* ═════════════════════════════════════════════════════
+   DARK THEME — page root
+   ═════════════════════════════════════════════════════ */
+
+.td-root {
+  --td-bg: #050505;
+  --td-card: #111111;
+  --td-border: rgba(255, 255, 255, 0.1);
+  --td-muted: #888888;
+  --td-dim: #52525b;
+  --td-lime: #a3e635;
+  --td-lime-bright: #bef264;
+  --td-lime-glow: rgba(163, 230, 53, 0.4);
+  --td-lime-subtle: rgba(163, 230, 53, 0.12);
+  background: var(--td-bg);
+  color: #fff;
+  min-height: 100vh;
+  font-family: 'Poppins', system-ui, sans-serif;
+  overflow-x: hidden;
+  position: relative;
+  padding-bottom: 80px;
 }
-.delete-trip-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+.td-orb-1, .td-orb-2 {
+  position: fixed;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
 }
-.delete-trip-btn__icon {
-  font-size: 14px;
+.td-orb-1 {
+  top: -120px; left: 8%;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, var(--td-lime-glow) 0%, rgba(163,230,53,0.05) 50%, transparent 75%);
+  animation: tdFloat 10s ease-in-out infinite alternate;
+}
+.td-orb-2 {
+  bottom: -120px; right: 8%;
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(96,165,250,0.16) 0%, transparent 70%);
+  animation: tdFloat 13s ease-in-out infinite alternate-reverse;
+}
+@keyframes tdFloat {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 40px) scale(1.15); }
+}
+
+.td-page {
+  position: relative;
+  z-index: 10;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 0;
+}
+
+.td-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--td-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+  font-weight: 600;
+}
+.td-back:hover { color: var(--td-lime); }
+
+/* Hero */
+.td-hero {
+  width: 100%;
+  aspect-ratio: 21 / 9;
+  border-radius: 28px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--td-border);
+  margin-bottom: 32px;
+  margin-top: 16px;
+}
+.td-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.td-dest {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  color: #fff;
+  margin: 0 0 20px;
+}
+
+/* Pills */
+.td-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.td-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: var(--td-card);
+  border: 1px solid var(--td-border);
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  transition: border-color 0.2s;
+}
+.td-pill:hover { border-color: rgba(163, 230, 53, 0.4); }
+.td-pill-icon {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--td-lime);
+  color: #000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.td-error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+  padding: 12px 16px;
+  border-radius: 14px;
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+}
+
+.td-section { margin-top: 56px; }
+.td-section-title {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin: 0 0 24px;
+}
+.td-section-title span { color: var(--td-lime); }
+
+/* Hotels */
+.td-hotels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+}
+.td-hotel {
+  background: var(--td-card);
+  border: 1px solid var(--td-border);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), border-color 0.25s, box-shadow 0.25s;
+}
+.td-hotel:hover {
+  transform: translateY(-4px);
+  border-color: rgba(163, 230, 53, 0.45);
+  box-shadow: 0 16px 30px -12px rgba(0,0,0,0.9), 0 0 24px rgba(163,230,53,0.16);
+}
+.td-hotel-img {
+  aspect-ratio: 4 / 3;
+  background: #000;
+  overflow: hidden;
+}
+.td-hotel-img img { width: 100%; height: 100%; object-fit: cover; }
+.td-hotel-body { padding: 16px 18px; }
+.td-hotel-name {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.25;
+  margin: 0 0 8px;
+}
+.td-hotel-row {
+  font-size: 0.78rem;
+  color: var(--td-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.td-hotel-price {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: var(--td-lime);
+  margin-top: 8px;
+}
+.td-hotel-rating {
+  font-size: 0.75rem;
+  color: var(--td-muted);
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* Itinerary */
+.td-day { margin-bottom: 40px; }
+.td-day-head {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 18px;
+}
+.td-activities {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+.td-activity {
+  display: flex;
+  gap: 14px;
+  background: var(--td-card);
+  border: 1px solid var(--td-border);
+  border-radius: 18px;
+  padding: 14px;
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), border-color 0.25s, box-shadow 0.25s;
+}
+.td-activity:hover {
+  transform: translateY(-3px);
+  border-color: rgba(163, 230, 53, 0.4);
+  box-shadow: 0 14px 28px -14px rgba(0,0,0,0.9), 0 0 20px rgba(163,230,53,0.12);
+}
+.td-activity-img {
+  width: 88px; height: 88px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  flex-shrink: 0;
+}
+.td-activity-img img { width: 100%; height: 100%; object-fit: cover; }
+.td-activity-body { flex: 1; min-width: 0; }
+.td-activity-time {
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: var(--td-lime);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+.td-activity-title {
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.25;
+  margin: 0 0 6px;
+}
+.td-activity-desc {
+  font-size: 0.78rem;
+  color: var(--td-muted);
+  line-height: 1.5;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.td-activity-loc {
+  font-size: 0.72rem;
+  color: var(--td-dim);
+  margin-bottom: 4px;
+}
+.td-activity-cost {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--td-lime);
+}
+
+/* Nearby places */
+.td-places {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+.td-place {
+  background: var(--td-card);
+  border: 1px solid var(--td-border);
+  border-radius: 20px;
+  overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), border-color 0.25s, box-shadow 0.25s;
+}
+.td-place:hover {
+  transform: translateY(-4px);
+  border-color: rgba(163, 230, 53, 0.45);
+  box-shadow: 0 16px 30px -12px rgba(0,0,0,0.9), 0 0 24px rgba(163,230,53,0.16);
+}
+.td-place-img {
+  aspect-ratio: 4 / 3;
+  background: #000;
+  overflow: hidden;
+}
+.td-place-img img { width: 100%; height: 100%; object-fit: cover; }
+.td-place-body { padding: 16px 18px; }
+.td-place-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.td-place-name {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.25;
+  margin: 0;
+}
+.td-place-tag {
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 3px 8px;
+  background: var(--td-lime-subtle);
+  color: var(--td-lime);
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.td-place-desc {
+  font-size: 0.75rem;
+  color: var(--td-muted);
+  line-height: 1.5;
+  margin: 0 0 10px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.td-place-link {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--td-lime);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.td-place-link:hover { color: var(--td-lime-bright); }
+
+/* Weather card */
+.td-weather-card {
+  border: 1px solid rgba(163, 230, 53, 0.35);
+  background: linear-gradient(135deg, rgba(163,230,53,0.10), rgba(163,230,53,0.02));
+  border-radius: 28px;
+  padding: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.td-weather-left { flex: 1; min-width: 260px; }
+.td-weather-kicker {
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--td-lime);
+  margin-bottom: 10px;
+}
+.td-weather-title {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: #fff;
+  margin: 0 0 12px;
+}
+.td-weather-text {
+  font-size: 0.9rem;
+  color: var(--td-muted);
+  line-height: 1.6;
+  max-width: 480px;
+  margin: 0 0 22px;
+}
+.td-weather-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--td-lime), var(--td-lime-bright));
+  color: #000;
+  padding: 13px 24px;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 8px 24px -6px rgba(163, 230, 53, 0.5);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.td-weather-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -6px rgba(163, 230, 53, 0.7);
+}
+.td-weather-badge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #000;
+  border: 1px solid var(--td-border);
+  border-radius: 20px;
+  padding: 18px 22px;
+  flex-shrink: 0;
+}
+.td-weather-icon { font-size: 2.4rem; line-height: 1; }
+.td-weather-temp {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #fff;
   line-height: 1;
+  letter-spacing: -0.03em;
+}
+.td-weather-temp .unit {
+  font-size: 1rem;
+  color: var(--td-dim);
+  margin-left: 4px;
+  font-weight: 700;
+}
+.td-weather-wind {
+  font-size: 0.72rem;
+  color: var(--td-muted);
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+/* Share modal */
+.td-share-back {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.td-share-modal {
+  background: #0b0b0b;
+  border: 1px solid var(--td-border);
+  border-radius: 22px;
+  padding: 26px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 30px 80px -20px rgba(0,0,0,0.9), 0 0 40px -10px rgba(163,230,53,0.15);
+}
+.td-share-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.td-share-title {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+}
+.td-share-sub {
+  font-size: 0.8rem;
+  color: var(--td-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.td-share-close {
+  background: transparent;
+  border: 1px solid var(--td-border);
+  color: var(--td-muted);
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.td-share-close:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.td-share-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.td-share-input {
+  flex: 1;
+  min-width: 0;
+  background: #000;
+  border: 1px solid var(--td-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #fff;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.82rem;
+  outline: none;
+}
+.td-share-input:focus { border-color: var(--td-lime); }
+.td-share-copy {
+  background: linear-gradient(135deg, var(--td-lime), var(--td-lime-bright));
+  color: #000;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.2s;
+}
+.td-share-copy:hover { transform: translateY(-1px); }
+.td-share-open {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--td-lime);
+  text-decoration: none;
+}
+.td-share-open:hover { color: var(--td-lime-bright); }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .td-top-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .td-actions-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .td-actions-bar .td-btn { justify-content: center; }
+  .td-more-menu { min-width: 230px; right: -4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .td-btn, .td-btn::before, .td-btn-icon,
+  .td-more-btn, .td-more-item, .td-more-menu,
+  .td-orb-1, .td-orb-2 {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   LOCAL CURRENCY BADGE
+   ───────────────────────────────────────────────────────── */
+
+.td-local-currency {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 16px;
+  margin-bottom: 22px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+  transition: all 0.25s ease;
+}
+
+.td-local-currency.is-different {
+  background: linear-gradient(135deg, rgba(163, 230, 53, 0.14), rgba(163, 230, 53, 0.03));
+  border: 1px solid rgba(163, 230, 53, 0.4);
+  color: #d4e8b0;
+}
+
+.td-local-currency.is-active {
+  background: rgba(163, 230, 53, 0.08);
+  border: 1px solid rgba(163, 230, 53, 0.25);
+  color: #a3e635;
+}
+
+.td-local-flag {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.td-local-text {
+  flex: 1;
+  min-width: 180px;
+}
+
+.td-local-text strong {
+  color: #a3e635;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.td-local-switch {
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  color: #000;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 18px -4px rgba(163, 230, 53, 0.6);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s;
+}
+
+.td-local-switch:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -4px rgba(163, 230, 53, 0.8);
+}
+
+.td-local-switch:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 640px) {
+  .td-local-currency {
+    padding: 10px 14px;
+    font-size: 0.8rem;
+  }
+  .td-local-flag {
+    font-size: 1.2rem;
+  }
+  .td-local-switch {
+    width: 100%;
+    text-align: center;
+    padding: 10px 16px;
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   HOTEL CARD — clickable to book
+   ═════════════════════════════════════════════════════ */
+
+.td-hotel {
+  cursor: pointer;
+  position: relative;
+}
+
+.td-hotel:focus-visible {
+  outline: 2px solid var(--td-lime);
+  outline-offset: 3px;
+}
+
+.td-hotel:hover {
+  transform: translateY(-4px);
+  border-color: rgba(163, 230, 53, 0.6);
+  box-shadow:
+    0 20px 40px -12px rgba(0, 0, 0, 0.9),
+    0 0 28px rgba(163, 230, 53, 0.25);
+}
+
+.td-hotel-img {
+  position: relative;
+  overflow: hidden;
+}
+
+.td-hotel-img img {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.td-hotel:hover .td-hotel-img img {
+  transform: scale(1.06);
+}
+
+.td-hotel-img-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.td-hotel:hover .td-hotel-img-overlay {
+  opacity: 1;
+}
+
+.td-hotel-book-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: linear-gradient(135deg, #a3e635, #bef264);
+  color: #000;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  padding: 7px 14px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  box-shadow: 0 8px 22px -6px rgba(163, 230, 53, 0.7);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.td-hotel:hover .td-hotel-book-badge {
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 640px) {
+  .td-hotel-img-overlay {
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0) 40%,
+      rgba(0, 0, 0, 0.6) 100%
+    );
+    opacity: 1;
+  }
+  .td-hotel-book-badge {
+    transform: translateX(-50%) translateY(0);
+    font-size: 0.68rem;
+    padding: 6px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .td-hotel-img img,
+  .td-hotel-book-badge,
+  .td-hotel-img-overlay {
+    transition: none;
+  }
 }
 ```
 
-### FILE: frontend\src\pages\TripDetail.jsx
+### frontend/src/pages/TripDetail.jsx
+
 ```
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
@@ -14276,44 +18671,52 @@ import Skeleton from "../components/Skeleton";
 import TripMap from "../components/TripMap";
 import DeleteButton from "../components/DeleteButton";
 import ItineraryPaper from "../components/ItineraryPaper";
-import SkyFlightButton from "../components/SkyFlightButton";
-import { downloadICS } from "../utils/ics";
-import { buildCoverArtUrl, preloadImage } from "../utils/coverArt";
-import { useCurrency } from "../context/CurrencyContext";
+import LiquidMetalButton from "../components/LiquidMetalButton";
 import { useTripActions } from "../context/TripActionsContext";
 import "./TripDetail.css";
 
-const Pill = ({ icon, children }) => (
-  <span className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-ink">
-    <span className="w-5 h-5 rounded-full bg-lime flex items-center justify-center text-xs">
-      {icon}
-    </span>
-    {children}
-  </span>
-);
+const parsePrice = (price) => {
+  if (typeof price === "number") return price;
+  if (!price) return null;
+  const match = String(price).replace(/,/g, "").match(/\d+/);
+  return match ? Number(match[0]) : null;
+};
+
+const formatINR = (value) => {
+  const n = Number(value) || 0;
+  return `₹${n.toLocaleString("en-IN")}`;
+};
+
+/* Build a Booking.com search URL for the hotel */
+const getBookingUrl = (hotel, destination) => {
+  const parts = [hotel?.name, destination].filter(Boolean);
+  const query = parts.join(" ").trim() || "hotel";
+  return `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(
+    query
+  )}`;
+};
 
 const TripDetailSkeleton = () => (
-  <div className="min-h-screen bg-white pb-20">
-    <div className="max-w-6xl mx-auto px-6 pt-8">
+  <div className="td-root">
+    <div className="td-orb-1" />
+    <div className="td-orb-2" />
+    <div className="td-page">
       <Skeleton variant="text" width={120} height={14} />
       <div style={{ marginTop: 16 }}>
         <Skeleton
           variant="rectangular"
           width="100%"
           style={{ aspectRatio: "21 / 9" }}
-          rounded="24px"
+          rounded="28px"
         />
       </div>
       <div style={{ marginTop: 32 }}>
         <Skeleton variant="rectangular" width="55%" height={48} rounded="12px" />
       </div>
-      <div className="flex flex-wrap gap-3 mt-5">
+      <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
         <Skeleton variant="rectangular" width={110} height={40} rounded="9999px" />
         <Skeleton variant="rectangular" width={140} height={40} rounded="9999px" />
         <Skeleton variant="rectangular" width={180} height={40} rounded="9999px" />
-      </div>
-      <div style={{ marginTop: 32 }}>
-        <Skeleton variant="rectangular" width={280} height={54} rounded="9999px" />
       </div>
     </div>
   </div>
@@ -14323,7 +18726,6 @@ const TripDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { format } = useCurrency();
   const { setActions } = useTripActions();
 
   const [trip, setTrip] = useState(null);
@@ -14333,9 +18735,6 @@ const TripDetail = () => {
   const [weather, setWeather] = useState(null);
   const [places, setPlaces] = useState([]);
   const [coverImage, setCoverImage] = useState(null);
-
-  const [generatingArt, setGeneratingArt] = useState(false);
-  const [artError, setArtError] = useState("");
 
   const [shareUrl, setShareUrl] = useState("");
   const [shareLoading, setShareLoading] = useState(false);
@@ -14370,11 +18769,9 @@ const TripDetail = () => {
   useEffect(() => {
     if (!trip || generating) return;
     if (searchParams.get("autoGen") !== "1") return;
-
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("autoGen");
     setSearchParams(newParams, { replace: true });
-
     handleGenerate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip, searchParams]);
@@ -14386,31 +18783,7 @@ const TripDetail = () => {
     }
     setActions({
       trip,
-      generatingArt,
       shareLoading,
-      onCalendar: () => {
-        try {
-          downloadICS(trip);
-        } catch (err) {
-          console.error(err);
-        }
-      },
-      onCoverArt: async () => {
-        setArtError("");
-        setGeneratingArt(true);
-        try {
-          const url = buildCoverArtUrl(trip, Date.now() % 1000);
-          const ok = await preloadImage(url);
-          if (!ok) throw new Error("Image service unavailable");
-          await api.put(`/trips/${id}`, { image: url });
-          setTrip((prev) => ({ ...prev, image: url }));
-        } catch (err) {
-          console.error(err);
-          setArtError("Could not generate cover art. Try again.");
-        } finally {
-          setGeneratingArt(false);
-        }
-      },
       onShare: async () => {
         setShareLoading(true);
         try {
@@ -14426,7 +18799,7 @@ const TripDetail = () => {
     });
     return () => setActions(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip, id, generatingArt, shareLoading]);
+  }, [trip, id, shareLoading]);
 
   const handleGenerate = async () => {
     setGenError("");
@@ -14439,10 +18812,8 @@ const TripDetail = () => {
         hotels: res.data.hotels || [],
         budgetBreakdown: res.data.budgetBreakdown,
       });
-      if (window.__skyTripBtn?.setComplete) window.__skyTripBtn.setComplete();
     } catch (err) {
       setGenError(err.response?.data?.message || "AI generation failed");
-      if (window.__skyTripBtn?.reset) window.__skyTripBtn.reset();
     } finally {
       setGenerating(false);
     }
@@ -14454,7 +18825,7 @@ const TripDetail = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      alert("Could not copy â€” please copy manually");
+      alert("Could not copy — please copy manually");
     }
   };
 
@@ -14463,14 +18834,18 @@ const TripDetail = () => {
     navigate("/trips");
   };
 
+  const openBooking = (hotel) => {
+    const url = getBookingUrl(hotel, trip.destination);
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   if (loading) return <TripDetailSkeleton />;
   if (!trip) return null;
 
   const days = Math.max(
     1,
     Math.round(
-      (new Date(trip.endDate) - new Date(trip.startDate)) /
-        (1000 * 60 * 60 * 24)
+      (new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)
     )
   );
   const budgetLabel =
@@ -14482,23 +18857,21 @@ const TripDetail = () => {
     `https://picsum.photos/seed/${encodeURIComponent(trip.destination)}/1600/700`;
 
   return (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="max-w-6xl mx-auto px-6 pt-8">
-        {/* â”€â”€â”€ Top row: back link only â”€â”€â”€ */}
+    <div className="td-root">
+      <div className="td-orb-1" />
+      <div className="td-orb-2" />
+
+      <div className="td-page">
         <div className="td-top-row">
-          <Link
-            to="/trips"
-            className="text-sm text-gray-500 hover:text-ink transition"
-          >
-            â† Back to trips
+          <Link to="/trips" className="td-back">
+            ← Back to trips
           </Link>
         </div>
 
-        <div className="mt-4 rounded-3xl overflow-hidden aspect-[21/9] bg-gray-100">
+        <div className="td-hero">
           <img
             src={heroImg}
             alt={trip.destination}
-            className="w-full h-full object-cover"
             onError={(e) => {
               e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
                 trip.destination
@@ -14507,81 +18880,84 @@ const TripDetail = () => {
           />
         </div>
 
-        <div className="mt-8">
-          <h1 className="text-3xl md:text-5xl font-extrabold text-ink">
-            {trip.destination}
-          </h1>
-        </div>
+        <h1 className="td-dest">{trip.destination}</h1>
 
-        <div className="flex flex-wrap gap-3 mt-5">
-          <Pill icon="ðŸ“…">
+        <div className="td-pills">
+          <span className="td-pill">
+            <span className="td-pill-icon">📅</span>
             {days} Day{days > 1 ? "s" : ""}
-          </Pill>
+          </span>
           {trip.spotsCount > 0 && (
-            <Pill icon="ðŸ“">{trip.spotsCount} places</Pill>
+            <span className="td-pill">
+              <span className="td-pill-icon">📍</span>
+              {trip.spotsCount} places
+            </span>
           )}
-          <Pill icon="ðŸ’°">
-            {format(trip.budget)} Â· {budgetLabel}
-          </Pill>
-          <Pill icon="ðŸ‘¥">No. Of Traveler: {trip.travellers}</Pill>
+          <span className="td-pill">
+            <span className="td-pill-icon">💰</span>
+            {formatINR(trip.budget)} · {budgetLabel}
+          </span>
+          <span className="td-pill">
+            <span className="td-pill-icon">👥</span>
+            Travellers: {trip.travellers}
+          </span>
         </div>
 
-        {genError && (
-          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mt-6 text-sm">
-            {genError}
-          </p>
-        )}
+        {genError && <p className="td-error">{genError}</p>}
 
-        {artError && (
-          <p className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mt-6 text-sm">
-            {artError}
-          </p>
-        )}
-
-        <div className="mt-8">
-          <SkyFlightButton
-            label={trip.itinerary?.length ? "Regenerate Trip" : "Generate Trip"}
-            loadingLabel="Curating Your Itinerary"
-            doneLabel="ðŸŽ‰ Itinerary Ready!"
-            disabled={generating}
-            loading={generating}
+        <div style={{ marginTop: 32 }}>
+          <LiquidMetalButton
+            type="button"
             onClick={handleGenerate}
-            autoCompleteAfter={0}
-          />
+            loading={generating}
+            disabled={generating}
+          >
+            {trip.itinerary?.length ? "Regenerate Trip" : "Generate Trip"}
+          </LiquidMetalButton>
         </div>
 
         {trip.hotels?.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Hotel Recommendation
+          <section className="td-section">
+            <h2 className="td-section-title">
+              Hotel <span>Recommendation</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="td-hotels">
               {trip.hotels.map((h, i) => {
                 const imgUrl =
                   h.image ||
                   `https://picsum.photos/seed/${encodeURIComponent(h.name)}/400/300`;
+                const priceNum = parsePrice(h.price);
                 return (
-                  <div key={i}>
-                    <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-gray-100">
-                      <img
-                        src={imgUrl}
-                        alt={h.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
-                            h.name
-                          )}/400/300`;
-                        }}
-                      />
+                  <div
+                    key={i}
+                    className="td-hotel"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openBooking(h)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openBooking(h);
+                      }
+                    }}
+                    aria-label={`Book ${h.name} on Booking.com`}
+                  >
+                    <div className="td-hotel-img">
+                      <img src={imgUrl} alt={h.name} />
+                      <div className="td-hotel-img-overlay">
+                        <span className="td-hotel-book-badge">
+                          🏨 Book Now →
+                        </span>
+                      </div>
                     </div>
-                    <h3 className="mt-3 font-bold text-ink text-sm leading-tight">
-                      {h.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-2">ðŸ“ {h.address}</p>
-                    <p className="text-sm font-bold text-ink mt-2">ðŸ’° {h.price}</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      â­ {h.rating} stars
-                    </p>
+                    <div className="td-hotel-body">
+                      <h3 className="td-hotel-name">{h.name}</h3>
+                      <div className="td-hotel-row">📍 {h.address}</div>
+                      <div className="td-hotel-price">
+                        💰 {priceNum !== null ? `${formatINR(priceNum)}/night` : h.price}
+                      </div>
+                      <div className="td-hotel-rating">⭐ {h.rating} stars</div>
+                    </div>
                   </div>
                 );
               })}
@@ -14590,51 +18966,32 @@ const TripDetail = () => {
         )}
 
         {trip.itinerary?.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-8">
-              Places to Visit
+          <section className="td-section">
+            <h2 className="td-section-title">
+              Places to <span>Visit</span>
             </h2>
             {trip.itinerary.map((day) => (
-              <div key={day.day} className="mb-10">
-                <h3 className="text-xl font-extrabold text-ink mb-5">
-                  Day {day.day}
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div key={day.day} className="td-day">
+                <h3 className="td-day-head">Day {day.day}</h3>
+                <div className="td-activities">
                   {day.activities.map((act, idx) => {
                     const imgUrl =
                       act.image ||
-                      `https://picsum.photos/seed/${encodeURIComponent(
-                        act.title
-                      )}/200/200`;
+                      `https://picsum.photos/seed/${encodeURIComponent(act.title)}/200/200`;
                     return (
-                      <div key={idx} className="flex flex-col">
-                        <p className="text-red-600 text-sm font-bold mb-2">
-                          {act.time}
-                        </p>
-                        <div className="flex gap-4 p-4 border border-gray-100 rounded-2xl card-hover bg-white">
-                          <img
-                            src={imgUrl}
-                            alt={act.title}
-                            className="w-24 h-24 md:w-28 md:h-28 rounded-xl object-cover flex-shrink-0"
-                            onError={(e) => {
-                              e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
-                                act.title
-                              )}/200/200`;
-                            }}
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-extrabold text-ink text-base leading-tight">
-                              {act.title}
-                            </h4>
-                            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">
-                              {act.description}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-2">
-                              â± {act.time?.split("-")[1]?.trim() || "Flexible"}
-                            </p>
-                            <p className="text-xs font-bold text-ink mt-1">
-                              {format(act.cost)} per person
-                            </p>
+                      <div key={idx} className="td-activity">
+                        <div className="td-activity-img">
+                          <img src={imgUrl} alt={act.title} />
+                        </div>
+                        <div className="td-activity-body">
+                          <div className="td-activity-time">{act.time}</div>
+                          <h4 className="td-activity-title">{act.title}</h4>
+                          <p className="td-activity-desc">{act.description}</p>
+                          <div className="td-activity-loc">
+                            ⏱ {act.time?.split("-")[1]?.trim() || "Flexible"}
+                          </div>
+                          <div className="td-activity-cost">
+                            {formatINR(act.cost)} per person
                           </div>
                         </div>
                       </div>
@@ -14647,50 +19004,37 @@ const TripDetail = () => {
         )}
 
         {places.length > 0 && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Famous Tourist Spots Nearby
+          <section className="td-section">
+            <h2 className="td-section-title">
+              Famous Tourist <span>Spots Nearby</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="td-places">
               {places.map((p) => {
                 const imgUrl =
                   p.image ||
                   `https://picsum.photos/seed/${encodeURIComponent(p.name)}/400/300`;
                 return (
-                  <div key={p.id}>
-                    <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-gray-100">
-                      <img
-                        src={imgUrl}
-                        alt={p.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = `https://picsum.photos/seed/${encodeURIComponent(
-                            p.name
-                          )}/400/300`;
-                        }}
-                      />
+                  <div key={p.id} className="td-place">
+                    <div className="td-place-img">
+                      <img src={imgUrl} alt={p.name} />
                     </div>
-                    <div className="flex justify-between items-start gap-2 mt-3">
-                      <h3 className="font-bold text-ink text-sm leading-tight">
-                        {p.name}
-                      </h3>
-                      <span className="text-xs bg-lime-light text-forest px-2 py-0.5 rounded-full whitespace-nowrap font-semibold">
-                        {p.type}
-                      </span>
+                    <div className="td-place-body">
+                      <div className="td-place-head">
+                        <h3 className="td-place-name">{p.name}</h3>
+                        <span className="td-place-tag">{p.type}</span>
+                      </div>
+                      {p.description && (
+                        <p className="td-place-desc">{p.description}</p>
+                      )}
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=16/${p.lat}/${p.lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="td-place-link"
+                      >
+                        View on map →
+                      </a>
                     </div>
-                    {p.description && (
-                      <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                        {p.description}
-                      </p>
-                    )}
-                    <a
-                      href={`https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lng}#map=16/${p.lat}/${p.lng}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-lime-dark font-semibold hover:underline mt-2 inline-block"
-                    >
-                      View on map â†’
-                    </a>
                   </div>
                 );
               })}
@@ -14699,60 +19043,53 @@ const TripDetail = () => {
         )}
 
         {weather?.location && (
-          <section className="mt-16">
-            <h2 className="text-2xl font-extrabold text-ink mb-6">
-              Destination Map
+          <section className="td-section">
+            <h2 className="td-section-title">
+              Destination <span>Map</span>
             </h2>
-            <div className="flex flex-wrap gap-3 mb-5">
-              <Pill icon="ðŸŒ¤ï¸">
-                {Math.round(weather.current?.temperature_2m ?? 0)}Â°C
-              </Pill>
-              <Pill icon="ðŸ’¨">
+            <div className="td-pills" style={{ marginBottom: 18 }}>
+              <span className="td-pill">
+                <span className="td-pill-icon">🌤️</span>
+                {Math.round(weather.current?.temperature_2m ?? 0)}°C
+              </span>
+              <span className="td-pill">
+                <span className="td-pill-icon">💨</span>
                 {weather.current?.wind_speed_10m ?? 0} km/h wind
-              </Pill>
+              </span>
             </div>
             <TripMap
               lat={weather.location.lat}
               lng={weather.location.lng}
               label={trip.destination}
               places={places}
+              itinerary={trip.itinerary}
             />
           </section>
         )}
 
         {weather?.location && (
-          <section className="mt-16">
-            <div className="rounded-3xl border-2 border-lime/30 bg-gradient-to-br from-lime-light/50 to-white p-8 md:p-10">
-              <div className="flex items-start justify-between gap-8 flex-wrap">
-                <div className="flex-1 min-w-[260px]">
-                  <p className="text-xs font-bold uppercase tracking-widest text-lime-dark mb-2">
-                    Smart Weather Plan
-                  </p>
-                  <h2 className="text-2xl md:text-3xl font-extrabold text-ink leading-tight">
-                    Plan your trip around the weather
-                  </h2>
-                  <p className="text-sm text-gray-600 mt-3 max-w-lg leading-relaxed">
-                    We check the weather for each day of your trip. Outdoor
-                    plans go on sunny days, and indoor plans go on rainy days.
-                  </p>
-                  <Link
-                    to={`/trips/${id}/weather-itinerary`}
-                    className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-full bg-lime text-forest font-bold hover:bg-lime-dark btn-press transition shadow-[0_6px_20px_-8px_rgba(168,216,74,0.8)]"
-                  >
-                    See Smart Weather Plan â†’
-                  </Link>
-                </div>
-
-                <div className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 px-6 py-5 shadow-sm">
-                  <span className="text-4xl leading-none">ðŸŒ¤ï¸</span>
-                  <div>
-                    <p className="text-3xl font-extrabold text-ink leading-none">
-                      {Math.round(weather.current?.temperature_2m ?? 0)}Â°
-                      <span className="text-base text-gray-400 ml-1">C</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2 font-semibold">
-                      ðŸ’¨ {Math.round(weather.current?.wind_speed_10m ?? 0)} km/h wind
-                    </p>
+          <section className="td-section">
+            <div className="td-weather-card">
+              <div className="td-weather-left">
+                <div className="td-weather-kicker">Smart Weather Plan</div>
+                <h2 className="td-weather-title">Plan your trip around the weather</h2>
+                <p className="td-weather-text">
+                  We check the weather for each day of your trip. Outdoor plans
+                  go on sunny days, and indoor plans go on rainy days.
+                </p>
+                <Link to={`/trips/${id}/weather-itinerary`} className="td-weather-cta">
+                  See Smart Weather Plan →
+                </Link>
+              </div>
+              <div className="td-weather-badge">
+                <span className="td-weather-icon">🌤️</span>
+                <div>
+                  <div className="td-weather-temp">
+                    {Math.round(weather.current?.temperature_2m ?? 0)}°
+                    <span className="unit">C</span>
+                  </div>
+                  <div className="td-weather-wind">
+                    💨 {Math.round(weather.current?.wind_speed_10m ?? 0)} km/h wind
                   </div>
                 </div>
               </div>
@@ -14760,13 +19097,11 @@ const TripDetail = () => {
           </section>
         )}
 
-        {/* â•â•â•â•â•â•â•â•â•â•â• BOTTOM ACTION BAR: Edit (left) Â· Delete (right) â•â•â•â•â•â•â•â•â•â•â• */}
         <div className="td-actions-bar">
           <Link to={`/trips/${id}/edit`} className="td-btn td-btn-edit">
-            <span className="td-btn-icon">âœï¸</span>
+            <span className="td-btn-icon">✏️</span>
             <span>Edit Trip</span>
           </Link>
-
           <DeleteButton label="Delete Trip" onClick={handleDelete} />
         </div>
       </div>
@@ -14777,22 +19112,17 @@ const TripDetail = () => {
 
       {shareUrl && (
         <div
-          className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4"
+          className="td-share-back"
           onClick={() => {
             setShareUrl("");
             setCopied(false);
           }}
         >
-          <div
-            className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-start mb-4">
+          <div className="td-share-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="td-share-head">
               <div>
-                <h3 className="text-lg font-extrabold text-ink">
-                  ðŸ”— Share this trip
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <h3 className="td-share-title">🔗 Share this trip</h3>
+                <p className="td-share-sub">
                   Anyone with this link can view your itinerary.
                 </p>
               </div>
@@ -14801,36 +19131,31 @@ const TripDetail = () => {
                   setShareUrl("");
                   setCopied(false);
                 }}
-                className="text-gray-400 hover:text-ink text-xl leading-none"
+                className="td-share-close"
                 aria-label="Close"
               >
-                âœ•
+                ✕
               </button>
             </div>
-
-            <div className="flex gap-2 mb-4">
+            <div className="td-share-row">
               <input
                 type="text"
                 readOnly
                 value={shareUrl}
                 onClick={(e) => e.target.select()}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-ink bg-gray-50 focus:outline-none"
+                className="td-share-input"
               />
-              <button
-                onClick={copyShareUrl}
-                className="px-4 py-2.5 rounded-lg bg-lime text-forest font-bold text-sm hover:bg-lime-dark transition whitespace-nowrap"
-              >
-                {copied ? "âœ“ Copied" : "Copy"}
+              <button onClick={copyShareUrl} className="td-share-copy">
+                {copied ? "✓ Copied" : "Copy"}
               </button>
             </div>
-
             <a
               href={shareUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-xs text-lime-dark font-semibold hover:underline"
+              className="td-share-open"
             >
-              Open in new tab â†’
+              Open in new tab →
             </a>
           </div>
         </div>
@@ -14842,7 +19167,8 @@ const TripDetail = () => {
 export default TripDetail;
 ```
 
-### FILE: frontend\src\pages\TripJournal.css
+### frontend/src/pages/TripJournal.css
+
 ```
 /* frontend/src/pages/TripJournal.css */
 
@@ -15073,7 +19399,7 @@ export default TripDetail;
 .tj-layout.active { display: block; }
 
 /* ============================================================
-   LAYOUT 1 â€” ZIGZAG
+   LAYOUT 1 — ZIGZAG
    ============================================================ */
 .tj-zigzag { position: relative; padding-top: 20px; }
 
@@ -15269,7 +19595,7 @@ export default TripDetail;
 .zz-entry[data-type="destination"] .zz-title { font-size: 1.7rem; }
 
 /* ============================================================
-   LAYOUT 2 â€” STREAM
+   LAYOUT 2 — STREAM
    ============================================================ */
 .tj-stream {
   position: relative;
@@ -15484,76 +19810,251 @@ export default TripDetail;
   .zz-entry, .st-event, .zz-card, .zz-marker, .st-pin { animation: none !important; transition: none !important; }
   .tj-orb-1, .tj-orb-2 { animation: none !important; }
 }
+
+/* ═════════════════════════════════════════════════════
+   COMPACT CARDS — shrink journal entry cards
+   ═════════════════════════════════════════════════════ */
+
+/* Zigzag layout — card */
+.tj-root .zz-card {
+  max-width: 340px;
+  padding: 16px 18px;
+  border-radius: 14px;
+}
+.tj-root .zz-title {
+  font-size: 1rem;
+  margin-bottom: 2px;
+}
+.tj-root .zz-desc {
+  font-size: 0.78rem;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.tj-root .zz-head {
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+.tj-root .zz-cat {
+  font-size: 0.56rem;
+}
+.tj-root .zz-day {
+  font-size: 0.56rem;
+}
+.tj-root .zz-time {
+  font-size: 0.56rem;
+  margin-bottom: 8px;
+}
+.tj-root .zz-chip {
+  font-size: 0.55rem;
+  padding: 2px 6px;
+}
+
+/* Zigzag layout — numbered marker */
+.tj-root .zz-marker {
+  width: 34px;
+  height: 34px;
+}
+.tj-root .zz-marker-num {
+  font-size: 0.75rem;
+}
+.tj-root .zz-marker-day {
+  font-size: 0.42rem;
+}
+
+/* Zigzag layout — reduce vertical gaps */
+.tj-root .zz-entry {
+  padding: 16px 0;
+}
+
+/* Stream layout — body card */
+.tj-root .st-body {
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+.tj-root .st-title {
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+.tj-root .st-desc {
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.tj-root .st-chips {
+  margin-top: 10px;
+  padding-top: 10px;
+  gap: 5px;
+}
+.tj-root .st-chip {
+  font-size: 0.55rem;
+  padding: 3px 8px;
+}
+.tj-root .st-time {
+  font-size: 0.58rem;
+  padding: 3px 9px;
+}
+.tj-root .st-day {
+  font-size: 0.62rem;
+}
+.tj-root .st-event {
+  padding-left: 72px;
+  padding-bottom: 28px;
+}
+.tj-root .st-pin {
+  width: 20px;
+  height: 20px;
+  left: 22px;
+}
+.tj-root .st-pin-inner {
+  width: 6px;
+  height: 6px;
+}
+/* Mobile — even smaller */
+@media (max-width: 640px) {
+  .tj-root .zz-card {
+    max-width: 100%;
+    padding: 14px 16px;
+  }
+  .tj-root .zz-title {
+    font-size: 0.92rem;
+  }
+  .tj-root .zz-desc {
+    font-size: 0.74rem;
+  }
+  .tj-root .st-body {
+    padding: 12px 14px;
+  }
+  .tj-root .st-title {
+    font-size: 0.92rem;
+  }
+  .tj-root .st-desc {
+    font-size: 0.74rem;
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   MAKE DESTINATION CARD SAME SIZE AS OTHERS
+   ═════════════════════════════════════════════════════ */
+
+/* Zigzag layout — destination card override */
+.tj-root .zz-entry[data-type="destination"] .zz-card {
+  padding: 16px 18px;
+  max-width: 340px;
+  border-radius: 14px;
+  background: var(--tj-card);
+  border-color: var(--tj-border);
+}
+
+.tj-root .zz-entry[data-type="destination"] .zz-title {
+  font-size: 1rem;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+/* Stream layout — destination override */
+.tj-root .st-event[data-type="destination"] .st-title {
+  font-size: 1rem;
+}
+
+.tj-root .st-event[data-type="destination"] .st-body {
+  background: var(--tj-card);
+  border-color: var(--tj-border);
+  padding: 14px 16px;
+}
+
+.tj-root .st-event[data-type="destination"] .st-pin {
+  width: 20px;
+  height: 20px;
+  left: 22px;
+  top: 2px;
+  border-width: 2px;
+}
+
+.tj-root .st-event[data-type="destination"] .st-pin-inner {
+  width: 6px;
+  height: 6px;
+}
+
+@media (max-width: 640px) {
+  .tj-root .zz-entry[data-type="destination"] .zz-card {
+    max-width: 100%;
+    padding: 14px 16px;
+  }
+  .tj-root .zz-entry[data-type="destination"] .zz-title,
+  .tj-root .st-event[data-type="destination"] .st-title {
+    font-size: 0.92rem;
+  }
+}
 ```
 
-### FILE: frontend\src\pages\TripJournal.jsx
+### frontend/src/pages/TripJournal.jsx
+
 ```
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api/axios";
 import "./TripJournal.css";
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Demo data (Japan trip) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Demo data (Japan trip) ─────────── */
 const DEMO_ENTRIES = [
-  { type: "destination", day: 1, time: "Morning", title: "Tokyo", emoji: "ðŸ—¼",
+  { type: "destination", day: 1, time: "Morning", title: "Tokyo", emoji: "🗼",
     desc: "Arrive at Narita, transfer to Shinjuku, and settle in for four nights in the capital.",
     chips: ["4 nights", "Shinjuku base"] },
-  { type: "hotel", day: 1, time: "Afternoon", title: "Park Hyatt Tokyo", emoji: "ðŸ¨",
+  { type: "hotel", day: 1, time: "Afternoon", title: "Park Hyatt Tokyo", emoji: "🏨",
     desc: "High-rise above Shinjuku with Mount Fuji views on clear days. Walking distance to the metro.",
     chips: ["Shinjuku", "4 nights"] },
-  { type: "activity", day: 2, time: "Morning", title: "Tsukiji Outer Market", emoji: "ðŸ£",
+  { type: "activity", day: 2, time: "Morning", title: "Tsukiji Outer Market", emoji: "🍣",
     desc: "Fresh sushi, tamagoyaki, and matcha from the stalls that never left after the market moved.",
     chips: ["Food", "2 hrs"] },
-  { type: "activity", day: 2, time: "Afternoon", title: "Senso-ji & Asakusa", emoji: "â›©ï¸",
+  { type: "activity", day: 2, time: "Afternoon", title: "Senso-ji & Asakusa", emoji: "⛩️",
     desc: "Tokyo's oldest temple, the Nakamise shopping street, and a slow walk along the Sumida.",
     chips: ["Culture", "3 hrs"] },
-  { type: "activity", day: 3, time: "All day", title: "Shibuya, Harajuku & Omotesando", emoji: "ðŸ›ï¸",
+  { type: "activity", day: 3, time: "All day", title: "Shibuya, Harajuku & Omotesando", emoji: "🛍️",
     desc: "The scramble crossing, Takeshita Street, and the tree-lined avenue of flagship boutiques.",
     chips: ["Shopping", "Full day"] },
-  { type: "transport", day: 5, time: "Morning", title: "Tokyo â†’ Hakone", emoji: "ðŸš„",
+  { type: "transport", day: 5, time: "Morning", title: "Tokyo → Hakone", emoji: "🚄",
     desc: "Shinkansen to Odawara, then the Tozan Railway up into the mountains.",
     chips: ["90 min", "Shinkansen"] },
-  { type: "destination", day: 5, time: "Midday", title: "Hakone", emoji: "ðŸŒ‹",
+  { type: "destination", day: 5, time: "Midday", title: "Hakone", emoji: "🌋",
     desc: "An onsen town inside the Fuji-Hakone-Izu National Park. Two nights of hot springs and mountain air.",
     chips: ["2 nights", "Onsen"] },
-  { type: "hotel", day: 5, time: "Afternoon", title: "Gora Kadan Ryokan", emoji: "â™¨ï¸",
+  { type: "hotel", day: 5, time: "Afternoon", title: "Gora Kadan Ryokan", emoji: "♨️",
     desc: "A traditional ryokan with private onsen, kaiseki dinner, and tatami rooms overlooking the valley.",
     chips: ["Ryokan", "2 nights"] },
-  { type: "activity", day: 6, time: "All day", title: "Lake Ashi & Owakudani", emoji: "ðŸš¡",
+  { type: "activity", day: 6, time: "All day", title: "Lake Ashi & Owakudani", emoji: "🚡",
     desc: "Pirate ship across Lake Ashi, ropeway over the volcanic valley, black eggs at the summit.",
     chips: ["Outdoor", "Full day"] },
-  { type: "transport", day: 7, time: "Morning", title: "Hakone â†’ Kyoto", emoji: "ðŸš„",
+  { type: "transport", day: 7, time: "Morning", title: "Hakone → Kyoto", emoji: "🚄",
     desc: "Back down to Odawara, then a two-hour shinkansen ride west to Kyoto Station.",
     chips: ["2 hrs", "Reserved seats"] },
-  { type: "destination", day: 7, time: "Afternoon", title: "Kyoto", emoji: "â›©ï¸",
-    desc: "Japan's former capital â€” 1,600 temples, 400 shrines, and the country's most refined food culture.",
+  { type: "destination", day: 7, time: "Afternoon", title: "Kyoto", emoji: "⛩️",
+    desc: "Japan's former capital — 1,600 temples, 400 shrines, and the country's most refined food culture.",
     chips: ["3 nights", "Old capital"] },
-  { type: "hotel", day: 7, time: "Evening", title: "The Ritz-Carlton Kyoto", emoji: "ðŸ¨",
+  { type: "hotel", day: 7, time: "Evening", title: "The Ritz-Carlton Kyoto", emoji: "🏨",
     desc: "Riverside property on the Kamogawa with a quiet garden courtyard and modern-Japanese rooms.",
     chips: ["Kamogawa", "3 nights"] },
-  { type: "activity", day: 8, time: "Dawn", title: "Fushimi Inari at Sunrise", emoji: "â›©ï¸",
+  { type: "activity", day: 8, time: "Dawn", title: "Fushimi Inari at Sunrise", emoji: "⛩️",
     desc: "Ten thousand vermilion torii gates up Mount Inari, blissfully empty before seven a.m.",
     chips: ["Hike", "3 hrs"] },
-  { type: "activity", day: 8, time: "Afternoon", title: "Arashiyama Bamboo Grove", emoji: "ðŸŽ‹",
+  { type: "activity", day: 8, time: "Afternoon", title: "Arashiyama Bamboo Grove", emoji: "🎋",
     desc: "The famous path through the bamboo, plus the monkey park and Togetsukyo Bridge.",
     chips: ["Nature", "Half day"] },
-  { type: "activity", day: 9, time: "All day", title: "Gion & Kiyomizu-dera", emoji: "ðŸµ",
+  { type: "activity", day: 9, time: "All day", title: "Gion & Kiyomizu-dera", emoji: "🍵",
     desc: "Morning at the hillside temple, afternoon tea ceremony, evening walk through Gion's lantern-lit lanes.",
     chips: ["Culture", "Full day"] },
-  { type: "transport", day: 10, time: "Morning", title: "Kyoto â†’ Osaka", emoji: "ðŸš„",
-    desc: "A fifteen-minute shinkansen hop â€” barely enough time to finish a station bento.",
+  { type: "transport", day: 10, time: "Morning", title: "Kyoto → Osaka", emoji: "🚄",
+    desc: "A fifteen-minute shinkansen hop — barely enough time to finish a station bento.",
     chips: ["15 min", "Short hop"] },
-  { type: "destination", day: 10, time: "Midday", title: "Osaka", emoji: "ðŸ¯",
+  { type: "destination", day: 10, time: "Midday", title: "Osaka", emoji: "🏯",
     desc: "Japan's kitchen and nightlife capital. Two nights of street food, neon, and Dotonbori chaos.",
     chips: ["2 nights", "Street food"] },
-  { type: "hotel", day: 10, time: "Afternoon", title: "Conrad Osaka", emoji: "ðŸ¨",
+  { type: "hotel", day: 10, time: "Afternoon", title: "Conrad Osaka", emoji: "🏨",
     desc: "Skyline views from Nakanoshima, walkable to Umeda and a short metro to Dotonbori.",
     chips: ["Nakanoshima", "2 nights"] },
-  { type: "activity", day: 11, time: "Evening", title: "Dotonbori Food Crawl", emoji: "ðŸ¢",
+  { type: "activity", day: 11, time: "Evening", title: "Dotonbori Food Crawl", emoji: "🍢",
     desc: "Takoyaki, okonomiyaki, kushikatsu, and the Glico running man. Come hungry.",
     chips: ["Food", "4 hrs"] },
-  { type: "transport", day: 12, time: "Morning", title: "Osaka â†’ Kansai Airport", emoji: "ðŸš†",
-    desc: "The Nankai Rapi:t express to KIX â€” forty minutes through Osaka's southern suburbs.",
+  { type: "transport", day: 12, time: "Morning", title: "Osaka → Kansai Airport", emoji: "🚆",
+    desc: "The Nankai Rapi:t express to KIX — forty minutes through Osaka's southern suburbs.",
     chips: ["40 min", "Airport"] }
 ];
 
@@ -15570,7 +20071,7 @@ function daysBetween(a, b) {
   return Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000));
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Transform a real trip into journal entries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Transform a real trip into journal entries ─────────── */
 function tripToEntries(trip) {
   if (!trip) return [];
 
@@ -15585,7 +20086,7 @@ function tripToEntries(trip) {
     day: 1,
     time: "Arrival",
     title: trip.destination,
-    emoji: "ðŸ“",
+    emoji: "📍",
     desc: `${daysBetween(trip.startDate, trip.endDate)}-day trip starting ${new Date(
       trip.startDate
     ).toLocaleDateString("en-US", {
@@ -15595,7 +20096,7 @@ function tripToEntries(trip) {
     })}.`,
     chips: [
       `${trip.travellers || 1} traveller${trip.travellers > 1 ? "s" : ""}`,
-      `â‚¹ ${(trip.budget || 0).toLocaleString()}`,
+      `₹ ${(trip.budget || 0).toLocaleString()}`,
     ],
   });
 
@@ -15607,10 +20108,10 @@ function tripToEntries(trip) {
         day: 1,
         time: "Stay",
         title: h.name || "Hotel",
-        emoji: "ðŸ¨",
+        emoji: "🏨",
         desc: h.address || "Accommodation for your trip.",
         chips: [
-          h.rating ? `â­ ${h.rating}` : null,
+          h.rating ? `⭐ ${h.rating}` : null,
           h.price || null,
         ].filter(Boolean),
       });
@@ -15627,27 +20128,27 @@ function tripToEntries(trip) {
         const text = `${lower} ${desc}`;
 
         // Detect transport
-        const isTransport = /â†’|->|train|flight|drive|taxi|transfer|travel|shinkansen|airport|metro|bus/i.test(
+        const isTransport = /→|->|train|flight|drive|taxi|transfer|travel|shinkansen|airport|metro|bus/i.test(
           text
         );
 
         // Detect indoor/outdoor for emoji
-        let emoji = "ðŸ“";
-        if (isTransport) emoji = "ðŸš†";
-        else if (/museum|gallery/.test(text)) emoji = "ðŸ›ï¸";
-        else if (/beach/.test(text)) emoji = "ðŸ–ï¸";
-        else if (/temple|shrine/.test(text)) emoji = "â›©ï¸";
-        else if (/park|garden|nature/.test(text)) emoji = "ðŸŒ³";
-        else if (/hike|trek/.test(text)) emoji = "ðŸ¥¾";
-        else if (/food|restaurant|dinner|lunch|cafe|eat/.test(text)) emoji = "ðŸ½ï¸";
-        else if (/market|shop/.test(text)) emoji = "ðŸ›ï¸";
-        else if (/castle|palace/.test(text)) emoji = "ðŸ°";
-        else if (/boat|ferry|cruise/.test(text)) emoji = "â›µ";
-        else if (/sunrise|sunset|viewpoint/.test(text)) emoji = "ðŸŒ…";
+        let emoji = "📍";
+        if (isTransport) emoji = "🚆";
+        else if (/museum|gallery/.test(text)) emoji = "🏛️";
+        else if (/beach/.test(text)) emoji = "🏖️";
+        else if (/temple|shrine/.test(text)) emoji = "⛩️";
+        else if (/park|garden|nature/.test(text)) emoji = "🌳";
+        else if (/hike|trek/.test(text)) emoji = "🥾";
+        else if (/food|restaurant|dinner|lunch|cafe|eat/.test(text)) emoji = "🍽️";
+        else if (/market|shop/.test(text)) emoji = "🛍️";
+        else if (/castle|palace/.test(text)) emoji = "🏰";
+        else if (/boat|ferry|cruise/.test(text)) emoji = "⛵";
+        else if (/sunrise|sunset|viewpoint/.test(text)) emoji = "🌅";
 
         const chips = [];
         if (act.time) chips.push(act.time);
-        if (act.cost) chips.push(`â‚¹ ${act.cost}`);
+        if (act.cost) chips.push(`₹ ${act.cost}`);
 
         entries.push({
           type: isTransport ? "transport" : "activity",
@@ -15665,7 +20166,7 @@ function tripToEntries(trip) {
   return entries;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Entry components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Entry components ─────────── */
 const ZigzagEntry = ({ item, index }) => {
   const isLeft = index % 2 === 0;
   const cat = CATEGORY_LABELS[item.type] || item.type;
@@ -15734,7 +20235,7 @@ const StreamEntry = ({ item }) => (
   </article>
 );
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Main page ─────────── */
 const TripJournal = () => {
   const { id } = useParams();
   const isRealTrip = Boolean(id);
@@ -15870,7 +20371,7 @@ const TripJournal = () => {
               textDecoration: "none",
             }}
           >
-            â† Back to trip
+            ← Back to trip
           </Link>
           <div className="tj-kicker">Error</div>
           <h1 className="tj-title">{tripError}</h1>
@@ -15903,7 +20404,7 @@ const TripJournal = () => {
               fontWeight: 600,
             }}
           >
-            â† Back to trip
+            ← Back to trip
           </Link>
         )}
 
@@ -15911,8 +20412,8 @@ const TripJournal = () => {
           <div className="tj-masthead-left">
             <div className="tj-kicker">
               {isRealTrip
-                ? `${entries.filter((e) => e.type === "activity").length} activities Â· Field Notes`
-                : "Japan Â· Field Notes Â· Vol. 01"}
+                ? `${entries.filter((e) => e.type === "activity").length} activities · Field Notes`
+                : "Japan · Field Notes · Vol. 01"}
             </div>
             <h1 className="tj-title">
               {title} <em>{subtitle}</em>
@@ -15979,14 +20480,14 @@ const TripJournal = () => {
               className={activeView === "zigzag" ? "active" : ""}
               onClick={() => setActiveView("zigzag")}
             >
-              â†” Zigzag Journal
+              ↔ Zigzag Journal
             </button>
             <button
               type="button"
               className={activeView === "stream" ? "active" : ""}
               onClick={() => setActiveView("stream")}
             >
-              â†“ Vertical Stream
+              ↓ Vertical Stream
             </button>
           </div>
           <div className="tj-filters">
@@ -16013,7 +20514,7 @@ const TripJournal = () => {
 
         {entries.length === 0 ? (
           <div className="tj-empty">
-            <div style={{ fontSize: "3rem", marginBottom: 16, opacity: 0.5 }}>ðŸ““</div>
+            <div style={{ fontSize: "3rem", marginBottom: 16, opacity: 0.5 }}>📓</div>
             <h2 style={{ fontSize: "1.15rem", fontWeight: 800, marginBottom: 8 }}>
               No journal entries yet
             </h2>
@@ -16068,8 +20569,8 @@ const TripJournal = () => {
         )}
 
         <footer className="tj-page-footer">
-          <span>Two views Â· One journey Â· Filter categories</span>
-          <span>AI Travel Planner Â© Field Journal</span>
+          <span>Two views · One journey · Filter categories</span>
+          <span>AI Travel Planner © Field Journal</span>
         </footer>
       </main>
     </div>
@@ -16079,7 +20580,8 @@ const TripJournal = () => {
 export default TripJournal;
 ```
 
-### FILE: frontend\src\pages\Trips.css
+### frontend/src/pages/Trips.css
+
 ```
 /* frontend/src/pages/Trips.css */
 
@@ -16703,7 +21205,8 @@ export default TripJournal;
 }
 ```
 
-### FILE: frontend\src\pages\Trips.jsx
+### frontend/src/pages/Trips.jsx
+
 ```
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -16720,13 +21223,11 @@ const TIERS = [
 const SORTS = [
   { key: "newest", label: "Newest first" },
   { key: "oldest", label: "Oldest first" },
-  { key: "az", label: "A â†’ Z" },
-  { key: "za", label: "Z â†’ A" },
+  { key: "az", label: "A → Z" },
+  { key: "za", label: "Z → A" },
 ];
 
-const CART_STORAGE_KEY = "aitp.selectedTrips";
-
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Helpers ─────── */
 function getBudgetTier(budget) {
   const n = Number(budget) || 0;
   if (n < 20000) return "cheap";
@@ -16764,34 +21265,32 @@ function relativeTime(iso) {
   return `${y} year${y === 1 ? "" : "s"} ago`;
 }
 
-/* Pick a nice emoji based on destination text */
 function pickEmoji(destination) {
   const t = (destination || "").toLowerCase();
-  if (t.includes("bali") || t.includes("beach")) return "ðŸï¸";
-  if (t.includes("tokyo") || t.includes("japan")) return "ðŸ—¼";
-  if (t.includes("kyoto")) return "â›©ï¸";
-  if (t.includes("new york") || t.includes("nyc")) return "ðŸ—½";
-  if (t.includes("paris") || t.includes("france")) return "ðŸ¥";
-  if (t.includes("rome") || t.includes("italy")) return "ðŸ›ï¸";
-  if (t.includes("iceland") || t.includes("reyk")) return "ðŸŒ‹";
-  if (t.includes("marrakech") || t.includes("morocco")) return "ðŸ•Œ";
-  if (t.includes("cape town") || t.includes("africa")) return "ðŸ¦";
-  if (t.includes("lisbon") || t.includes("portugal")) return "ðŸš‹";
-  if (t.includes("bangkok") || t.includes("thai")) return "ðŸ›•";
-  if (t.includes("dubai")) return "ðŸŒ‡";
-  if (t.includes("barcelona") || t.includes("spain")) return "ðŸŽ¨";
-  if (t.includes("santorini") || t.includes("greece")) return "ðŸ–ï¸";
-  if (t.includes("hanoi") || t.includes("vietnam")) return "ðŸœ";
-  if (t.includes("sydney") || t.includes("australia")) return "ðŸŒ‰";
-  if (t.includes("peru") || t.includes("machu")) return "ðŸ”ï¸";
-  if (t.includes("zermatt") || t.includes("switzerland")) return "ðŸ‚";
-  if (t.includes("india") || t.includes("delhi") || t.includes("mumbai")) return "ðŸ›•";
-  if (t.includes("london")) return "ðŸŽ¡";
-  if (t.includes("egypt") || t.includes("cairo")) return "ðŸ«";
-  return "âœˆï¸";
+  if (t.includes("bali") || t.includes("beach")) return "🏝️";
+  if (t.includes("tokyo") || t.includes("japan")) return "🗼";
+  if (t.includes("kyoto")) return "⛩️";
+  if (t.includes("new york") || t.includes("nyc")) return "🗽";
+  if (t.includes("paris") || t.includes("france")) return "🥐";
+  if (t.includes("rome") || t.includes("italy")) return "🏛️";
+  if (t.includes("iceland") || t.includes("reyk")) return "🌋";
+  if (t.includes("marrakech") || t.includes("morocco")) return "🕌";
+  if (t.includes("cape town") || t.includes("africa")) return "🦁";
+  if (t.includes("lisbon") || t.includes("portugal")) return "🚋";
+  if (t.includes("bangkok") || t.includes("thai")) return "🛕";
+  if (t.includes("dubai")) return "🌇";
+  if (t.includes("barcelona") || t.includes("spain")) return "🎨";
+  if (t.includes("santorini") || t.includes("greece")) return "🏖️";
+  if (t.includes("hanoi") || t.includes("vietnam")) return "🍜";
+  if (t.includes("sydney") || t.includes("australia")) return "🌉";
+  if (t.includes("peru") || t.includes("machu")) return "🏔️";
+  if (t.includes("zermatt") || t.includes("switzerland")) return "🏂";
+  if (t.includes("india") || t.includes("delhi") || t.includes("mumbai")) return "🛕";
+  if (t.includes("london")) return "🎡";
+  if (t.includes("egypt") || t.includes("cairo")) return "🐫";
+  return "✈️";
 }
 
-/* Extract a short country/region from destination string */
 function extractCountry(destination) {
   if (!destination) return "";
   const parts = destination.split(",").map((p) => p.trim()).filter(Boolean);
@@ -16799,7 +21298,7 @@ function extractCountry(destination) {
   return "";
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Skeleton grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Skeleton grid ─────── */
 const SkeletonGrid = () => (
   <div className="tr-grid">
     {Array.from({ length: 6 }).map((_, i) => (
@@ -16808,7 +21307,7 @@ const SkeletonGrid = () => (
   </div>
 );
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Main page ─────── */
 const Trips = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -16820,22 +21319,7 @@ const Trips = () => {
   const [tier, setTier] = useState(searchParams.get("tier") || "all");
   const [sort, setSort] = useState(searchParams.get("sort") || "newest");
 
-  const [selected, setSelected] = useState(() => {
-    try {
-      const raw = localStorage.getItem(CART_STORAGE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [toast, setToast] = useState({ show: false, text: "", icon: "âœ“" });
-  const [badgeBump, setBadgeBump] = useState(false);
-
   const searchRef = useRef(null);
-  const toastTimerRef = useRef(null);
 
   /* Fetch trips */
   useEffect(() => {
@@ -16854,13 +21338,6 @@ const Trips = () => {
       cancelled = true;
     };
   }, []);
-
-  /* Persist cart */
-  useEffect(() => {
-    try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(selected));
-    } catch {}
-  }, [selected]);
 
   /* Sync URL */
   useEffect(() => {
@@ -16882,8 +21359,7 @@ const Trips = () => {
         searchRef.current?.focus();
       }
       if (e.key === "Escape") {
-        if (drawerOpen) setDrawerOpen(false);
-        else if (document.activeElement === searchRef.current) {
+        if (document.activeElement === searchRef.current) {
           setQuery("");
           searchRef.current?.blur();
         }
@@ -16891,37 +21367,7 @@ const Trips = () => {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [drawerOpen]);
-
-  /* Toast */
-  const showToast = (text, icon = "âœ“") => {
-    setToast({ show: true, text, icon });
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => {
-      setToast((t) => ({ ...t, show: false }));
-    }, 1800);
-  };
-
-  /* Selection toggle */
-  const toggleTrip = (id) => {
-    setSelected((prev) => {
-      const isSel = prev.includes(id);
-      if (isSel) {
-        showToast("Removed from selection", "Ã—");
-        return prev.filter((x) => x !== id);
-      }
-      showToast("Added to selection", "âœ“");
-      return [...prev, id];
-    });
-    setBadgeBump(true);
-    setTimeout(() => setBadgeBump(false), 300);
-  };
-
-  const clearCart = () => {
-    if (selected.length === 0) return;
-    setSelected([]);
-    showToast("Selection cleared", "ðŸ—‘ï¸");
-  };
+  }, []);
 
   /* Visible trips */
   const visibleTrips = useMemo(() => {
@@ -16948,23 +21394,6 @@ const Trips = () => {
     });
   }, [trips, query, tier, sort]);
 
-  const selectedTrips = useMemo(
-    () =>
-      selected
-        .map((id) => trips.find((t) => t._id === id))
-        .filter(Boolean),
-    [selected, trips]
-  );
-
-  const totalDays = useMemo(
-    () =>
-      selectedTrips.reduce(
-        (sum, t) => sum + daysBetween(t.startDate, t.endDate),
-        0
-      ),
-    [selectedTrips]
-  );
-
   const hasFilters = query.trim() || tier !== "all" || sort !== "newest";
 
   /* Handlers */
@@ -16987,12 +21416,6 @@ const Trips = () => {
     }
   };
 
-  const buildPlan = () => {
-    const names = selectedTrips.map((t) => t.destination).join(", ");
-    showToast(`Building plan for ${names}`, "âœ¨");
-    setDrawerOpen(false);
-  };
-
   return (
     <div className="tr-root">
       <div className="tr-orb-1" />
@@ -17010,24 +21433,9 @@ const Trips = () => {
                 My <span>Trips</span>
               </h1>
               <p className="tr-subtitle">
-                Search, filter, and sort your trips. Tap{" "}
-                <strong>ï¼‹ Select</strong> on any card to add it to your
-                selection â€” the cart keeps your picks even after a refresh.
+                Search, filter, and sort your trips. Click any card to open it.
               </p>
             </div>
-
-            <button
-              className={`tr-cart-btn ${selected.length > 0 ? "has-items" : ""}`}
-              onClick={() => setDrawerOpen(true)}
-              type="button"
-              aria-label="Open selected trips"
-            >
-              <span>ðŸ›’</span>
-              <span>Selected</span>
-              <span className={`tr-cart-badge ${badgeBump ? "bump" : ""}`}>
-                {selected.length}
-              </span>
-            </button>
           </div>
         </header>
 
@@ -17037,11 +21445,11 @@ const Trips = () => {
             <label className="tr-field">
               <span className="tr-label">Search destinations</span>
               <span className="tr-input-wrap">
-                <span className="tr-field-icon">ðŸ”</span>
+                <span className="tr-field-icon">🔍</span>
                 <input
                   ref={searchRef}
                   type="text"
-                  placeholder='Try "Japan", "Paris", "Bali"â€¦'
+                  placeholder='Try "Japan", "Paris", "Bali"…'
                   autoComplete="off"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -17057,7 +21465,7 @@ const Trips = () => {
                     }}
                     aria-label="Clear search"
                   >
-                    Ã—
+                    ×
                   </button>
                 )}
               </span>
@@ -17066,7 +21474,7 @@ const Trips = () => {
             <label className="tr-field">
               <span className="tr-label">Budget tier</span>
               <span className="tr-input-wrap">
-                <span className="tr-field-icon">ðŸ’°</span>
+                <span className="tr-field-icon">💰</span>
                 <select value={tier} onChange={(e) => setTier(e.target.value)}>
                   {TIERS.map((t) => (
                     <option key={t.key} value={t.key}>
@@ -17080,7 +21488,7 @@ const Trips = () => {
             <label className="tr-field">
               <span className="tr-label">Sort by</span>
               <span className="tr-input-wrap">
-                <span className="tr-field-icon">â†•ï¸</span>
+                <span className="tr-field-icon">↕️</span>
                 <select value={sort} onChange={(e) => setSort(e.target.value)}>
                   {SORTS.map((s) => (
                     <option key={s.key} value={s.key}>
@@ -17105,7 +21513,7 @@ const Trips = () => {
                   onClick={() => setQuery("")}
                   aria-label="Remove search"
                 >
-                  Ã—
+                  ×
                 </button>
               </span>
             )}
@@ -17117,7 +21525,7 @@ const Trips = () => {
                   onClick={() => setTier("all")}
                   aria-label="Remove tier"
                 >
-                  Ã—
+                  ×
                 </button>
               </span>
             )}
@@ -17129,7 +21537,7 @@ const Trips = () => {
                   onClick={() => setSort("newest")}
                   aria-label="Reset sort"
                 >
-                  Ã—
+                  ×
                 </button>
               </span>
             )}
@@ -17168,21 +21576,21 @@ const Trips = () => {
 
         {!loading && trips.length === 0 && (
           <div className="tr-empty">
-            <div className="tr-empty-icon">ðŸ—ºï¸</div>
+            <div className="tr-empty-icon">🗺️</div>
             <div className="tr-empty-title">No trips yet</div>
             <p className="tr-empty-text">
               Start planning your first adventure and let AI craft the perfect
               itinerary for you.
             </p>
             <Link to="/trips/new" className="tr-btn-primary">
-              âœ¨ Create your first trip
+              ✨ Create your first trip
             </Link>
           </div>
         )}
 
         {!loading && trips.length > 0 && visibleTrips.length === 0 && (
           <div className="tr-empty">
-            <div className="tr-empty-icon">ðŸ”</div>
+            <div className="tr-empty-icon">🔍</div>
             <div className="tr-empty-title">No trips match your filters</div>
             <p className="tr-empty-text">
               Try a different search term, switch the budget tier, or clear
@@ -17193,7 +21601,7 @@ const Trips = () => {
               onClick={clearAllFilters}
               type="button"
             >
-              âœ¨ Clear all filters
+              ✨ Clear all filters
             </button>
           </div>
         )}
@@ -17203,14 +21611,13 @@ const Trips = () => {
             {visibleTrips.map((trip, i) => {
               const tier = getBudgetTier(trip.budget);
               const days = daysBetween(trip.startDate, trip.endDate);
-              const isSel = selected.includes(trip._id);
               const country = extractCountry(trip.destination);
               const emoji = pickEmoji(trip.destination);
 
               return (
                 <article
                   key={trip._id}
-                  className={`tr-card tier-${tier} ${isSel ? "selected" : ""}`}
+                  className={`tr-card tier-${tier}`}
                   style={{ animationDelay: `${i * 0.04}s` }}
                   tabIndex={0}
                   onClick={() => handleCardClick(trip._id)}
@@ -17234,25 +21641,6 @@ const Trips = () => {
                       <span className={`tr-tier tier-${tier}`}>
                         {tierLabel(tier)}
                       </span>
-                      <button
-                        type="button"
-                        className={`tr-select ${isSel ? "selected" : ""}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleTrip(trip._id);
-                        }}
-                        aria-pressed={isSel}
-                      >
-                        {isSel ? (
-                          <>
-                            <span>âœ“</span> Selected
-                          </>
-                        ) : (
-                          <>
-                            <span>ï¼‹</span> Select
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
 
@@ -17263,7 +21651,7 @@ const Trips = () => {
 
                   <div className="tr-meta">
                     <span className="days">{days} days</span>
-                    <span className="sep">Â·</span>
+                    <span className="sep">·</span>
                     <span className="created">{relativeTime(trip.createdAt)}</span>
                   </div>
                 </article>
@@ -17287,129 +21675,10 @@ const Trips = () => {
             fontWeight: 600,
           }}
         >
-          <span>Filters sync to the URL Â· Selections saved locally</span>
-          <span>AI Travel Planner Â© My Trips</span>
+          <span>Filters sync to the URL</span>
+          <span>AI Travel Planner © My Trips</span>
         </footer>
       </main>
-
-      {/* Overlay */}
-      <div
-        className={`tr-overlay ${drawerOpen ? "open" : ""}`}
-        onClick={() => setDrawerOpen(false)}
-      />
-
-      {/* Drawer */}
-      <aside className={`tr-drawer ${drawerOpen ? "open" : ""}`}>
-        <div className="tr-drawer-head">
-          <div className="tr-drawer-title">
-            ðŸ›’ Selected <span>({selected.length})</span>
-          </div>
-          <button
-            className="tr-drawer-close"
-            onClick={() => setDrawerOpen(false)}
-            type="button"
-            aria-label="Close drawer"
-          >
-            Ã—
-          </button>
-        </div>
-
-        <div className="tr-drawer-summary">
-          <div className="tr-summary-stat">
-            <div className="tr-summary-label">Trips</div>
-            <div className="tr-summary-value">
-              {selected.length}
-              <span>selected</span>
-            </div>
-          </div>
-          <div className="tr-summary-stat">
-            <div className="tr-summary-label">Total days</div>
-            <div className="tr-summary-value accent">
-              {totalDays}
-              <span>days</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="tr-drawer-body">
-          {selectedTrips.length === 0 ? (
-            <div className="tr-cart-empty">
-              <div className="tr-cart-empty-icon">ðŸ›’</div>
-              <div className="tr-cart-empty-title">Nothing selected yet</div>
-              <p className="tr-cart-empty-text">
-                Tap <strong>ï¼‹ Select</strong> on any trip card to add it here.
-                Your picks are saved locally.
-              </p>
-            </div>
-          ) : (
-            selectedTrips.map((trip) => {
-              const tier = getBudgetTier(trip.budget);
-              const days = daysBetween(trip.startDate, trip.endDate);
-              const emoji = pickEmoji(trip.destination);
-              return (
-                <div
-                  key={trip._id}
-                  className={`tr-cart-item tier-${tier}`}
-                >
-                  <div className="tr-cart-item-thumb">
-                    {trip.image ? (
-                      <img
-                        src={trip.image}
-                        alt={trip.destination}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      emoji
-                    )}
-                  </div>
-                  <div className="tr-cart-item-body">
-                    <div className="tr-cart-item-name">
-                      {trip.destination}
-                    </div>
-                    <div className="tr-cart-item-meta">{days} days</div>
-                  </div>
-                  <button
-                    type="button"
-                    className="tr-cart-item-remove"
-                    onClick={() => toggleTrip(trip._id)}
-                    aria-label={`Remove ${trip.destination}`}
-                  >
-                    Ã—
-                  </button>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        <div className="tr-drawer-foot">
-          <div className="tr-drawer-actions">
-            <button
-              className="tr-btn-cart-primary"
-              type="button"
-              disabled={selectedTrips.length === 0}
-              onClick={buildPlan}
-            >
-              âœ¨ Build itinerary
-            </button>
-            <button
-              className="tr-btn-cart-ghost"
-              type="button"
-              onClick={clearCart}
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Toast */}
-      <div className={`tr-toast ${toast.show ? "show" : ""}`}>
-        <span>{toast.icon}</span>
-        <span>{toast.text}</span>
-      </div>
     </div>
   );
 };
@@ -17417,7 +21686,8 @@ const Trips = () => {
 export default Trips;
 ```
 
-### FILE: frontend\src\pages\WeatherAwareItinerary.css
+### frontend/src/pages/WeatherAwareItinerary.css
+
 ```
 /* frontend/src/pages/WeatherAwareItinerary.css */
 
@@ -17959,7 +22229,7 @@ export default Trips;
   .wai-activity-card, .wai-activity-card.moved { animation: none !important; }
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Animated weather icon keyframes (moved from TripWeather.css) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Animated weather icon keyframes (moved from TripWeather.css) ─────────── */
 .wf-wx-icon {
   width: 72px;
   height: 72px;
@@ -18049,7 +22319,7 @@ export default Trips;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.5));
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€ Sun â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Sun ─────── */
 @keyframes wfSunGlow {
   0%, 100% { transform: scale(1); opacity: 0.75; }
   50%      { transform: scale(1.22); opacity: 1; }
@@ -18075,7 +22345,7 @@ export default Trips;
   animation: wfSunCore 3.8s ease-in-out infinite;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€ Clouds â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Clouds ─────── */
 @keyframes wfCloudDrift {
   0%, 100% { transform: translate(0, 0); }
   50%      { transform: translate(3px, -2px); }
@@ -18093,7 +22363,7 @@ export default Trips;
   animation: wfCloudDriftSlow 5.4s ease-in-out infinite;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€ Rain â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Rain ─────── */
 @keyframes wfRainDrop {
   0%   { transform: translateY(-6px) rotate(0deg); opacity: 0; }
   15%  { opacity: 1; }
@@ -18105,7 +22375,7 @@ export default Trips;
   transform-origin: center;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€ Snow â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Snow ─────── */
 @keyframes wfSnowflake {
   0%   { transform: translate(0, -6px) rotate(0deg); opacity: 0; }
   20%  { opacity: 1; }
@@ -18117,7 +22387,7 @@ export default Trips;
   transform-origin: center;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€ Thunder â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Thunder ─────── */
 @keyframes wfBoltFlash {
   0%, 55%, 100% { opacity: 0.35; filter: brightness(1); }
   60%, 72%      { opacity: 1;    filter: brightness(1.7); }
@@ -18129,7 +22399,7 @@ export default Trips;
 .wf-wx-bolt      { animation: wfBoltFlash 2.6s ease-in-out infinite; }
 .wf-wx-bolt-glow { animation: wfBoltGlow  2.6s ease-in-out infinite; }
 
-/* â”€â”€â”€â”€â”€â”€â”€ Fog â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Fog ─────── */
 @keyframes wfFogWave {
   0%, 100% { transform: translateX(-5px); opacity: 0.4; }
   50%      { transform: translateX(5px);  opacity: 0.85; }
@@ -18139,13 +22409,14 @@ export default Trips;
 .wf-wx-fog-wave:nth-of-type(2) { animation-delay: 0.5s; }
 .wf-wx-fog-wave:nth-of-type(3) { animation-delay: 1s;   }
 
-/* â”€â”€â”€â”€â”€â”€â”€ Reduced motion â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────── Reduced motion ─────── */
 @media (prefers-reduced-motion: reduce) {
   .wf-wx-icon * { animation: none !important; }
 }
 ```
 
-### FILE: frontend\src\pages\WeatherAwareItinerary.jsx
+### frontend/src/pages/WeatherAwareItinerary.jsx
+
 ```
 import { useState, useMemo, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -18153,7 +22424,7 @@ import api from "../api/axios";
 import WeatherIcon, { decodeWeatherCode } from "../components/WeatherIcon";
 import "./WeatherAwareItinerary.css";
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Date helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Date helpers ─────────── */
 const isoDate = (d) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -18174,62 +22445,62 @@ const monthDay = (iso) =>
     day: "numeric",
   });
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Demo destinations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Demo destinations ─────────── */
 const DESTINATIONS = {
   kyoto: {
     name: "Kyoto, Japan",
-    icon: "â›©ï¸",
+    icon: "⛩️",
     lat: 35.0116,
     lon: 135.7681,
     activities: [
-      { id: "k1", name: "Fushimi Inari shrine hike", type: "outdoor", hours: 3, emoji: "â›©ï¸", sensitivity: 5, priority: 3 },
-      { id: "k2", name: "Arashiyama bamboo grove", type: "outdoor", hours: 2, emoji: "ðŸŽ‹", sensitivity: 4, priority: 3 },
-      { id: "k3", name: "Kinkaku-ji golden pavilion", type: "outdoor", hours: 1.5, emoji: "ðŸ¯", sensitivity: 3, priority: 3 },
-      { id: "k4", name: "Traditional tea ceremony", type: "indoor", hours: 1.5, emoji: "ðŸµ", sensitivity: 1, priority: 2 },
-      { id: "k5", name: "Nishiki market food tour", type: "outdoor", hours: 2, emoji: "ðŸ¢", sensitivity: 2, priority: 2 },
-      { id: "k6", name: "Kyoto National Museum", type: "indoor", hours: 2, emoji: "ðŸ›ï¸", sensitivity: 1, priority: 2 },
-      { id: "k7", name: "Philosopher's Path walk", type: "outdoor", hours: 2, emoji: "ðŸŒ¸", sensitivity: 4, priority: 2 },
-      { id: "k8", name: "Izakaya dinner in Pontocho", type: "indoor", hours: 2, emoji: "ðŸ¶", sensitivity: 1, priority: 3 },
-      { id: "k9", name: "Gion evening stroll", type: "outdoor", hours: 1.5, emoji: "ðŸ®", sensitivity: 3, priority: 2 },
+      { id: "k1", name: "Fushimi Inari shrine hike", type: "outdoor", hours: 3, emoji: "⛩️", sensitivity: 5, priority: 3 },
+      { id: "k2", name: "Arashiyama bamboo grove", type: "outdoor", hours: 2, emoji: "🎋", sensitivity: 4, priority: 3 },
+      { id: "k3", name: "Kinkaku-ji golden pavilion", type: "outdoor", hours: 1.5, emoji: "🏯", sensitivity: 3, priority: 3 },
+      { id: "k4", name: "Traditional tea ceremony", type: "indoor", hours: 1.5, emoji: "🍵", sensitivity: 1, priority: 2 },
+      { id: "k5", name: "Nishiki market food tour", type: "outdoor", hours: 2, emoji: "🍢", sensitivity: 2, priority: 2 },
+      { id: "k6", name: "Kyoto National Museum", type: "indoor", hours: 2, emoji: "🏛️", sensitivity: 1, priority: 2 },
+      { id: "k7", name: "Philosopher's Path walk", type: "outdoor", hours: 2, emoji: "🌸", sensitivity: 4, priority: 2 },
+      { id: "k8", name: "Izakaya dinner in Pontocho", type: "indoor", hours: 2, emoji: "🍶", sensitivity: 1, priority: 3 },
+      { id: "k9", name: "Gion evening stroll", type: "outdoor", hours: 1.5, emoji: "🏮", sensitivity: 3, priority: 2 },
     ],
   },
   paris: {
     name: "Paris, France",
-    icon: "ðŸ—¼",
+    icon: "🗼",
     lat: 48.8566,
     lon: 2.3522,
     activities: [
-      { id: "p1", name: "Eiffel Tower summit visit", type: "outdoor", hours: 3, emoji: "ðŸ—¼", sensitivity: 4, priority: 3 },
-      { id: "p2", name: "Louvre Museum tour", type: "indoor", hours: 3, emoji: "ðŸ–¼ï¸", sensitivity: 1, priority: 3 },
-      { id: "p3", name: "Seine river walk", type: "outdoor", hours: 2, emoji: "ðŸš¶", sensitivity: 3, priority: 2 },
-      { id: "p4", name: "Montmartre & SacrÃ©-CÅ“ur", type: "outdoor", hours: 2.5, emoji: "â›ª", sensitivity: 4, priority: 3 },
-      { id: "p5", name: "Catacombs underground tour", type: "indoor", hours: 2, emoji: "ðŸ’€", sensitivity: 1, priority: 2 },
-      { id: "p6", name: "Luxembourg Gardens picnic", type: "outdoor", hours: 2, emoji: "ðŸ¥–", sensitivity: 5, priority: 2 },
-      { id: "p7", name: "CafÃ© hopping in Le Marais", type: "indoor", hours: 2, emoji: "â˜•", sensitivity: 1, priority: 2 },
-      { id: "p8", name: "Orsay Museum", type: "indoor", hours: 2.5, emoji: "ðŸŽ¨", sensitivity: 1, priority: 2 },
-      { id: "p9", name: "Champs-Ã‰lysÃ©es & Arc de Triomphe", type: "outdoor", hours: 2, emoji: "ðŸ›ï¸", sensitivity: 3, priority: 3 },
+      { id: "p1", name: "Eiffel Tower summit visit", type: "outdoor", hours: 3, emoji: "🗼", sensitivity: 4, priority: 3 },
+      { id: "p2", name: "Louvre Museum tour", type: "indoor", hours: 3, emoji: "🖼️", sensitivity: 1, priority: 3 },
+      { id: "p3", name: "Seine river walk", type: "outdoor", hours: 2, emoji: "🚶", sensitivity: 3, priority: 2 },
+      { id: "p4", name: "Montmartre & Sacré-Cœur", type: "outdoor", hours: 2.5, emoji: "⛪", sensitivity: 4, priority: 3 },
+      { id: "p5", name: "Catacombs underground tour", type: "indoor", hours: 2, emoji: "💀", sensitivity: 1, priority: 2 },
+      { id: "p6", name: "Luxembourg Gardens picnic", type: "outdoor", hours: 2, emoji: "🥖", sensitivity: 5, priority: 2 },
+      { id: "p7", name: "Café hopping in Le Marais", type: "indoor", hours: 2, emoji: "☕", sensitivity: 1, priority: 2 },
+      { id: "p8", name: "Orsay Museum", type: "indoor", hours: 2.5, emoji: "🎨", sensitivity: 1, priority: 2 },
+      { id: "p9", name: "Champs-Élysées & Arc de Triomphe", type: "outdoor", hours: 2, emoji: "🏛️", sensitivity: 3, priority: 3 },
     ],
   },
   bali: {
     name: "Bali, Indonesia",
-    icon: "ðŸï¸",
+    icon: "🏝️",
     lat: -8.4095,
     lon: 115.1889,
     activities: [
-      { id: "b1", name: "Tegallalang rice terrace trek", type: "outdoor", hours: 3, emoji: "ðŸŒ¾", sensitivity: 5, priority: 3 },
-      { id: "b2", name: "Uluwatu temple sunset", type: "outdoor", hours: 2.5, emoji: "ðŸ›•", sensitivity: 4, priority: 3 },
-      { id: "b3", name: "Balinese cooking class", type: "indoor", hours: 3, emoji: "ðŸ›", sensitivity: 1, priority: 2 },
-      { id: "b4", name: "Ubud art market", type: "outdoor", hours: 2, emoji: "ðŸŽ¨", sensitivity: 2, priority: 2 },
-      { id: "b5", name: "Traditional Balinese spa", type: "indoor", hours: 2, emoji: "ðŸ’†", sensitivity: 1, priority: 3 },
-      { id: "b6", name: "Mount Batur sunrise hike", type: "outdoor", hours: 5, emoji: "ðŸŒ‹", sensitivity: 5, priority: 3 },
-      { id: "b7", name: "Seminyak beach day", type: "outdoor", hours: 4, emoji: "ðŸ–ï¸", sensitivity: 5, priority: 2 },
-      { id: "b8", name: "Yoga & meditation session", type: "indoor", hours: 1.5, emoji: "ðŸ§˜", sensitivity: 1, priority: 2 },
-      { id: "b9", name: "Tirta Empul water temple", type: "outdoor", hours: 2, emoji: "ðŸ’§", sensitivity: 3, priority: 2 },
+      { id: "b1", name: "Tegallalang rice terrace trek", type: "outdoor", hours: 3, emoji: "🌾", sensitivity: 5, priority: 3 },
+      { id: "b2", name: "Uluwatu temple sunset", type: "outdoor", hours: 2.5, emoji: "🛕", sensitivity: 4, priority: 3 },
+      { id: "b3", name: "Balinese cooking class", type: "indoor", hours: 3, emoji: "🍛", sensitivity: 1, priority: 2 },
+      { id: "b4", name: "Ubud art market", type: "outdoor", hours: 2, emoji: "🎨", sensitivity: 2, priority: 2 },
+      { id: "b5", name: "Traditional Balinese spa", type: "indoor", hours: 2, emoji: "💆", sensitivity: 1, priority: 3 },
+      { id: "b6", name: "Mount Batur sunrise hike", type: "outdoor", hours: 5, emoji: "🌋", sensitivity: 5, priority: 3 },
+      { id: "b7", name: "Seminyak beach day", type: "outdoor", hours: 4, emoji: "🏖️", sensitivity: 5, priority: 2 },
+      { id: "b8", name: "Yoga & meditation session", type: "indoor", hours: 1.5, emoji: "🧘", sensitivity: 1, priority: 2 },
+      { id: "b9", name: "Tirta Empul water temple", type: "outdoor", hours: 2, emoji: "💧", sensitivity: 3, priority: 2 },
     ],
   },
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Activity classifier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Activity classifier ─────────── */
 const OUTDOOR_KEYWORDS = [
   "hike", "trek", "walk", "stroll", "park", "garden", "beach", "mountain",
   "lake", "river", "viewpoint", "bridge", "terrace", "farm", "ruins",
@@ -18238,7 +22509,7 @@ const OUTDOOR_KEYWORDS = [
   "desert", "valley", "forest",
 ];
 const INDOOR_KEYWORDS = [
-  "museum", "gallery", "indoor", "restaurant", "cafe", "cafÃ©", "coffee",
+  "museum", "gallery", "indoor", "restaurant", "cafe", "café", "coffee",
   "bar", "pub", "theater", "theatre", "cinema", "spa", "hammam",
   "cooking class", "workshop", "show", "concert", "aquarium", "mall",
   "shopping", "shop", "palace", "church", "cathedral", "temple", "shrine",
@@ -18246,26 +22517,26 @@ const INDOOR_KEYWORDS = [
 ];
 
 function pickEmoji(text) {
-  if (text.includes("museum")) return "ðŸ›ï¸";
-  if (text.includes("park") || text.includes("garden")) return "ðŸŒ³";
-  if (text.includes("hike") || text.includes("trek")) return "ðŸ¥¾";
-  if (text.includes("beach")) return "ðŸ–ï¸";
-  if (text.includes("temple") || text.includes("shrine")) return "â›©ï¸";
-  if (text.includes("market")) return "ðŸ›ï¸";
-  if (text.includes("restaurant") || text.includes("dinner") || text.includes("lunch")) return "ðŸ½ï¸";
-  if (text.includes("cafe") || text.includes("cafÃ©") || text.includes("coffee")) return "â˜•";
-  if (text.includes("palace") || text.includes("castle")) return "ðŸ°";
-  if (text.includes("church") || text.includes("cathedral")) return "â›ª";
-  if (text.includes("bridge")) return "ðŸŒ‰";
-  if (text.includes("waterfall")) return "ðŸ’¦";
-  if (text.includes("mountain")) return "â›°ï¸";
-  if (text.includes("lake") || text.includes("river")) return "ðŸžï¸";
-  if (text.includes("zoo")) return "ðŸ¦";
-  if (text.includes("aquarium")) return "ðŸ ";
-  if (text.includes("shopping") || text.includes("shop")) return "ðŸ›ï¸";
-  if (text.includes("show") || text.includes("concert")) return "ðŸŽ­";
-  if (text.includes("spa")) return "ðŸ’†";
-  return "ðŸ“";
+  if (text.includes("museum")) return "🏛️";
+  if (text.includes("park") || text.includes("garden")) return "🌳";
+  if (text.includes("hike") || text.includes("trek")) return "🥾";
+  if (text.includes("beach")) return "🏖️";
+  if (text.includes("temple") || text.includes("shrine")) return "⛩️";
+  if (text.includes("market")) return "🛍️";
+  if (text.includes("restaurant") || text.includes("dinner") || text.includes("lunch")) return "🍽️";
+  if (text.includes("cafe") || text.includes("café") || text.includes("coffee")) return "☕";
+  if (text.includes("palace") || text.includes("castle")) return "🏰";
+  if (text.includes("church") || text.includes("cathedral")) return "⛪";
+  if (text.includes("bridge")) return "🌉";
+  if (text.includes("waterfall")) return "💦";
+  if (text.includes("mountain")) return "⛰️";
+  if (text.includes("lake") || text.includes("river")) return "🏞️";
+  if (text.includes("zoo")) return "🦁";
+  if (text.includes("aquarium")) return "🐠";
+  if (text.includes("shopping") || text.includes("shop")) return "🛍️";
+  if (text.includes("show") || text.includes("concert")) return "🎭";
+  if (text.includes("spa")) return "💆";
+  return "📍";
 }
 
 function classifyActivity(activity, dayIndex, actIndex) {
@@ -18318,7 +22589,7 @@ function classifyTripActivities(itinerary) {
   return out;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Forecast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Forecast ─────────── */
 async function fetchForecast(lat, lon, startISO, days) {
   const endISO = addDaysISO(startISO, days - 1);
   const url =
@@ -18365,7 +22636,7 @@ function simulateForecast(placeName, startISO, days) {
   return out;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Optimizer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Optimizer ─────────── */
 function optimizeItinerary(activities, days, slotsPerDay) {
   const preferred = activities.map((a, i) => ({
     ...a,
@@ -18430,7 +22701,7 @@ function naiveItinerary(activities, days, slotsPerDay) {
   return assignment;
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Sub-components ─────────── */
 function WeatherDay({ day, isToday }) {
   const wx = decodeWeatherCode(day.code);
   const rainy = day.rain >= 50;
@@ -18446,10 +22717,10 @@ function WeatherDay({ day, isToday }) {
         <WeatherIcon type={wx.type} size={48} />
       </div>
       <div className="wai-weather-day-temp">
-        {day.max}Â°<span>/{day.min}Â°</span>
+        {day.max}°<span>/{day.min}°</span>
       </div>
       <div className={`wai-weather-day-rain ${rainy ? "warn" : ""}`}>
-        â˜” {day.rain}%
+        ☔ {day.rain}%
       </div>
     </div>
   );
@@ -18481,7 +22752,7 @@ function DayColumn({ day, index, activities, isToday }) {
       <div className="wai-day-col-head">
         <div className="wai-day-col-head-left">
           <div className="wai-day-col-name">
-            Day {index + 1} Â· {weekdayShort(day.date)}
+            Day {index + 1} · {weekdayShort(day.date)}
           </div>
           <div className="wai-day-col-date">{monthDay(day.date)}</div>
         </div>
@@ -18492,7 +22763,7 @@ function DayColumn({ day, index, activities, isToday }) {
       </div>
       <div className="wai-activity-list">
         {activities.length === 0 ? (
-          <div className="wai-day-col-empty">Free day â€” nothing scheduled</div>
+          <div className="wai-day-col-empty">Free day — nothing scheduled</div>
         ) : (
           activities.map((a) => <ActivityCard key={a.id} activity={a} />)
         )}
@@ -18501,7 +22772,7 @@ function DayColumn({ day, index, activities, isToday }) {
   );
 }
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ─────────── Main ─────────── */
 const WeatherAwareItinerary = () => {
   const { id } = useParams();
   const isRealTrip = Boolean(id);
@@ -18548,7 +22819,7 @@ const WeatherAwareItinerary = () => {
       const activities = classifyTripActivities(trip.itinerary || []);
       return {
         name: trip.destination,
-        icon: "ðŸŒ¤ï¸",
+        icon: "🌤️",
         activities,
         startDate: isoDate(new Date(trip.startDate)),
         endDate: isoDate(new Date(trip.endDate)),
@@ -18674,7 +22945,7 @@ const WeatherAwareItinerary = () => {
               textDecoration: "none",
             }}
           >
-            â† Back to trip
+            ← Back to trip
           </Link>
           <div className="wai-panel">
             <div className="wai-panel-label">Error</div>
@@ -18703,14 +22974,14 @@ const WeatherAwareItinerary = () => {
               fontWeight: 600,
             }}
           >
-            â† Back to trip
+            ← Back to trip
           </Link>
         )}
 
         <header className="wai-header">
           <div className="wai-tag">
             <span className="wai-pulse" />
-            {isRealTrip ? "Your trip Â· Smart Weather" : "â­â­â­â­â­ Â· Smart Weather"}
+            {isRealTrip ? "Your trip · Smart Weather" : "⭐⭐⭐⭐⭐ · Smart Weather"}
           </div>
           <h1 className="wai-title">
             Smart Weather <span>Plan</span>
@@ -18728,7 +22999,7 @@ const WeatherAwareItinerary = () => {
               <div className="wai-field">
                 <label className="wai-field-label">Destination</label>
                 <div className="wai-field-input">
-                  <span className="wai-field-icon">ðŸ“</span>
+                  <span className="wai-field-icon">📍</span>
                   <select
                     value={destinationKey}
                     onChange={(e) => setDestinationKey(e.target.value)}
@@ -18744,7 +23015,7 @@ const WeatherAwareItinerary = () => {
               <div className="wai-field">
                 <label className="wai-field-label">Trip start</label>
                 <div className="wai-field-input">
-                  <span className="wai-field-icon">ðŸ“…</span>
+                  <span className="wai-field-icon">📅</span>
                   <input
                     type="date"
                     value={startDate}
@@ -18755,7 +23026,7 @@ const WeatherAwareItinerary = () => {
               <div className="wai-field">
                 <label className="wai-field-label">Trip length</label>
                 <div className="wai-field-input">
-                  <span className="wai-field-icon">â±ï¸</span>
+                  <span className="wai-field-icon">⏱️</span>
                   <input type="text" value="7 days" readOnly />
                 </div>
               </div>
@@ -18764,7 +23035,7 @@ const WeatherAwareItinerary = () => {
                 onClick={() => setMode("optimized")}
                 disabled={state.status !== "ready"}
               >
-                <span>âœ¨</span>
+                <span>✨</span>
                 Re-optimize
               </button>
             </div>
@@ -18780,14 +23051,14 @@ const WeatherAwareItinerary = () => {
               <div className="wai-field">
                 <label className="wai-field-label">Destination</label>
                 <div className="wai-field-input">
-                  <span className="wai-field-icon">ðŸ“</span>
+                  <span className="wai-field-icon">📍</span>
                   <input type="text" value={destination.name} readOnly />
                 </div>
               </div>
               <div className="wai-field">
                 <label className="wai-field-label">Start</label>
                 <div className="wai-field-input">
-                  <span className="wai-field-icon">ðŸ“…</span>
+                  <span className="wai-field-icon">📅</span>
                   <input
                     type="text"
                     value={monthDay(destination.startDate)}
@@ -18798,7 +23069,7 @@ const WeatherAwareItinerary = () => {
               <div className="wai-field">
                 <label className="wai-field-label">End</label>
                 <div className="wai-field-input">
-                  <span className="wai-field-icon">ðŸ</span>
+                  <span className="wai-field-icon">🏁</span>
                   <input
                     type="text"
                     value={monthDay(destination.endDate)}
@@ -18813,13 +23084,13 @@ const WeatherAwareItinerary = () => {
                 className={`wai-mode-btn ${mode === "optimized" ? "active" : ""}`}
                 onClick={() => setMode("optimized")}
               >
-                âœ¨ Smart Weather
+                ✨ Smart Weather
               </button>
               <button
                 className={`wai-mode-btn ${mode === "naive" ? "active" : ""}`}
                 onClick={() => setMode("naive")}
               >
-                ðŸ—“ï¸ Original order
+                🗓️ Original order
               </button>
             </div>
           </div>
@@ -18835,12 +23106,12 @@ const WeatherAwareItinerary = () => {
             <span>
               {state.mode === "live" ? (
                 <>
-                  Live weather loaded for <strong>{destination?.name}</strong> Â·{" "}
-                  {state.days.length} days Â· avg rain {avgRain}%
+                  Live weather loaded for <strong>{destination?.name}</strong> ·{" "}
+                  {state.days.length} days · avg rain {avgRain}%
                 </>
               ) : (
                 <>
-                  Live data unavailable â€” showing estimate for{" "}
+                  Live data unavailable — showing estimate for{" "}
                   <strong>{destination?.name}</strong>
                 </>
               )}
@@ -18850,7 +23121,7 @@ const WeatherAwareItinerary = () => {
         {state.status === "loading" && (
           <div className="wai-status-banner">
             <span className="wai-dot" />
-            <span>Checking weather and adjusting your planâ€¦</span>
+            <span>Checking weather and adjusting your plan…</span>
           </div>
         )}
 
@@ -18861,7 +23132,7 @@ const WeatherAwareItinerary = () => {
                 Trip <span>Weather</span>
               </h2>
               <span className="wai-section-hint">
-                {state.days.filter((d) => d.rain < 20).length} sunny Â·{" "}
+                {state.days.filter((d) => d.rain < 20).length} sunny ·{" "}
                 {state.days.filter((d) => d.rain >= 50).length} rainy
               </span>
             </div>
@@ -18905,7 +23176,7 @@ const WeatherAwareItinerary = () => {
               </h2>
               <span className="wai-section-hint">
                 {mode === "optimized"
-                  ? `Outdoor plans on sunny days Â· indoor on rainy`
+                  ? `Outdoor plans on sunny days · indoor on rainy`
                   : "Original order"}
               </span>
             </div>
@@ -18925,11 +23196,11 @@ const WeatherAwareItinerary = () => {
             <div className="wai-legend">
               <div className="wai-legend-item">
                 <span className="wai-legend-dot outdoor" />
-                Outdoor activity â€” placed on sunny days
+                Outdoor activity — placed on sunny days
               </div>
               <div className="wai-legend-item">
                 <span className="wai-legend-dot indoor" />
-                Indoor activity â€” placed on rainy days
+                Indoor activity — placed on rainy days
               </div>
               <div className="wai-legend-item">
                 <span className="wai-legend-dot rainy" />
@@ -18940,8 +23211,8 @@ const WeatherAwareItinerary = () => {
         )}
 
         <footer className="wai-footer">
-          <span>Live weather data Â· Smart scheduling</span>
-          <span>AI Travel Planner Â© Smart Weather Plan</span>
+          <span>Live weather data · Smart scheduling</span>
+          <span>AI Travel Planner © Smart Weather Plan</span>
         </footer>
       </main>
     </div>
@@ -18951,7 +23222,8 @@ const WeatherAwareItinerary = () => {
 export default WeatherAwareItinerary;
 ```
 
-### FILE: frontend\src\pages\WeatherTrips.css
+### frontend/src/pages/WeatherTrips.css
+
 ```
 /* frontend/src/pages/WeatherTrips.css */
 
@@ -19170,7 +23442,8 @@ export default WeatherAwareItinerary;
 }
 ```
 
-### FILE: frontend\src\pages\WeatherTrips.jsx
+### frontend/src/pages/WeatherTrips.jsx
+
 ```
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -19180,18 +23453,18 @@ import "./WeatherTrips.css";
 
 function pickEmoji(destination) {
   const t = (destination || "").toLowerCase();
-  if (t.includes("bali") || t.includes("beach")) return "ðŸï¸";
-  if (t.includes("tokyo") || t.includes("japan")) return "ðŸ—¼";
-  if (t.includes("kyoto")) return "â›©ï¸";
-  if (t.includes("new york") || t.includes("nyc")) return "ðŸ—½";
-  if (t.includes("paris") || t.includes("france")) return "ðŸ¥";
-  if (t.includes("rome") || t.includes("italy")) return "ðŸ›ï¸";
-  if (t.includes("iceland") || t.includes("reyk")) return "ðŸŒ‹";
-  if (t.includes("marrakech") || t.includes("morocco")) return "ðŸ•Œ";
-  if (t.includes("dubai")) return "ðŸŒ‡";
-  if (t.includes("london")) return "ðŸŽ¡";
-  if (t.includes("india") || t.includes("goa") || t.includes("delhi")) return "ðŸ›•";
-  return "âœˆï¸";
+  if (t.includes("bali") || t.includes("beach")) return "🏝️";
+  if (t.includes("tokyo") || t.includes("japan")) return "🗼";
+  if (t.includes("kyoto")) return "⛩️";
+  if (t.includes("new york") || t.includes("nyc")) return "🗽";
+  if (t.includes("paris") || t.includes("france")) return "🥐";
+  if (t.includes("rome") || t.includes("italy")) return "🏛️";
+  if (t.includes("iceland") || t.includes("reyk")) return "🌋";
+  if (t.includes("marrakech") || t.includes("morocco")) return "🕌";
+  if (t.includes("dubai")) return "🌇";
+  if (t.includes("london")) return "🎡";
+  if (t.includes("india") || t.includes("goa") || t.includes("delhi")) return "🛕";
+  return "✈️";
 }
 
 function daysBetween(a, b) {
@@ -19249,13 +23522,13 @@ const WeatherTrips = () => {
 
         {!loading && trips.length === 0 && (
           <div className="wt-empty">
-            <div className="wt-empty-icon">ðŸŒ¤ï¸</div>
+            <div className="wt-empty-icon">🌤️</div>
             <div className="wt-empty-title">No trips yet</div>
             <p className="wt-empty-text">
               Create a trip first, then come back here to see its weather plan.
             </p>
             <Link to="/trips/new" className="wt-btn-primary">
-              âœ¨ Create a trip
+              ✨ Create a trip
             </Link>
           </div>
         )}
@@ -19288,7 +23561,7 @@ const WeatherTrips = () => {
                     {days} day{days === 1 ? "" : "s"}
                   </div>
                   <div className="wt-card-cta">
-                    View weather plan â†’
+                    View weather plan →
                   </div>
                 </Link>
               );
@@ -19298,7 +23571,7 @@ const WeatherTrips = () => {
 
         <footer className="wt-footer">
           <span>Live data from Open-Meteo</span>
-          <span>AI Travel Planner Â© Weather</span>
+          <span>AI Travel Planner © Weather</span>
         </footer>
       </main>
     </div>
@@ -19308,275 +23581,52 @@ const WeatherTrips = () => {
 export default WeatherTrips;
 ```
 
-### FILE: frontend\src\utils\coverArt.js
+### frontend/tailwind.config.js
+
 ```
-// frontend/src/utils/coverArt.js
-// Generates an AI image URL for a trip using Pollinations.ai (free, no key).
-
-/**
- * Build a good image prompt from the trip data.
- * @param {Object} trip
- * @returns {string}
- */
-function buildPrompt(trip) {
-  const dest = trip.destination || "a beautiful destination";
-  const interests = Array.isArray(trip.interests)
-    ? trip.interests.filter(Boolean).slice(0, 3)
-    : [];
-
-  const parts = [
-    `stunning travel photography of ${dest}`,
-    interests.length ? interests.join(", ") : "",
-    "golden hour lighting, vibrant colors, cinematic composition, high detail, 4k, professional shot",
-  ];
-
-  return parts.filter(Boolean).join(", ");
-}
-
-/**
- * Build the Pollinations URL.
- * Uses a seed so the image is deterministic per trip + regeneration count.
- * @param {Object} trip
- * @param {number} seed
- * @returns {string}
- */
-export function buildCoverArtUrl(trip, seed = 1) {
-  const prompt = buildPrompt(trip);
-  const encoded = encodeURIComponent(prompt);
-  const tripSeed =
-    (trip._id || trip.destination || "trip")
-      .split("")
-      .reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + seed * 1000;
-
-  return (
-    `https://image.pollinations.ai/prompt/${encoded}` +
-    `?width=1200&height=630&nologo=true&seed=${tripSeed}`
-  );
-}
-
-/**
- * Preload an image so we know it's ready before swapping the src.
- * @param {string} url
- * @returns {Promise<boolean>}
- */
-export function preloadImage(url) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
-    img.src = url;
-  });
-}
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["./index.html", "./src/**/*.{js,jsx}"],
+  theme: {
+    extend: {
+      colors: {
+        lime: {
+          DEFAULT: "#A8D84A",
+          light: "#E5F0C8",
+          dark: "#8FBF2E",
+        },
+        forest: "#1A2E1A",
+        ink: "#0A0A0A",
+      },
+      fontFamily: {
+        sans: ["Poppins", "system-ui", "sans-serif"],
+      },
+    },
+  },
+  plugins: [],
+};
 ```
 
-### FILE: frontend\src\utils\ics.js
+### frontend/vite.config.js
+
 ```
-// frontend/src/utils/ics.js
-// Generates a standard .ics calendar file from a trip.
-// Spec: RFC 5545
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
 
-const pad = (n) => String(n).padStart(2, "0");
-
-function toICSDate(date) {
-  return (
-    date.getUTCFullYear() +
-    pad(date.getUTCMonth() + 1) +
-    pad(date.getUTCDate()) +
-    "T" +
-    pad(date.getUTCHours()) +
-    pad(date.getUTCMinutes()) +
-    "00Z"
-  );
-}
-
-function escapeICS(text) {
-  if (!text) return "";
-  return String(text)
-    .replace(/\\/g, "\\\\")
-    .replace(/\n/g, "\\n")
-    .replace(/,/g, "\\,")
-    .replace(/;/g, "\\;");
-}
-
-/* Parse "09:00 AM" or "Morning" or "All day" into { hour, minute } */
-function parseTime(timeStr) {
-  if (!timeStr) return { hour: 9, minute: 0 };
-  const s = String(timeStr).trim();
-
-  // "09:00 AM" / "9:30 PM" / "14:00"
-  const ampm = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
-  if (ampm) {
-    let h = parseInt(ampm[1], 10);
-    const m = parseInt(ampm[2] || "0", 10);
-    const ap = ampm[3].toUpperCase();
-    if (ap === "PM" && h !== 12) h += 12;
-    if (ap === "AM" && h === 12) h = 0;
-    return { hour: h, minute: m };
-  }
-
-  // "14:00" / "9:30"
-  const hhmm = s.match(/^(\d{1,2}):(\d{2})$/);
-  if (hhmm) {
-    return {
-      hour: parseInt(hhmm[1], 10),
-      minute: parseInt(hhmm[2], 10),
-    };
-  }
-
-  // Named times
-  const named = s.toLowerCase();
-  if (named.includes("morning")) return { hour: 9, minute: 0 };
-  if (named.includes("afternoon")) return { hour: 14, minute: 0 };
-  if (named.includes("evening")) return { hour: 18, minute: 0 };
-  if (named.includes("night")) return { hour: 20, minute: 0 };
-  if (named.includes("dawn")) return { hour: 6, minute: 0 };
-  if (named.includes("midday") || named.includes("noon"))
-    return { hour: 12, minute: 0 };
-  if (named.includes("all day") || named.includes("full day"))
-    return { hour: 9, minute: 0 };
-
-  return { hour: 9, minute: 0 };
-}
-
-function eventDurationHours(title) {
-  const t = (title || "").toLowerCase();
-  if (/full day|all day/.test(t)) return 8;
-  if (/hike|trek|tour|day trip/.test(t)) return 3;
-  if (/dinner|lunch|breakfast|meal/.test(t)) return 2;
-  if (/museum|temple|shrine|visit/.test(t)) return 2;
-  return 2;
-}
-
-/**
- * Build the .ics content string from a trip object.
- * @param {Object} trip - MongoDB trip document
- * @returns {string} ICS file content
- */
-export function generateICS(trip) {
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//AI Travel Planner//Trip Calendar//EN",
-    "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
-    `X-WR-CALNAME:${escapeICS(trip.destination || "Trip")}`,
-    `X-WR-CALDESC:${escapeICS(
-      `Itinerary for ${trip.destination || "trip"}`
-    )}`,
-  ];
-
-  const tripStart = new Date(trip.startDate || Date.now());
-  const destination = trip.destination || "Trip";
-
-  // Hero event on day 1
-  lines.push(
-    "BEGIN:VEVENT",
-    `UID:trip-start-${trip._id || Date.now()}@aitravelplanner`,
-    `DTSTAMP:${toICSDate(new Date())}`,
-    `DTSTART:${toICSDate(tripStart)}`,
-    `DTEND:${toICSDate(
-      new Date(tripStart.getTime() + 60 * 60 * 1000)
-    )}`,
-    `SUMMARY:${escapeICS("âœˆï¸ Arrive â€” " + destination)}`,
-    `DESCRIPTION:${escapeICS(
-      `Trip starts. ${trip.travellers || 1} traveller(s), budget â‚¹${
-        trip.budget || 0
-      }.`
-    )}`,
-    `LOCATION:${escapeICS(destination)}`,
-    "END:VEVENT"
-  );
-
-  // Each activity becomes an event
-  (trip.itinerary || []).forEach((day, dayIdx) => {
-    const dayDate = new Date(tripStart);
-    dayDate.setDate(dayDate.getDate() + dayIdx);
-
-    (day.activities || []).forEach((act, actIdx) => {
-      const { hour, minute } = parseTime(act.time);
-      const start = new Date(dayDate);
-      start.setHours(hour, minute, 0, 0);
-
-      const durationH = eventDurationHours(act.title);
-      const end = new Date(start.getTime() + durationH * 60 * 60 * 1000);
-
-      const desc = [
-        act.description,
-        act.cost ? `Cost: â‚¹${act.cost} per person` : "",
-        act.location ? `Location: ${act.location}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-
-      lines.push(
-        "BEGIN:VEVENT",
-        `UID:day${dayIdx}-act${actIdx}-${trip._id || Date.now()}@aitravelplanner`,
-        `DTSTAMP:${toICSDate(new Date())}`,
-        `DTSTART:${toICSDate(start)}`,
-        `DTEND:${toICSDate(end)}`,
-        `SUMMARY:${escapeICS("ðŸ“ " + (act.title || "Activity"))}`,
-        `DESCRIPTION:${escapeICS(desc)}`,
-        `LOCATION:${escapeICS(act.location || destination)}`,
-        "END:VEVENT"
-      );
-    });
-  });
-
-  // Hotels as optional events on check-in day
-  (trip.hotels || []).forEach((hotel, hIdx) => {
-    const checkIn = new Date(tripStart);
-    const start = new Date(checkIn);
-    start.setHours(15, 0, 0, 0);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-
-    lines.push(
-      "BEGIN:VEVENT",
-      `UID:hotel${hIdx}-${trip._id || Date.now()}@aitravelplanner`,
-      `DTSTAMP:${toICSDate(new Date())}`,
-      `DTSTART:${toICSDate(start)}`,
-      `DTEND:${toICSDate(end)}`,
-      `SUMMARY:${escapeICS("ðŸ¨ " + (hotel.name || "Hotel"))}`,
-      `DESCRIPTION:${escapeICS(
-        [
-          hotel.address,
-          hotel.price ? `Price: ${hotel.price}` : "",
-          hotel.rating ? `Rating: ${hotel.rating}â˜…` : "",
-        ]
-          .filter(Boolean)
-          .join("\n")
-      )}`,
-      `LOCATION:${escapeICS(hotel.address || destination)}`,
-      "END:VEVENT"
-    );
-  });
-
-  lines.push("END:VCALENDAR");
-
-  // ICS requires CRLF line endings
-  return lines.join("\r\n");
-}
-
-/**
- * Trigger the browser to download the trip's .ics file.
- */
-export function downloadICS(trip) {
-  if (!trip) return;
-  const content = generateICS(trip);
-  const blob = new Blob([content], {
-    type: "text/calendar;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const filename =
-    (trip.destination || "trip").replace(/\s+/g, "-").toLowerCase() +
-    "-itinerary.ics";
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  return filename;
-}
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
 ```
+
+---
+
+## Configuration Files
+
+### PROJECT_CODE.md
+
+```
+```
+
+---
 

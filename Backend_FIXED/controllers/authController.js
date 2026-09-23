@@ -4,6 +4,10 @@ import jwt from "jsonwebtoken";
 
 // Helper to create a JWT
 const generateToken = (userId) => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is not set in .env");
+  }
+
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
@@ -12,7 +16,11 @@ const generateToken = (userId) => {
 // POST /api/auth/register
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const nameValue = String(req.body?.name || "").trim();
+    const emailValue = String(req.body?.email || "").trim().toLowerCase();
+    const password = String(req.body?.password || "");
+    const name = nameValue;
+    const email = emailValue;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -52,7 +60,8 @@ export const registerUser = async (req, res) => {
 // POST /api/auth/login
 export const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const password = String(req.body?.password || "");
 
     if (!email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -89,7 +98,10 @@ export const loginUser = async (req, res) => {
 // POST /api/auth/google
 export const googleAuth = async (req, res) => {
   try {
-    const { email, name, googleId, avatar } = req.body;
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const name = String(req.body?.name || "Traveler").trim();
+    const googleId = String(req.body?.googleId || "").trim();
+    const avatar = req.body?.avatar ? String(req.body.avatar) : null;
 
     if (!email || !googleId) {
       return res.status(400).json({ message: "Email and googleId required" });

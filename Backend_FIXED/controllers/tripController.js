@@ -1,4 +1,5 @@
 import Trip from "../models/Trip.js";
+import crypto from "node:crypto";
 import { generateItinerary } from "../services/geminiService.js";
 import { generateItineraryWithGroq } from "../services/groqService.js";
 import { geocode, getWeather } from "../services/weatherService.js";
@@ -11,10 +12,23 @@ export const createTrip = async (req, res) => {
     const { destination, startDate, endDate, budget, travellers, interests } =
       req.body;
 
-    if (!destination || !startDate || !endDate || !budget) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const numericBudget = Number(budget);
+    const numericTravellers = Number(travellers || 1);
+
+    if (!destination || !startDate || !endDate || !Number.isFinite(numericBudget)) {
       return res
         .status(400)
-        .json({ message: "Please fill all required fields" });
+        .json({ message: "Destination, dates and a valid budget are required" });
+    }
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      return res.status(400).json({ message: "End date must be after start date" });
+    }
+
+    if (!Number.isInteger(numericTravellers) || numericTravellers < 1) {
+      return res.status(400).json({ message: "Travellers must be at least 1" });
     }
 
     const trip = await Trip.create({
@@ -22,8 +36,8 @@ export const createTrip = async (req, res) => {
       destination,
       startDate,
       endDate,
-      budget,
-      travellers: travellers || 1,
+      budget: numericBudget,
+      travellers: numericTravellers,
       interests: interests || [],
     });
 
@@ -84,9 +98,46 @@ export const updateTrip = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const updated = await Trip.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
+    const allowed = [
+      "destination",
+      "startDate",
+      "endDate",
+      "budget",
+      "travellers",
+      "spotsCount",
+      "interests",
+    ];
+
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body?.[key] !== undefined) updates[key] = req.body[key];
+    }
+
+    if (updates.startDate || updates.endDate) {
+      const start = new Date(updates.startDate ?? trip.startDate);
+      const end = new Date(updates.endDate ?? trip.endDate);
+
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+        return res.status(400).json({ message: "End date must be after start date" });
+      }
+    }
+
+    if (updates.budget !== undefined && !Number.isFinite(Number(updates.budget))) {
+      return res.status(400).json({ message: "Budget must be a valid number" });
+    }
+
+    if (updates.travellers !== undefined) {
+      const travellers = Number(updates.travellers);
+      if (!Number.isInteger(travellers) || travellers < 1) {
+        return res.status(400).json({ message: "Travellers must be at least 1" });
+      }
+    }
+
+    const updated = await Trip.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
 
     res.json(updated);
   } catch (error) {
@@ -151,20 +202,29 @@ export const generateTripItinerary = async (req, res) => {
     };
     await trip.save();
 
+    const safeImages = async (query) => {
+      try {
+        const imgs = await getPlaceImages(query, 1);
+        return imgs[0] || null;
+      } catch {
+        return null;
+      }
+    };
+
     const hotelsWithImages = await Promise.all(
-      (trip.hotels || []).map(async (h) => {
-        const imgs = await getPlaceImages(h.name + " hotel", 1);
-        return { ...h, image: imgs[0] || null };
-      })
+      (trip.hotels || []).map(async (h) => ({
+        ...h.toObject?.() || h,
+        image: await safeImages(`${h.name || "hotel"} hotel`),
+      }))
     );
 
     const itineraryWithImages = await Promise.all(
       (trip.itinerary || []).map(async (day) => {
         const acts = await Promise.all(
-          (day.activities || []).map(async (act) => {
-            const imgs = await getPlaceImages(act.title, 1);
-            return { ...act, image: imgs[0] || null };
-          })
+          (day.activities || []).map(async (act) => ({
+            ...act,
+            image: await safeImages(act.title || trip.destination),
+          }))
         );
         return { ...day, activities: acts };
       })
@@ -294,9 +354,22 @@ export const shareTrip = async (req, res) => {
     }
 
     if (!trip.shareId) {
-      const id = Math.random().toString(36).substring(2, 10);
-      trip.shareId = id;
-      await trip.save();
+      let created = false;
+
+      for (let attempt = 0; attempt < 5 && !created; attempt++) {
+        const id = crypto.randomBytes(6).toString("base64url");
+        const exists = await Trip.exists({ shareId: id });
+
+        if (!exists) {
+          trip.shareId = id;
+          await trip.save();
+          created = true;
+        }
+      }
+
+      if (!created) {
+        return res.status(500).json({ message: "Could not create share link" });
+      }
     }
 
     res.json({ shareId: trip.shareId });
