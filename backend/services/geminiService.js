@@ -15,11 +15,11 @@ const getAI = () => {
 };
 
 // Current working Gemini models (2026)
+// gemini-2.5-flash was removed — Google deprecated it for new users.
 const MODELS = [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
   "gemini-3.6-flash",
-  "gemini-2.5-flash",
 ];
 
 const generateWithRetry = async (prompt) => {

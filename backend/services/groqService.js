@@ -209,27 +209,44 @@ Interests: ${
       : "general sightseeing"
   }
 
-IMPORTANT RULES
+OUTPUT STRUCTURE — FOLLOW EXACTLY
 
-1. Create one day for every day between the start and end date.
-2. Include the correct date for every day.
-3. Suggest 3 to 5 activities per day.
-4. Every activity must contain:
-   - time
-   - title
-   - description
-   - location
-   - cost
-5. Suggest 3 to 5 hotels.
-6. Hotel rating must be between 1 and 5.
-7. Hotel price must be in INR.
-8. Give a complete budget breakdown.
-9. Keep the estimated total close to or below the user's budget.
-10. Cover ${spotsCount} distinct places.
-11. Do not repeatedly use the same attraction.
-12. All prices are in INR.
-13. Do not add fields that are not defined by the requested structure.
-14. Return structured data only.
+The response must be a single JSON object with EXACTLY these five top-level keys:
+  destination, summary, days, hotels, budgetBreakdown
+
+The "days" array has one entry per day. Each entry contains EXACTLY three keys:
+  "day"         — integer (1, 2, 3, ...)
+  "date"        — string "YYYY-MM-DD"
+  "activities"  — array of activity objects
+
+Do NOT add any other key inside a day object.
+Do NOT put "budgetBreakdown" inside a day object.
+Do NOT put "hotels" or "summary" inside a day object.
+Do NOT put any per-day totals anywhere.
+The ONLY place "budgetBreakdown" appears is at the TOP LEVEL of the response,
+as a sibling of "days", not inside it.
+
+Each activity object contains EXACTLY five keys:
+  time, title, description, location, cost
+
+Each hotel object contains EXACTLY four keys:
+  name, rating, price, address
+
+The top-level "budgetBreakdown" object contains EXACTLY five keys:
+  flights, hotels, food, activities, total
+
+CONTENT RULES
+
+1. One day per date between start and end (inclusive).
+2. Correct ISO date for every day.
+3. 3 to 5 activities per day.
+4. 3 to 5 hotels.
+5. Hotel rating between 1 and 5. Price in INR as a string like "₹3500/night".
+6. All costs are numbers in INR (no symbols, no commas).
+7. Budget breakdown numbers are plain numbers in INR.
+8. Keep the total close to or below the user's budget.
+9. Cover ${spotsCount} distinct places across the trip, no repeats.
+10. Return JSON only. No markdown. No commentary.
 `;
 
   let lastError = null;
@@ -246,7 +263,7 @@ IMPORTANT RULES
             {
               role: "system",
               content:
-                "You are a professional AI travel planner. Generate accurate structured travel itinerary data based on the user's trip details.",
+                "You are a professional AI travel planner. Generate accurate structured travel itinerary data based on the user's trip details. Follow the requested JSON structure exactly.",
             },
 
             {
@@ -272,7 +289,7 @@ IMPORTANT RULES
           max_completion_tokens: 8000,
 
           reasoning_effort: "low",
-          include_reasoning: false,
+          reasoning_format: "hidden",
         });
 
       const text =
