@@ -310,10 +310,6 @@ const Landing = () => {
       </header>
 
       <main className="lp-main">
-        <div className="lp-hero-badge">
-          <span className="lp-hero-badge-dot"></span>
-          Powered by Gemini &amp; Groq
-        </div>
         <h1 className="lp-headline">
           <span className="lp-headline-line">Your next trip to</span>
           <span className="lp-headline-rotate">

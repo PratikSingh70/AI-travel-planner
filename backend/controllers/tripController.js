@@ -283,10 +283,7 @@ export const searchPhotos = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// SHARE - POST /api/trips/:id/share  (protected)
-// Generates a random 8-char shareId if not already present
-// ─────────────────────────────────────────────
+// SHARE - POST /api/trips/:id/share
 export const shareTrip = async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
@@ -296,9 +293,7 @@ export const shareTrip = async (req, res) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    // Generate a new shareId if missing
     if (!trip.shareId) {
-      // 8-char random string using base36
       const id = Math.random().toString(36).substring(2, 10);
       trip.shareId = id;
       await trip.save();
@@ -311,10 +306,7 @@ export const shareTrip = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// PUBLIC - GET /api/trips/shared/:shareId  (no auth)
-// Returns a shared trip. Hides the owner's private info.
-// ─────────────────────────────────────────────
+// PUBLIC - GET /api/trips/shared/:shareId
 export const getSharedTrip = async (req, res) => {
   try {
     const trip = await Trip.findOne({ shareId: req.params.shareId }).populate(
@@ -326,7 +318,6 @@ export const getSharedTrip = async (req, res) => {
       return res.status(404).json({ message: "Shared trip not found" });
     }
 
-    // Return only safe fields (no email, no userId)
     res.json({
       _id: trip._id,
       destination: trip.destination,

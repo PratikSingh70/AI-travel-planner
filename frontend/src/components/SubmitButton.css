@@ -1,0 +1,139 @@
+/* frontend/src/components/SubmitButton.css */
+
+.sb-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  min-width: 180px;
+  padding: 0 28px;
+  border-radius: 9999px;
+  background: transparent;
+  border: 2px solid #a3e635;
+  color: #a3e635;
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  overflow: hidden;
+  outline: none;
+  transition:
+    width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    min-width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease,
+    transform 0.15s ease,
+    box-shadow 0.3s ease;
+}
+
+.sb-btn:hover:not(:disabled) {
+  background: #a3e635;
+  color: #000;
+  box-shadow: 0 10px 30px -8px rgba(163, 230, 53, 0.6);
+}
+
+.sb-btn:active:not(:disabled) {
+  transform: scale(0.97);
+  letter-spacing: 0.08em;
+}
+
+.sb-btn:focus-visible {
+  outline: 2px solid #a3e635;
+  outline-offset: 4px;
+}
+
+.sb-btn:disabled {
+  cursor: not-allowed;
+}
+
+.sb-btn.is-loading {
+  width: 46px;
+  min-width: 46px;
+  padding: 0;
+  background: transparent;
+  border-color: rgba(163, 230, 53, 0.18);
+  border-left-color: #a3e635;
+  border-width: 3px;
+  color: transparent;
+  animation: sb-rotate 1s linear infinite;
+  box-shadow: 0 0 24px -8px rgba(163, 230, 53, 0.6);
+  pointer-events: none;
+}
+
+.sb-btn.is-loading .sb-label {
+  display: none;
+}
+
+@keyframes sb-rotate {
+  to { transform: rotate(360deg); }
+}
+
+.sb-btn.is-success {
+  width: 46px;
+  min-width: 46px;
+  padding: 0;
+  background: #a3e635;
+  border-color: #a3e635;
+  color: #000;
+  animation: none;
+  box-shadow:
+    0 0 0 4px rgba(163, 230, 53, 0.2),
+    0 10px 30px -8px rgba(163, 230, 53, 0.7);
+}
+
+.sb-btn.is-success .sb-label {
+  display: none;
+}
+
+.sb-check {
+  width: 22px;
+  height: 22px;
+  color: #000;
+}
+
+.sb-check polyline {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: sb-draw 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.05s forwards;
+}
+
+@keyframes sb-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.sb-label {
+  display: inline-block;
+  white-space: nowrap;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-btn {
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+  .sb-btn.is-loading {
+    animation-duration: 3s;
+  }
+  .sb-check polyline {
+    animation-duration: 0.01ms;
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .sb-btn {
+    width: 100%;
+    min-width: 0;
+  }
+  .sb-btn.is-loading,
+  .sb-btn.is-success {
+    width: 46px;
+    min-width: 46px;
+    margin-left: auto;
+  }
+}

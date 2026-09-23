@@ -14,7 +14,7 @@ const getAI = () => {
   return ai;
 };
 
-// Updated 2026 model names — gemini-2.0-flash is gone
+// Current working Gemini models (2026)
 const MODELS = [
   "gemini-3.6-flash",
   "gemini-2.5-flash",
@@ -40,7 +40,11 @@ const generateWithRetry = async (prompt) => {
       const status = err?.status;
       const msg = String(err?.message || "").toLowerCase();
 
-      if (status === 404 || msg.includes("not found") || msg.includes("no longer available")) {
+      if (
+        status === 404 ||
+        msg.includes("not found") ||
+        msg.includes("no longer available")
+      ) {
         console.log(`  ✗ ${model} not available — next`);
       } else if (status === 429 || msg.includes("quota")) {
         console.log(`  ✗ ${model} rate limited — next`);

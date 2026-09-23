@@ -6,7 +6,7 @@ const fallbackUrl = (title) =>
 
 const ImageSlideshow = ({
   slides = [],
-  interval = 2000,
+  interval = 3000,
   className = "",
   onChange,
 }) => {

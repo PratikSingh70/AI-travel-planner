@@ -638,3 +638,177 @@
   .zz-entry, .st-event, .zz-card, .zz-marker, .st-pin { animation: none !important; transition: none !important; }
   .tj-orb-1, .tj-orb-2 { animation: none !important; }
 }
+
+/* ═════════════════════════════════════════════════════
+   COMPACT CARDS — shrink journal entry cards
+   ═════════════════════════════════════════════════════ */
+
+/* Zigzag layout — card */
+.tj-root .zz-card {
+  max-width: 340px;
+  padding: 16px 18px;
+  border-radius: 14px;
+}
+.tj-root .zz-title {
+  font-size: 1rem;
+  margin-bottom: 2px;
+}
+.tj-root .zz-desc {
+  font-size: 0.78rem;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.tj-root .zz-head {
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+.tj-root .zz-cat {
+  font-size: 0.56rem;
+}
+.tj-root .zz-day {
+  font-size: 0.56rem;
+}
+.tj-root .zz-time {
+  font-size: 0.56rem;
+  margin-bottom: 8px;
+}
+.tj-root .zz-chip {
+  font-size: 0.55rem;
+  padding: 2px 6px;
+}
+
+/* Zigzag layout — numbered marker */
+.tj-root .zz-marker {
+  width: 34px;
+  height: 34px;
+}
+.tj-root .zz-marker-num {
+  font-size: 0.75rem;
+}
+.tj-root .zz-marker-day {
+  font-size: 0.42rem;
+}
+
+/* Zigzag layout — reduce vertical gaps */
+.tj-root .zz-entry {
+  padding: 16px 0;
+}
+
+/* Stream layout — body card */
+.tj-root .st-body {
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+.tj-root .st-title {
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+.tj-root .st-desc {
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.tj-root .st-chips {
+  margin-top: 10px;
+  padding-top: 10px;
+  gap: 5px;
+}
+.tj-root .st-chip {
+  font-size: 0.55rem;
+  padding: 3px 8px;
+}
+.tj-root .st-time {
+  font-size: 0.58rem;
+  padding: 3px 9px;
+}
+.tj-root .st-day {
+  font-size: 0.62rem;
+}
+.tj-root .st-event {
+  padding-left: 72px;
+  padding-bottom: 28px;
+}
+.tj-root .st-pin {
+  width: 20px;
+  height: 20px;
+  left: 22px;
+}
+.tj-root .st-pin-inner {
+  width: 6px;
+  height: 6px;
+}
+/* Mobile — even smaller */
+@media (max-width: 640px) {
+  .tj-root .zz-card {
+    max-width: 100%;
+    padding: 14px 16px;
+  }
+  .tj-root .zz-title {
+    font-size: 0.92rem;
+  }
+  .tj-root .zz-desc {
+    font-size: 0.74rem;
+  }
+  .tj-root .st-body {
+    padding: 12px 14px;
+  }
+  .tj-root .st-title {
+    font-size: 0.92rem;
+  }
+  .tj-root .st-desc {
+    font-size: 0.74rem;
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   MAKE DESTINATION CARD SAME SIZE AS OTHERS
+   ═════════════════════════════════════════════════════ */
+
+/* Zigzag layout — destination card override */
+.tj-root .zz-entry[data-type="destination"] .zz-card {
+  padding: 16px 18px;
+  max-width: 340px;
+  border-radius: 14px;
+  background: var(--tj-card);
+  border-color: var(--tj-border);
+}
+
+.tj-root .zz-entry[data-type="destination"] .zz-title {
+  font-size: 1rem;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+/* Stream layout — destination override */
+.tj-root .st-event[data-type="destination"] .st-title {
+  font-size: 1rem;
+}
+
+.tj-root .st-event[data-type="destination"] .st-body {
+  background: var(--tj-card);
+  border-color: var(--tj-border);
+  padding: 14px 16px;
+}
+
+.tj-root .st-event[data-type="destination"] .st-pin {
+  width: 20px;
+  height: 20px;
+  left: 22px;
+  top: 2px;
+  border-width: 2px;
+}
+
+.tj-root .st-event[data-type="destination"] .st-pin-inner {
+  width: 6px;
+  height: 6px;
+}
+
+@media (max-width: 640px) {
+  .tj-root .zz-entry[data-type="destination"] .zz-card {
+    max-width: 100%;
+    padding: 14px 16px;
+  }
+  .tj-root .zz-entry[data-type="destination"] .zz-title,
+  .tj-root .st-event[data-type="destination"] .st-title {
+    font-size: 0.92rem;
+  }
+}

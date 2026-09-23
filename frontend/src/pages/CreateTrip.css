@@ -201,29 +201,145 @@
 .ct-option-title { font-size: 1rem; font-weight: 800; color: #fff; }
 .ct-option-desc { font-size: 0.82rem; color: var(--ct-muted); margin-top: 6px; line-height: 1.4; }
 
+/* ═════════════════════════════════════════════════════
+   INTEREST CHIPS
+   ═════════════════════════════════════════════════════ */
+
+.ct-hint {
+  font-size: 0.82rem;
+  color: var(--ct-muted);
+  margin: -6px 0 16px;
+  line-height: 1.5;
+}
+
+.ct-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ct-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #e5e5e5;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  transition:
+    background 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.22s ease,
+    color 0.22s ease,
+    transform 0.15s ease,
+    box-shadow 0.25s ease;
+  white-space: nowrap;
+  position: relative;
+}
+
+.ct-chip:hover {
+  border-color: rgba(163, 230, 53, 0.4);
+  background: rgba(163, 230, 53, 0.06);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.ct-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.3);
+}
+
+.ct-chip:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.ct-chip-emoji {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: grayscale(0.4);
+  transition: filter 0.22s ease, transform 0.22s ease;
+}
+
+.ct-chip:hover .ct-chip-emoji {
+  filter: grayscale(0);
+  transform: scale(1.1);
+}
+
+.ct-chip.ct-chip-active {
+  background: linear-gradient(
+    135deg,
+    rgba(163, 230, 53, 0.18),
+    rgba(163, 230, 53, 0.08)
+  );
+  border-color: rgba(163, 230, 53, 0.7);
+  color: #e8ffb8;
+  box-shadow:
+    0 0 0 1px rgba(163, 230, 53, 0.15) inset,
+    0 6px 18px -8px rgba(163, 230, 53, 0.5),
+    0 0 20px -8px rgba(163, 230, 53, 0.4);
+}
+
+.ct-chip.ct-chip-active .ct-chip-emoji {
+  filter: grayscale(0);
+  transform: scale(1.1);
+}
+
+.ct-chip.ct-chip-active:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(163, 230, 53, 0.24),
+    rgba(163, 230, 53, 0.12)
+  );
+  border-color: #a3e635;
+}
+
+.ct-chip-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #a3e635;
+  color: #000;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  flex-shrink: 0;
+  animation: chipCheckIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes chipCheckIn {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 480px) {
+  .ct-chip {
+    padding: 9px 14px 9px 12px;
+    font-size: 0.82rem;
+    gap: 6px;
+  }
+  .ct-chip-emoji {
+    font-size: 0.9rem;
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   SUBMIT + TOAST
+   ═════════════════════════════════════════════════════ */
+
 .ct-actions {
   display: flex;
   justify-content: flex-end;
   padding-top: 12px;
 }
-.ct-submit {
-  background: linear-gradient(135deg, var(--ct-lime), var(--ct-lime-bright));
-  color: #000;
-  border: none;
-  padding: 14px 28px;
-  border-radius: 14px;
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 8px 24px -6px rgba(163, 230, 53, 0.5);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.ct-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px -6px rgba(163, 230, 53, 0.7);
-}
-.ct-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .ct-toast {
   position: fixed;
@@ -267,6 +383,74 @@
   color: #fff;
 }
 
+/* ═════════════════════════════════════════════════════
+   KILL ALL FOCUS OUTLINES (fixes the rectangle)
+   ═════════════════════════════════════════════════════ */
+
+/* Wrapper divs that receive programmatic focus */
+.ct-field[tabindex]:focus,
+.ct-field[tabindex]:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+
+/* Any element inside the form that might get an outline */
+.ct-form [tabindex="-1"]:focus,
+.ct-form [tabindex="-1"]:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none;
+}
+
+/* Form element itself */
+.ct-form:focus,
+.ct-form:focus-visible,
+.ct-form:focus-within {
+  outline: none !important;
+}
+
+/* Number inputs — kill browser spin-button outline */
+.ct-input[type="number"]:focus,
+.ct-input[type="number"]:focus-visible {
+  outline: none !important;
+}
+
+.ct-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.ct-input[type="number"]::-webkit-outer-spin-button,
+.ct-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox — remove inner dotted outline */
+.ct-field:-moz-focusring {
+  outline: none !important;
+}
+
+/* Safari — remove tap highlight */
+.ct-field[tabindex] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Re-enable visible focus only for real interactive elements (accessibility) */
+.ct-root button:focus-visible,
+.ct-root input:focus-visible,
+.ct-root a:focus-visible {
+  outline: 2px solid #a3e635;
+  outline-offset: 2px;
+}
+
+/* ═════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═════════════════════════════════════════════════════ */
+
 @media (prefers-reduced-motion: reduce) {
-  .ct-orb-1, .ct-orb-2, .ct-pulse, .ct-toast-dot { animation: none !important; }
+  .ct-orb-1, .ct-orb-2, .ct-pulse, .ct-toast-dot,
+  .ct-chip, .ct-chip-emoji, .ct-chip-check {
+    animation: none !important;
+    transition: none !important;
+  }
 }

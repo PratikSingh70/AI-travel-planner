@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import SubmitButton from "../components/SubmitButton";
 import "./CreateTrip.css";
 
 const shortenAddress = (displayName) => {
@@ -31,6 +32,18 @@ const TRAVELER_OPTIONS = [
   { id: "friends", icon: "⛵", label: "Friends", desc: "A bunch of thrill-seekers", count: 5 },
 ];
 
+const INTEREST_OPTIONS = [
+  { id: "history", icon: "🏛️", label: "History & old towns" },
+  { id: "food", icon: "🍜", label: "Food & markets" },
+  { id: "museums", icon: "🎨", label: "Museums & art" },
+  { id: "walking", icon: "🚶", label: "Walking tours" },
+  { id: "nature", icon: "🌿", label: "Nature & day trips" },
+  { id: "nightlife", icon: "🌙", label: "Nightlife" },
+  { id: "shopping", icon: "🛍️", label: "Shopping" },
+  { id: "beaches", icon: "🏖️", label: "Beaches" },
+  { id: "other", icon: "✨", label: "Other" },
+];
+
 const CreateTrip = () => {
   const navigate = useNavigate();
   const [destination, setDestination] = useState("");
@@ -39,14 +52,16 @@ const CreateTrip = () => {
   const [days, setDays] = useState("");
   const [budget, setBudget] = useState("");
   const [travelerType, setTravelerType] = useState("");
+  const [interests, setInterests] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [btnState, setBtnState] = useState("idle"); // idle | loading | success
 
   const suggestionsRef = useRef(null);
   const daysRef = useRef(null);
   const budgetRef = useRef(null);
   const travelersRef = useRef(null);
-  const submitRef = useRef(null);
+  const interestsRef = useRef(null);
 
   // Fetch destination suggestions
   useEffect(() => {
@@ -82,7 +97,7 @@ const CreateTrip = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Helper: scroll + focus
+  // Scroll + focus helper
   const focusNext = (ref) => {
     const el = ref.current;
     if (!el) return;
@@ -90,11 +105,17 @@ const CreateTrip = () => {
     setTimeout(() => el.focus?.(), 250);
   };
 
-  // ── Enter in destination → pick first suggestion, then go to days ──
+  // Toggle interest chip
+  const toggleInterest = (id) => {
+    setInterests((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  // Enter key handlers for auto-focus flow
   const handleDestinationKeyDown = (e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
-
     if (suggestions.length > 0) {
       setDestination(shortenAddress(suggestions[0].name));
       setSuggestions([]);
@@ -102,19 +123,15 @@ const CreateTrip = () => {
     } else {
       setShowSuggestions(false);
     }
-
-    // Move focus to days
     focusNext(daysRef);
   };
 
-  // ── Enter in days → go to budget ──
   const handleDaysKeyDown = (e) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
     focusNext(budgetRef);
   };
 
-  // ── Enter on budget option → pick + go to travelers ──
   const handleBudgetKeyDown = (e, id) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -123,42 +140,63 @@ const CreateTrip = () => {
     }
   };
 
-  // ── Enter on traveler option → pick + go to submit ──
   const handleTravelerKeyDown = (e, id) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       setTravelerType(id);
-      focusNext(submitRef);
+      focusNext(interestsRef);
+    }
+  };
+
+  const handleInterestKeyDown = (e, id) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleInterest(id);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
     if (!destination || !days || !budget || !travelerType) {
       return setError("Please fill all fields");
     }
+
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + Number(days));
     const selectedBudget = BUDGET_OPTIONS.find((b) => b.id === budget);
     const selectedTraveler = TRAVELER_OPTIONS.find((t) => t.id === travelerType);
 
+    const interestLabels = interests.map((id) => {
+      const found = INTEREST_OPTIONS.find((i) => i.id === id);
+      return found ? found.label : id;
+    });
+
     try {
+      setBtnState("loading");
       setLoading(true);
+
       const res = await api.post("/trips", {
         destination: shortenAddress(destination) || destination,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         budget: selectedBudget.budget,
         travellers: selectedTraveler.count,
-        interests: [],
+        interests: interestLabels,
       });
-      navigate(`/trips/${res.data._id}`);
-    } catch (err) {
-      setError(err.response?.data?.message || "Could not create trip");
-    } finally {
+
       setLoading(false);
+      setBtnState("success");
+
+      setTimeout(() => {
+        navigate(`/trips/${res.data._id}`);
+      }, 900);
+    } catch (err) {
+      setBtnState("idle");
+      setLoading(false);
+      setError(err.response?.data?.message || "Could not create trip");
     }
   };
 
@@ -253,7 +291,12 @@ const CreateTrip = () => {
           </div>
 
           {/* BUDGET */}
-          <div className="ct-field" style={{ zIndex: 10 }} ref={budgetRef} tabIndex={-1}>
+          <div
+            className="ct-field"
+            style={{ zIndex: 10 }}
+            ref={budgetRef}
+            tabIndex={-1}
+          >
             <label className="ct-label">What is Your Budget?</label>
             <div className="ct-options-grid">
               {BUDGET_OPTIONS.map((b) => (
@@ -276,7 +319,12 @@ const CreateTrip = () => {
           </div>
 
           {/* TRAVELERS */}
-          <div className="ct-field" style={{ zIndex: 10 }} ref={travelersRef} tabIndex={-1}>
+          <div
+            className="ct-field"
+            style={{ zIndex: 10 }}
+            ref={travelersRef}
+            tabIndex={-1}
+          >
             <label className="ct-label">
               Who do you plan on traveling with on your next adventure?
             </label>
@@ -287,10 +335,12 @@ const CreateTrip = () => {
                   type="button"
                   onClick={() => {
                     setTravelerType(t.id);
-                    focusNext(submitRef);
+                    focusNext(interestsRef);
                   }}
                   onKeyDown={(e) => handleTravelerKeyDown(e, t.id)}
-                  className={`ct-option ${travelerType === t.id ? "ct-selected" : ""}`}
+                  className={`ct-option ${
+                    travelerType === t.id ? "ct-selected" : ""
+                  }`}
                 >
                   <div className="ct-option-icon">{t.icon}</div>
                   <div className="ct-option-title">{t.label}</div>
@@ -300,16 +350,41 @@ const CreateTrip = () => {
             </div>
           </div>
 
+          {/* INTERESTS */}
+          <div
+            className="ct-field"
+            style={{ zIndex: 10 }}
+            ref={interestsRef}
+            tabIndex={-1}
+          >
+            <label className="ct-label">What do you want to do there?</label>
+            <p className="ct-hint">Pick as many as you like.</p>
+            <div className="ct-chips">
+              {INTEREST_OPTIONS.map((opt) => {
+                const isOn = interests.includes(opt.id);
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => toggleInterest(opt.id)}
+                    onKeyDown={(e) => handleInterestKeyDown(e, opt.id)}
+                    className={`ct-chip ${isOn ? "ct-chip-active" : ""}`}
+                    aria-pressed={isOn}
+                  >
+                    <span className="ct-chip-emoji">{opt.icon}</span>
+                    <span className="ct-chip-label">{opt.label}</span>
+                    {isOn && <span className="ct-chip-check">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* SUBMIT */}
           <div className="ct-actions" style={{ zIndex: 5 }}>
-            <button
-              ref={submitRef}
-              type="submit"
-              disabled={loading}
-              className="ct-submit"
-            >
-              {loading ? "Generating..." : "Generate Trip"}
-            </button>
+            <SubmitButton type="submit" state={btnState}>
+              Generate Trip
+            </SubmitButton>
           </div>
         </form>
       </div>

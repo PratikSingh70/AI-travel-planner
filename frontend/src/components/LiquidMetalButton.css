@@ -1,0 +1,238 @@
+/* frontend/src/components/LiquidMetalButton.css */
+
+@property --flow {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* ═════════════════════════════════════════════════════
+   LIQUID LIME BUTTON — matches site lime theme
+   ═════════════════════════════════════════════════════ */
+
+.liquid-metal-btn {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 28px 6px 6px;
+  background: rgba(10, 10, 12, 0.95);
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(163, 230, 53, 0.1);
+  transition:
+    transform 0.3s cubic-bezier(0.22, 0.9, 0.3, 1),
+    box-shadow 0.3s ease,
+    background 0.3s ease,
+    opacity 0.3s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+.liquid-metal-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ─── Liquid lime border — main layer ─── */
+.liquid-metal-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2.5px;
+  background: conic-gradient(
+    from var(--flow) at 50% 50%,
+    #bef264 0deg,
+    #a3e635 22deg,
+    #4d7c0f 52deg,
+    #ffffff 78deg,
+    #a3e635 104deg,
+    #365314 138deg,
+    #bef264 168deg,
+    #84cc16 196deg,
+    #1a2e1a 226deg,
+    #bef264 254deg,
+    #e5f0c8 286deg,
+    #65a30d 320deg,
+    #a3e635 360deg
+  );
+  filter: url(#liquidBorder);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+  animation: lm-rotate 6s linear infinite;
+  z-index: 1;
+}
+
+/* ─── Shimmer pass — brighter "wet" lime highlight ─── */
+.liquid-metal-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2.5px;
+  background: conic-gradient(
+    from var(--flow) at 50% 50%,
+    rgba(190, 242, 100, 0) 0deg,
+    rgba(190, 242, 100, 1) 20deg,
+    rgba(190, 242, 100, 0) 46deg,
+    rgba(190, 242, 100, 0) 180deg,
+    rgba(163, 230, 53, 0.9) 220deg,
+    rgba(163, 230, 53, 0) 260deg,
+    rgba(190, 242, 100, 0) 360deg
+  );
+  filter: url(#liquidBorder) blur(0.4px);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: lm-rotate 6s linear infinite reverse;
+  z-index: 2;
+}
+
+@keyframes lm-rotate {
+  to {
+    --flow: 360deg;
+  }
+}
+
+/* ─── Hover — lifts + lime glow ─── */
+.liquid-metal-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+  background: rgba(18, 20, 14, 0.98);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(163, 230, 53, 0.2),
+    0 0 34px rgba(163, 230, 53, 0.35);
+}
+
+.liquid-metal-btn:hover:not(:disabled)::before,
+.liquid-metal-btn:hover:not(:disabled)::after {
+  animation-duration: 3.2s;
+}
+
+/* ─── Active ─── */
+.liquid-metal-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(163, 230, 53, 0.15);
+}
+
+/* ─── Focus ─── */
+.liquid-metal-btn:focus-visible {
+  outline: 2px solid rgba(163, 230, 53, 0.85);
+  outline-offset: 6px;
+}
+
+/* ═════════════════════════════════════════════════════
+   ICON CONTAINER
+   ═════════════════════════════════════════════════════ */
+
+.lmb-icon-container {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: rgba(163, 230, 53, 0.12);
+  border-radius: 50%;
+  transition: background 0.3s ease;
+  box-shadow: inset 0 1px 1px rgba(190, 242, 100, 0.2);
+  flex-shrink: 0;
+}
+
+.liquid-metal-btn:hover:not(:disabled) .lmb-icon-container {
+  background: rgba(163, 230, 53, 0.22);
+}
+
+.lmb-plane {
+  width: 18px;
+  height: 18px;
+  color: #a3e635;
+  transition: transform 0.3s ease;
+}
+
+.liquid-metal-btn:hover:not(:disabled) .lmb-plane {
+  transform: scale(1.12) rotate(-8deg);
+}
+
+.lmb-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(163, 230, 53, 0.25);
+  border-top-color: #a3e635;
+  border-radius: 50%;
+  animation: lmb-spin 0.7s linear infinite;
+}
+
+@keyframes lmb-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ═════════════════════════════════════════════════════
+   LABEL
+   ═════════════════════════════════════════════════════ */
+
+.lmb-text {
+  position: relative;
+  z-index: 3;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding-right: 4px;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.3s ease;
+}
+
+.liquid-metal-btn:hover:not(:disabled) .lmb-text {
+  color: #bef264;
+}
+
+/* ═════════════════════════════════════════════════════
+   REDUCED MOTION
+   ═════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-metal-btn::before,
+  .liquid-metal-btn::after {
+    animation: none;
+  }
+  .lmb-spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   RESPONSIVE
+   ═════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+  .liquid-metal-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 6px 20px 6px 6px;
+  }
+}

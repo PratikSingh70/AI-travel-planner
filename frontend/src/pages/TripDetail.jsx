@@ -5,7 +5,7 @@ import Skeleton from "../components/Skeleton";
 import TripMap from "../components/TripMap";
 import DeleteButton from "../components/DeleteButton";
 import ItineraryPaper from "../components/ItineraryPaper";
-import SkyFlightButton from "../components/SkyFlightButton";
+import LiquidMetalButton from "../components/LiquidMetalButton";
 import { useTripActions } from "../context/TripActionsContext";
 import "./TripDetail.css";
 
@@ -79,9 +79,18 @@ const TripDetail = () => {
       try {
         const res = await api.get(`/trips/${id}`);
         setTrip(res.data);
-        api.get(`/trips/${id}/places`).then((r) => setPlaces(r.data.places || [])).catch(() => {});
-        api.get(`/trips/${id}/weather`).then((w) => setWeather(w.data)).catch(() => {});
-        api.get(`/trips/${id}/image`).then((r) => setCoverImage(r.data.imageUrl)).catch(() => {});
+        api
+          .get(`/trips/${id}/places`)
+          .then((r) => setPlaces(r.data.places || []))
+          .catch(() => {});
+        api
+          .get(`/trips/${id}/weather`)
+          .then((w) => setWeather(w.data))
+          .catch(() => {});
+        api
+          .get(`/trips/${id}/image`)
+          .then((r) => setCoverImage(r.data.imageUrl))
+          .catch(() => {});
       } catch (err) {
         console.error(err);
       } finally {
@@ -137,10 +146,8 @@ const TripDetail = () => {
         hotels: res.data.hotels || [],
         budgetBreakdown: res.data.budgetBreakdown,
       });
-      if (window.__skyTripBtn?.setComplete) window.__skyTripBtn.setComplete();
     } catch (err) {
       setGenError(err.response?.data?.message || "AI generation failed");
-      if (window.__skyTripBtn?.reset) window.__skyTripBtn.reset();
     } finally {
       setGenerating(false);
     }
@@ -233,15 +240,14 @@ const TripDetail = () => {
         {genError && <p className="td-error">{genError}</p>}
 
         <div style={{ marginTop: 32 }}>
-          <SkyFlightButton
-            label={trip.itinerary?.length ? "Regenerate Trip" : "Generate Trip"}
-            loadingLabel="Curating Your Itinerary"
-            doneLabel="🎉 Itinerary Ready!"
-            disabled={generating}
-            loading={generating}
+          <LiquidMetalButton
+            type="button"
             onClick={handleGenerate}
-            autoCompleteAfter={0}
-          />
+            loading={generating}
+            disabled={generating}
+          >
+            {trip.itinerary?.length ? "Regenerate Trip" : "Generate Trip"}
+          </LiquidMetalButton>
         </div>
 
         {trip.hotels?.length > 0 && (
@@ -441,7 +447,10 @@ const TripDetail = () => {
       {shareUrl && (
         <div
           className="td-share-back"
-          onClick={() => { setShareUrl(""); setCopied(false); }}
+          onClick={() => {
+            setShareUrl("");
+            setCopied(false);
+          }}
         >
           <div className="td-share-modal" onClick={(e) => e.stopPropagation()}>
             <div className="td-share-head">
@@ -452,7 +461,10 @@ const TripDetail = () => {
                 </p>
               </div>
               <button
-                onClick={() => { setShareUrl(""); setCopied(false); }}
+                onClick={() => {
+                  setShareUrl("");
+                  setCopied(false);
+                }}
                 className="td-share-close"
                 aria-label="Close"
               >
@@ -471,7 +483,12 @@ const TripDetail = () => {
                 {copied ? "✓ Copied" : "Copy"}
               </button>
             </div>
-            <a href={shareUrl} target="_blank" rel="noreferrer" className="td-share-open">
+            <a
+              href={shareUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="td-share-open"
+            >
               Open in new tab →
             </a>
           </div>
