@@ -273,7 +273,7 @@ export default function ChatWidget() {
                 padding: "10px 14px",
                 background: "#1e1e1e",
                 color: "#fff",
-                border: "1px solid #333",
+                border: "1px solid #333", 
                 borderRadius: "10px",
                 fontSize: "13px",
                 outline: "none",
